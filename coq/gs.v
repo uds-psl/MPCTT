@@ -1,74 +1,154 @@
-(** We use the predefined type of booleans and
-    define boolean negation and boolean conjunction *)
+(** We first give some basic definitions.  We do this in a module
+    so that afrewards we can use the respective definitions 
+    from the standard libraries.  *)
 
-Print bool.
-(** Read "Set" as "Type" *)
+Module Definitions.
+ 
+  Inductive bool : Type :=
+  | true : bool
+  | false : bool.
+ 
+  Inductive nat : Type :=
+  | O : nat
+  | S : nat -> nat.
+
+  Inductive prod (X Y: Type) : Type :=
+  | pair : X -> Y -> prod X Y.
+
+  Arguments pair {X Y}.
+
+  Definition negb (x: bool) : bool :=
+    match x with
+    | true => false
+    | false => true
+    end.
+
+  Definition andb (x y: bool) : bool :=
+    match x with
+    | true => y
+    | false => false
+    end.
+
+  Definition orb (x y: bool) : bool :=
+    match x with
+    | true => true
+    | false => y end.
+  
+  Fixpoint add (x y: nat) : nat :=
+    match x with
+    | O => y
+    | S x' => S (add x' y)
+    end.
+  
+  Fixpoint mul (x y: nat) : nat :=
+    match x with
+    | O => O
+    | S x' => add y (mul x' y)
+    end.
+
+  Fixpoint sub (x y: nat) : nat :=
+    match x, y with
+    | O, _  => O
+    | S x', O => x
+    | S x', S y' => sub x' y'
+    end.
+
+  Definition swap {X Y: Type} (a: prod X Y) : prod Y X := 
+    match a with
+    |  pair x y => pair y x
+    end.
+
+  Definition fst {X Y: Type} (a: prod X Y) : X :=
+    match a with
+    |  pair x _ => x
+    end.
+
+  Definition snd {X Y: Type} (a: prod X Y) : Y :=
+    match a with
+    |  pair _ y => y
+    end.
+
+  Check negb.
+  Compute negb (negb (negb true)).
+  Check orb.
+  Compute orb false true.
+  Check mul.
+  Compute mul (S (S O)) (S (S (S O))).
+  Compute sub (S (S (S O))) (S (S O)).
+  Check swap.
+  Check swap (pair O true).
+  Compute swap (pair O true).
+End Definitions.
+
+Check Definitions.orb.
+Check Definitions.swap.
+
+(** We now switch to the definitions from the library.  
+    They come with convenient notations.        *)
+
+Locate "+".
+Check Nat.add.
+Check Nat.sub.
+Check Nat.mul.
+Print Nat.mul.
+
+Check nat.
 Check bool.
-Check true.
-Check false.
+(** Read "Set" as "Type" *)
+Print nat.
+Print bool.
 
-Definition negb (x: bool) : bool :=
-  match x with true => false | false => true end.
-
-Compute negb (negb (negb true)).
+From Coq Require Import Bool.
 
 Lemma L11 x :
   negb (negb x) = x.
 Proof.
   destruct x.
-  - reflexivity.
-  - reflexivity.
+  - cbn. reflexivity.
+  - cbn. reflexivity.
 Qed.
 
-Definition andb (x y: bool) : bool :=
-  match x with true => y | false => false end.
+Lemma L12 x y :
+  x && y = y && x.
+Proof.
+  destruct x.
+  - cbn. destruct y.
+    + cbn. reflexivity.
+    + cbn. reflexivity.
+  - cbn. destruct y.
+    + cbn. reflexivity.
+    + cbn. reflexivity.
+Qed.
 
-Definition orb (x y: bool) : bool :=
-  match x with true => true | false => y end.
+Lemma L12' x y :
+  x && y = y && x.
+Proof.
+  destruct x, y; reflexivity.
+Qed.
 
-Lemma L12 x y z :
-  andb x (orb y z) = orb (andb x y) (andb x z).
+Lemma L13 x y z :
+  x && (y || z) = x && y || x &&z.
 Proof.
   destruct x.
   - cbn. reflexivity.
   - cbn. reflexivity.
 Qed.
 
-Lemma L13 x y :
-  andb x y = andb y x.
-Proof.
-  destruct x, y; reflexivity.
-Qed.
+(** if-then-else notation *)
 
-(* Syntactic sugar *)
-
-Definition negb' (x: bool) := if x then false else true.
-Check negb'.
-
-Goal negb = negb'.
+Lemma L14 (x: bool) :
+  (if x then false else true) = match x with true => false | false => true end.
 Proof.
   reflexivity.
 Qed.
-
-Definition andb' (x y: bool) := if x then y else false.
-Check andb'.
-
-Goal andb = andb'.
-Proof.
-  reflexivity.
-Qed.
-
-(** We use the predefined type of numbers. *)
 
 Print nat.
 
-Fixpoint add (x y: nat) : nat :=
-  match x with 0 => y | S x' => S (add x' y) end.
+Compute 2 + 7.
+Check S (S O).
 
-Compute add 2 7.
-  
 Lemma add0 x :
-  add x 0 = x.
+  x + 0 = x.
 Proof.
   induction x as [|x IH].
   - reflexivity.
@@ -76,7 +156,7 @@ Proof.
 Qed.
 
 Lemma addS x y:
-  add x (S y) = S (add x y).
+  x + S y = S (x + y).
 Proof.
   induction x as [|x IH].
   - reflexivity.
@@ -84,35 +164,34 @@ Proof.
 Qed.
 
 Lemma add_comm x y:
-  add x y = add y x.
+  x + y = y + x.
 Proof.
   induction x as [|x IH]; cbn.
   - rewrite add0. reflexivity.
   - rewrite IH, addS. reflexivity.
 Qed.
 
-Fixpoint sub (x y: nat) : nat :=
-  match x, y with
-    0, _  => 0
-  | S x', 0 => x
-  | S x', S y' => sub x' y'
-  end.
-
 Lemma add_sub x y :
-  sub (add x y) y = x.
+  (x + y) - y = x.
 Proof.
   induction y as [|y IH].
   - rewrite add0. destruct x; reflexivity.
   - rewrite addS. cbn. exact IH.
 Qed.
 
-(** Ackermann function. *) 
+(** Ackermann function *) 
 
 Fixpoint acker' (f: nat -> nat) (x:nat) : nat :=
-  match x with 0 => f 1 | S x' => f (acker' f x') end.
+  match x with
+  | 0 => f 1
+  | S x' => f (acker' f x')
+  end.
 
 Fixpoint acker (x:nat) : nat -> nat :=
-  match x with 0 => S | S x' => acker' (acker x') end.
+  match x with
+  | 0 => S
+  | S x' => acker' (acker x')
+  end.
 
 Lemma Ackermann x y :
   acker (S x) (S y) = acker x (acker (S x) y).
