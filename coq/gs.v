@@ -201,57 +201,58 @@ Qed.
 
 (** We now use the predefined pairs. *)
 
+Locate "*".
 Print prod.
 
 (** We define a polymorphic swap function with
     implicit arguments. *)
 
-Definition swap (X Y: Type) (a: X * Y) : Y * X := 
+Definition swap {X Y: Type} (a: X * Y) : Y * X := 
   match a with (x,y) => (y,x) end.
 
-Arguments swap [X Y].
-
-Lemma L_swap X Y (p: X*Y) :
-  swap (swap p) = p.
+Lemma swap_swap X Y (a: X * Y) :
+  swap (swap a) = a.
 Proof.
-  destruct p as [x y]. reflexivity.
+  destruct a as [x y]. cbn. reflexivity.
 Qed.
 
-Print fst.
-
-Lemma eta_law X Y (p: X*Y) :
-  (fst p, snd p) = p.
+Lemma eta_law X Y (a: X * Y) :
+  (fst a, snd a) = a.
 Proof.
-  destruct p as [x y]. reflexivity.
+  destruct a as [x y]. cbn. reflexivity.
 Qed.
 
-(* Syntactic sugar and type inference *)
+(** Syntactic sugar and type inference *)
 
-Definition swap' X Y '(x,y) : Y * X := (y,x).
-Check swap'.
+Definition swap' {X Y} '(x,y) : Y * X := (y,x).
+
+Goal @swap' = @swap.
+Proof.
+  reflexivity.
+Qed.
 
 (** We make the objects of the predefined module Nat available
-    without the module prefix, for instance, add rather than Nat.add.
-    This shadows our previous definitions of add and sub.  *) 
+    without the module prefix, for instance, add rather than Nat.add. *) 
 
 Print Nat.
 Import Nat.
 Check add.
-Check iter.
+Check sub.
 
 (** We redefine the polymorphic iteration function. *)
 
-Fixpoint iter (X: Type) (f: X -> X) (n:nat) (x:X) : X :=
-  match n with 0 => x | S n' => f (iter X f n' x) end.
-
-Arguments iter [X].
+Fixpoint iter {X: Type} (f: X -> X) (n:nat) (x:X) : X :=
+  match n with
+  | 0 => x
+  | S n' => f (iter f n' x)
+  end.
 
 Lemma iter_add n x :
   n + x = iter S n x.
 Proof.
   induction n as [|n IH]; cbn.
   - reflexivity.
-  - now rewrite IH. 
+  - f_equal. exact IH.
 Qed.
 
 Lemma iter_mul n x :
@@ -259,7 +260,7 @@ Lemma iter_mul n x :
 Proof.
   induction n as [|n IH]; cbn.
   - reflexivity.
-  - now rewrite IH.
+  - f_equal. exact IH.
 Qed.
 
 Lemma iter_pow n x :
@@ -267,28 +268,31 @@ Lemma iter_pow n x :
 Proof.
   induction n as [|n IH]; cbn.
   - reflexivity.
-  - now rewrite IH.
+  - f_equal. exact IH.
 Qed.
 
 Lemma iter_shift X (f: X -> X) n x :
   iter f (S n) x = iter f n (f x).
 Proof.
-  induction n as [|n IH]; cbn.
-  - reflexivity.
-  - now rewrite <-IH.
+  induction n as [|n IH].
+  - cbn. reflexivity.
+  - cbn. f_equal. exact IH.
 Qed.
 
-Definition step '(n, a) := (S n, S n*a).
+Fixpoint fac (n :nat) : nat :=
+  match n with
+  | 0 => 1
+  | S n' => S n' * fac n'
+  end.
 
-Fixpoint fac (n:nat) : nat :=
-  match n with 0 => 1 | S n' => S n' * fac n' end.
+Definition step '(n, a) := (S n, S n * a).
 
 Lemma iter_fact n :
   (n, fac n) = iter step n (0,1).
 Proof.
   induction n as [|n IH].
-  - reflexivity.
-  - cbn [iter fac]. rewrite <-IH. reflexivity.
+  - cbn. reflexivity.
+  - cbn [iter step fac]. rewrite <-IH. reflexivity.
 Qed.
 
 Compute fac 5.
@@ -300,14 +304,6 @@ Proof.
   induction n as [|n IH]; cbn.
   - reflexivity.
   - rewrite L11. exact IH.
-Qed.
-
-Lemma iter_even' n b :
-  iter negb (S(n*2)) b = negb b.
-Proof.
-  induction n as [|n IH].
-  - reflexivity.
-  - cbn. rewrite L11. exact IH.
 Qed.
 
 (** There is automation available for arithmetic proofs. *)
@@ -326,7 +322,7 @@ Qed.
 
 Goal forall x y z, x * y * z = (x * y) * z.
 Proof.
-  intros. lia.
+  lia.
 Qed.
 
 Goal forall x y z, x*(y + z) = x*y + x*z.
@@ -339,17 +335,6 @@ Proof.
   cbn. lia.
 Qed.
 
-(** We have been using the inductive types of booleans,
-    numbers, and pairs as defined in the library.  
-    Equivalent definitions are given below.  *)
-
-Module TypeDefinitions.
-  Inductive bool : Type := true | false.
-  Inductive nat : Type := O | S (_:nat).
-  Inductive prod (X Y: Type) : Type := pair (_:X) (_:Y).
-End TypeDefinitions.
-
-
 (** Comands used:
     Print, Check, Compute, 
     Definition, Fixpoint, Arguments,
@@ -358,6 +343,6 @@ End TypeDefinitions.
     From Coq Require Import Lia 
  *)
 (** Tactics used:
-    cbn, reflexivity, destruct, induction, rewrite, exact,
+    cbn, reflexivity, destruct, induction, rewrite, exact, f_equal,
     lia
  *)
