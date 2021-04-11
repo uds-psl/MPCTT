@@ -1,4 +1,4 @@
-#Directory of Coq Files
+# Directory of Coq Files
 
 1.  Getting Started
 2.  Basic Computational Type Theory
