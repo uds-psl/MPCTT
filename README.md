@@ -5,4 +5,4 @@ Using the Coq Proof Assistant
 
 The accompanying Coq files are [here](coq).
 
-The text is at https://www.ps.uni-saarland.de/~smolka/drafts/icl2021.pdf
+The text is at https://www.ps.uni-saarland.de/~smolka/drafts/icl2021.pdf.
