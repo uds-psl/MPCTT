@@ -1,35 +1,34 @@
 # Directory of Coq Files
 
-1.  Getting Started
-	[gs.v](gs.v)
-2.  Basic Computational Type Theory
-3.  Propositions as Types
-4.  Conversion Rule, Universe Hierarchy, and Elimination Restriction
-5.  Leibniz Equality
-6.  Universal Inductive Eliminators
-7.  Case Study: Cantor Pairing
-8.  Existential Quantification
-9.  Informative Types
-10.  Decision Types, Discrete Types, and Option Types
-11.  Extensionality
-12.  Excluded Middle and Double Negation
-13.  Provability
-14.  Numbers
-15.  Least Witnesses
-16.  Size Recursion
-17.  Lists
-18.  Case Study: Expression Compiler
-19.  Existential Witness Operators
-20.  Well-Founded Recursion
-21.  Numeral Types as Indexed Inductive Types
-22.  Inductive Derivation Systems
-23.  Inductive Equality
-24.  Case Study: GCDs
-25.  Semi-Decidability and Markov's Principle
-26.  Aczel Trees and Hierarchy Theorems
-27.  Vectors
-28.  Data Types
-29.  Finite Types
-30.  Natural Deduction
-31.  Boolean Satisfiability
-32.  Abstract Reduction Systems
+1.  Getting Started	[gs.v](gs.v)
+2.  Basic Computational Type Theory [bctt.v](bctt.v)
+3.  Propositions as Types [pat.v](pat.v)
+4.  Conversion Rule, Universe Hierarchy, and Elimination Restriction [crer.v](crer.v)
+5.  Leibniz Equality [leibniz.v](leibniz.v)
+6.  Universal Inductive Eliminators [elim.v](elim.v)
+7.  Case Study: Cantor Pairing [pairing.v](pairing.v)
+8.  Existential Quantification [exquant.v](exquant.v)
+9.  Informative Types [infty.v](infty.v)
+10.  Decision Types, Discrete Types, and Option Types [dec.v](dec.v)
+11.  Extensionality [ext.v](ext.v)
+12.  Excluded Middle and Double Negation [xm.v](xm.v)
+13.  Provability [provability.v](provability.v)
+14.  Numbers [nat.v](nat_lia.v)
+15.  Least Witnesses [lw.v](lw.v)
+16.  Size Recursion [sizerec.v](sizerec.v)
+17.  Lists [list.v](list.v)
+18.  Case Study: Expression Compiler [compiler.v](compiler.v)
+19.  Existential Witness Operators [ewo.v](ewo.v)
+20.  Well-Founded Recursion [wfrec.v](wfrec.v)
+21.  Numeral Types as Indexed Inductive Types [numeral.v](numeral.v)
+22.  Inductive Derivation Systems [ids_less.v](ids_less.v) [ids_gcd.v](ids_gcd.v) [regexp.v](regexp.v) [post.v](post.v)
+23.  Inductive Equality [indeq.v](indeq.v)
+24.  Case Study: GCDs  [gcd.v](gcd.v)
+25.  Semi-Decidability and Markov's Principle [sdec.v](sdec.v)
+26.  Aczel Trees and Hierarchy Theorems [aczel.v](aczel.v)
+27.  Vectors [vector.v](vector.v)
+28.  Data Types [dat.v](dat.v)
+29.  Finite Types [fin.v](fin.v)
+30.  Natural Deduction [nd.v](nd.v)
+31.  Boolean Satisfiability [bsat.v](bsat.v)
+32.  Abstract Reduction Systems [ars.v](ars.v)
