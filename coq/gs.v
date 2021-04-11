@@ -15,8 +15,6 @@ Module Definitions.
   Inductive prod (X Y: Type) : Type :=
   | pair : X -> Y -> prod X Y.
 
-  Arguments pair {X Y}.
-
   Definition negb (x: bool) : bool :=
     match x with
     | true => false
@@ -53,6 +51,21 @@ Module Definitions.
     | S x', S y' => sub x' y'
     end.
 
+  Check pair.
+  Check pair nat.
+  Check pair nat bool.
+  Check pair nat bool (S O).
+  Check pair nat bool (S O) false.
+  Check pair _ _ (S O) false.
+  
+  Arguments pair {X Y}.
+  Check pair (S O) false.
+  Check pair.
+  Check @pair.
+  Check @pair nat.
+  Check @pair nat bool.
+  Check @pair nat bool (S O).
+  
   Definition swap {X Y: Type} (a: prod X Y) : prod Y X := 
     match a with
     |  pair x y => pair y x
@@ -335,12 +348,33 @@ Proof.
   cbn. lia.
 Qed.
 
+(** ADVICE: Coq comes with lots of involved natatotional conveniences,
+    including infix notations, type inference, and implicit arguments.
+    This can be confusing.  It is important to understand 
+    what a phrase elaborates to once all notational conveniences are removed. *)
+
+Set Printing All.
+Print swap.
+Print swap'.
+Check 6.
+Check 2+3.
+Unset Printing All.
+Check 2 + 3.
+
+(** There is a command that prints all defined constants *)
+
+Print All.
+
+
 (** Comands used:
     Print, Check, Compute, 
     Definition, Fixpoint, Arguments,
     Lemma, Proof, Qed, Goal,
     Import Nat, 
-    From Coq Require Import Lia 
+    From Coq Require Import Lia
+    Set Printing All.
+    Unset Printing All. 
+    Print All.
  *)
 (** Tactics used:
     cbn, reflexivity, destruct, induction, rewrite, exact, f_equal,
