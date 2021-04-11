@@ -13,7 +13,7 @@
 11.  Extensionality [ext.v](ext.v)
 12.  Excluded Middle and Double Negation [xm.v](xm.v)
 13.  Provability [provability.v](provability.v)
-14.  Numbers [nat.v](nat_lia.v)
+14.  Numbers [nat.v](nat.v) [nat_lia.v](nat_lia.v)
 15.  Least Witnesses [lw.v](lw.v)
 16.  Size Recursion [sizerec.v](sizerec.v)
 17.  Lists [list.v](list.v)
