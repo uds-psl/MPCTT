@@ -1,6 +1,7 @@
 # Directory of Coq Files
 
 1.  Getting Started
+	[gs.v](gs.v)
 2.  Basic Computational Type Theory
 3.  Propositions as Types
 4.  Conversion Rule, Universe Hierarchy, and Elimination Restriction
