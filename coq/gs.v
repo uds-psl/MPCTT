@@ -1,6 +1,5 @@
-(** We first give some basic definitions.  We do this in a module
-    so that afrewards we can use the respective definitions 
-    from the standard libraries.  *)
+(** We first give some basic definitions.  We enclose them in a module
+    so that afterwards we can use the definitions from the standard library.  *)
 
 Module Definitions.
  
@@ -113,7 +112,7 @@ Print bool.
 
 From Coq Require Import Bool.
 
-Lemma L11 x :
+Fact L11 x :
   negb (negb x) = x.
 Proof.
   destruct x.
@@ -121,7 +120,7 @@ Proof.
   - cbn. reflexivity.
 Qed.
 
-Lemma L12 x y :
+Fact L12 x y :
   x && y = y && x.
 Proof.
   destruct x.
@@ -133,13 +132,13 @@ Proof.
     + cbn. reflexivity.
 Qed.
 
-Lemma L12' x y :
+Fact L12' x y :
   x && y = y && x.
 Proof.
   destruct x, y; reflexivity.
 Qed.
 
-Lemma L13 x y z :
+Fact L13 x y z :
   x && (y || z) = x && y || x &&z.
 Proof.
   destruct x.
@@ -149,7 +148,7 @@ Qed.
 
 (** if-then-else notation *)
 
-Lemma L14 (x: bool) :
+Fact L14 (x: bool) :
   (if x then false else true) = match x with true => false | false => true end.
 Proof.
   reflexivity.
@@ -160,7 +159,7 @@ Print nat.
 Compute 2 + 7.
 Check S (S O).
 
-Lemma add0 x :
+Fact add0 x :
   x + 0 = x.
 Proof.
   induction x as [|x IH].
@@ -168,7 +167,7 @@ Proof.
   - cbn. rewrite IH. reflexivity.
 Qed.
 
-Lemma addS x y:
+Fact addS x y:
   x + S y = S (x + y).
 Proof.
   induction x as [|x IH].
@@ -176,7 +175,7 @@ Proof.
   - cbn. rewrite IH. reflexivity.
 Qed.
 
-Lemma add_comm x y:
+Fact add_comm x y:
   x + y = y + x.
 Proof.
   induction x as [|x IH]; cbn.
@@ -184,12 +183,32 @@ Proof.
   - rewrite IH, addS. reflexivity.
 Qed.
 
-Lemma add_sub x y :
+Fact add_sub x y :
   (x + y) - y = x.
 Proof.
   induction y as [|y IH].
   - rewrite add0. destruct x; reflexivity.
   - rewrite addS. cbn. exact IH.
+Qed.
+
+(** Quantified inductive hypothesis *)
+
+Fixpoint D (x y: nat) : nat :=
+  match x, y with
+  | 0, y => y
+  | S x', 0 => S x'
+  | S x', S y' => D x' y'
+  end.
+
+Fact D_eq x :
+  forall y, D x y = (x - y) + (y - x).
+Proof.
+  induction x as [|x IH].
+  - cbn. destruct y; reflexivity.
+  - intros y.
+    destruct y; cbn.
+    + rewrite add0. reflexivity.
+    + exact (IH y).
 Qed.
 
 (** Ackermann function *) 
@@ -206,7 +225,7 @@ Fixpoint acker (x:nat) : nat -> nat :=
   | S x' => acker' (acker x')
   end.
 
-Lemma Ackermann x y :
+Fact Ackermann x y :
   acker (S x) (S y) = acker x (acker (S x) y).
 Proof.
   cbn [acker]. cbn [acker']. reflexivity.
@@ -223,13 +242,13 @@ Print prod.
 Definition swap {X Y: Type} (a: X * Y) : Y * X := 
   match a with (x,y) => (y,x) end.
 
-Lemma swap_swap X Y (a: X * Y) :
+Fact swap_swap X Y (a: X * Y) :
   swap (swap a) = a.
 Proof.
   destruct a as [x y]. cbn. reflexivity.
 Qed.
 
-Lemma eta_law X Y (a: X * Y) :
+Fact eta_law X Y (a: X * Y) :
   (fst a, snd a) = a.
 Proof.
   destruct a as [x y]. cbn. reflexivity.
@@ -260,7 +279,7 @@ Fixpoint iter {X: Type} (f: X -> X) (n:nat) (x:X) : X :=
   | S n' => f (iter f n' x)
   end.
 
-Lemma iter_add n x :
+Fact iter_add n x :
   n + x = iter S n x.
 Proof.
   induction n as [|n IH]; cbn.
@@ -268,7 +287,7 @@ Proof.
   - f_equal. exact IH.
 Qed.
 
-Lemma iter_mul n x :
+Fact iter_mul n x :
   n * x = iter (add x) n 0.
 Proof.
   induction n as [|n IH]; cbn.
@@ -276,7 +295,7 @@ Proof.
   - f_equal. exact IH.
 Qed.
 
-Lemma iter_pow n x :
+Fact iter_pow n x :
   x^n = iter (mul x) n 1.
 Proof.
   induction n as [|n IH]; cbn.
@@ -284,7 +303,7 @@ Proof.
   - f_equal. exact IH.
 Qed.
 
-Lemma iter_shift X (f: X -> X) n x :
+Fact iter_shift X (f: X -> X) n x :
   iter f (S n) x = iter f n (f x).
 Proof.
   induction n as [|n IH].
@@ -300,7 +319,7 @@ Fixpoint fac (n :nat) : nat :=
 
 Definition step '(n, a) := (S n, S n * a).
 
-Lemma iter_fact n :
+Fact iter_fact n :
   (n, fac n) = iter step n (0,1).
 Proof.
   induction n as [|n IH].
@@ -311,7 +330,7 @@ Qed.
 Compute fac 5.
 Compute iter step 5 (0,1).
 
-Lemma iter_even n b :
+Fact iter_even n b :
   iter negb (n*2) b = b.
 Proof.
   induction n as [|n IH]; cbn.
@@ -353,25 +372,26 @@ Qed.
     This can be confusing.  It is important to understand 
     what a phrase elaborates to once all notational conveniences are removed. *)
 
+Print negb.
 Set Printing All.
+Print negb.
 Print swap.
 Print swap'.
 Check 6.
 Check 2+3.
-Unset Printing All.
+             Unset Printing All.
 Check 2 + 3.
 
 (** There is a command that prints all defined constants *)
 
 Print All.
 
-
 (** Comands used:
     Print, Check, Compute, 
     Definition, Fixpoint, Arguments,
-    Lemma, Proof, Qed, Goal,
-    Import Nat, 
-    From Coq Require Import Lia
+    Fact, Proof, Qed, Goal
+    Import Nat.
+    From Coq Require Import Bool.
     Set Printing All.
     Unset Printing All. 
     Print All.
