@@ -212,26 +212,6 @@ Proof.
     + exact (IH y).
 Qed.
 
-(** Ackermann function *) 
-
-Fixpoint acker' (f: nat -> nat) (x:nat) : nat :=
-  match x with
-  | 0 => f 1
-  | S x' => f (acker' f x')
-  end.
-
-Fixpoint acker (x:nat) : nat -> nat :=
-  match x with
-  | 0 => S
-  | S x' => acker' (acker x')
-  end.
-
-Fact Ackermann x y :
-  acker (S x) (S y) = acker x (acker (S x) y).
-Proof.
-  cbn [acker]. cbn [acker']. reflexivity.
-Qed.
-
 (** We now use the predefined pairs. *)
 
 Locate "*".
@@ -345,6 +325,27 @@ Qed.
 Compute fac 5.
 Compute iter step 5 (0,1).
 
+
+(** Ackermann function *) 
+
+Fixpoint acker' (f: nat -> nat) (x:nat) : nat :=
+  match x with
+  | 0 => f 1
+  | S x' => f (acker' f x')
+  end.
+
+Fixpoint acker (x:nat) : nat -> nat :=
+  match x with
+  | 0 => S
+  | S x' => acker' (acker x')
+  end.
+
+Fact Ackermann x y :
+  acker (S x) (S y) = acker x (acker (S x) y).
+Proof.
+  cbn [acker]. cbn [acker']. reflexivity.
+Qed.
+
 Module Ackermann_iter.
   Definition B f y := iter f y (f 1).
   Definition A x := iter B x S.
@@ -364,7 +365,31 @@ Module Ackermann_iter.
   Proof.
     reflexivity.
   Qed.
-End Ackermann_iter. 
+End Ackermann_iter.
+
+(** Truncating subtraction with single discriminating argument *)
+
+Definition sub'' (f: nat -> nat) (x:nat) (y: nat) :=
+  match y with
+  | 0 => x
+  | S y' => f y'
+  end.
+
+Fixpoint sub' (x y: nat) : nat :=
+  match x with
+  | 0 => 0
+  | S x' => sub'' (sub' x') x y
+  end.
+
+Fact sub_sub' x :
+  forall y, sub' x y = x - y.
+Proof.
+  induction x as [|x IH].
+  - destruct y; reflexivity.
+  - destruct y; cbn.
+    + reflexivity.
+    + exact (IH y).
+Qed.
 
 (** There is automation available for arithmetic proofs. *)
 
