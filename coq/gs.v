@@ -102,6 +102,7 @@ Locate "+".
 Check Nat.add.
 Check Nat.sub.
 Check Nat.mul.
+Print Nat.add.
 Print Nat.mul.
 
 Check nat.
@@ -271,7 +272,7 @@ Import Nat.
 Check add.
 Check sub.
 
-(** We redefine the polymorphic iteration function. *)
+(** Polymorphic iteration *)
 
 Fixpoint iter {X: Type} (f: X -> X) (n:nat) (x:X) : X :=
   match n with
@@ -287,6 +288,20 @@ Proof.
   - f_equal. exact IH.
 Qed.
 
+Definition add_iter (x y: nat) : nat := iter S x y.
+
+Fact add_iter_eq1 y :
+  add_iter 0 y = y.
+Proof.
+  reflexivity.
+Qed.
+  
+Fact add_iter_eq2 x y :
+  add_iter (S x) y = S (add_iter x y).
+Proof.
+  reflexivity.
+Qed.
+  
 Fact iter_mul n x :
   n * x = iter (add x) n 0.
 Proof.
@@ -330,13 +345,26 @@ Qed.
 Compute fac 5.
 Compute iter step 5 (0,1).
 
-Fact iter_even n b :
-  iter negb (n*2) b = b.
-Proof.
-  induction n as [|n IH]; cbn.
-  - reflexivity.
-  - rewrite L11. exact IH.
-Qed.
+Module Ackermann_iter.
+  Definition B f y := iter f y (f 1).
+  Definition A x := iter B x S.
+
+  Fact eq1 y :
+    A 0 y = S y.
+  Proof.
+    reflexivity.
+  Qed.
+  Fact eq2 x :
+    A (S x) 0 = A x 1.
+  Proof.
+    reflexivity.
+  Qed.
+  Fact eq3 x y :
+    A (S x) (S y) = A x (A (S x) y).
+  Proof.
+    reflexivity.
+  Qed.
+End Ackermann_iter. 
 
 (** There is automation available for arithmetic proofs. *)
 
@@ -367,8 +395,8 @@ Proof.
   cbn. lia.
 Qed.
 
-(** ADVICE: Coq comes with lots of involved natatotional conveniences,
-    including infix notations, type inference, and implicit arguments.
+(** ADVICE: Coq comes with lots of involved notational conveniences,
+    including infix operators, type inference, and implicit arguments.
     This can be confusing.  It is important to understand 
     what a phrase elaborates to once all notational conveniences are removed. *)
 
