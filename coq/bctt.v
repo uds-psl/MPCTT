@@ -1,32 +1,41 @@
+
+(** Beta and zeta reduction *)
+
+Eval cbv beta in (fun x => x + x) (2 * 3).
+Eval cbv zeta in let x := 2 * 5 in x + x.
+
+(** Delta reduction *)
+
 Definition T : nat -> nat :=
   fun x => S (S x).
 
-Lemma demo :
+Goal
   T 1 = 3.
 Proof.
   cbv delta [T].
   cbv beta.
-  reflexivity.
 Abort.
 
-(** We abort the proof so we can reuse the name [demo]. **)
+(** Match reduction *)
 
 Definition P : nat -> nat :=
   fun x => match x with 0 => 0 | S x' => x' end.
 
-Lemma demo :
+Goal
   P 2 = 1.
 Proof.
   cbv delta [P].
   cbv beta.
-  cbv match. cbv beta.
-  reflexivity.
+  cbv match.
+  cbv beta.
 Abort.
+
+(** Fix reduction *)
 
 Definition D: nat -> nat :=
   fix f x := match x with 0 => 0 | S x' => S (S (f x')) end.
 
-Lemma demo :
+Goal
   D 1 = 2.
 Proof.
   cbv delta [D].
@@ -37,10 +46,9 @@ Proof.
   cbv fix. fold D.
   cbv beta.
   cbv match.
-  reflexivity.
 Abort.
 
-Lemma demo :
+Goal
   D 1 = 2.
 Proof.
   cbv delta [D].
@@ -48,25 +56,22 @@ Proof.
   cbv match. cbv beta.
   cbv fix. cbv beta.
   cbv match.
-  reflexivity.
 Abort.
 
-Lemma demo n :
+Example demo n :
   D (S n) = S (S (D n)).
 Proof.
   set (a:= S (S (D n))).
   cbv delta [D]. cbv fix. fold D. cbv beta.
   cbv match. cbv beta.
   subst a.
-  reflexivity.
 Abort.
 
 Locate "+".
 Import Nat. (* Write add for Nat.add *)
 Print add.
 
-
-Lemma demo x :
+Example demo x :
   2 + x = S (S x).
 Proof.
   cbv delta [add]. cbv fix. fold add. cbv beta.
@@ -75,10 +80,9 @@ Proof.
   cbv match. cbv beta.
   cbv delta [add]. cbv fix. fold add. cbv beta.
   cbv match.
-  reflexivity.
 Abort.
  
-Lemma demo x y :
+Example demo x y :
   S (S x) + y = S (S (x + y)).
 Proof.
   set (a:= x+y).
@@ -86,7 +90,7 @@ Proof.
   cbv match. cbv beta.
   cbv delta [add]. cbv fix. fold add. cbv beta.
   cbv match. cbv beta.
-  reflexivity.
+  subst a.
 Abort.
 
 (** We compute normal forms of terms describing functions *)
@@ -98,7 +102,7 @@ Compute fun x => 3 + x - 2.
 
 (** Alpha conversion *)
 
-Lemma demo :
+Goal
   (fun n: nat => n) = (fun x => x).
 Proof.
   reflexivity.
@@ -106,24 +110,26 @@ Abort.
 
 (** Eta conversion *)
 
-Lemma demo :
+Goal
   add 1 = S.
 Proof.
-  cbv. reflexivity.
+  cbv.
+  change (S = S).
 Abort.
 
-Lemma demo :
+Goal
   (fun x => 3 + x - 2) = S.
 Proof.
-  cbv. reflexivity.
+  cbv.
+  change (S = S).
 Abort.
 
 (* We use the predefined iter, which has arguments swapped *)
 
 Check iter.
-Compute iter.
-Compute iter 2 S.
-Compute add 2 = iter 2 S.
+Eval cbv in iter.
+Eval cbv in iter 2 S.
+Eval cbv in add 2 = iter 2 S.
 
 Inductive Pair X Y : Type :=
   pair: X -> Y -> Pair X Y.
@@ -131,9 +137,11 @@ Check Pair.
 Check pair.
 
 Definition swap :=
-  fun X Y p => match p with pair _ _ x y => pair Y X y x end.
+  fun X Y a => match a with pair _ _ x y => pair Y X y x end.
 
-Lemma demo X Y x y :
+Print swap.
+
+Example demo X Y x y :
   swap X Y (pair X Y x y) = pair Y X y x.
 Proof.
   cbv delta. cbv beta. cbv match. cbv beta.
@@ -145,18 +153,10 @@ Set Printing All.
 
 Check fun b: bool => if b then false else true.
 
-(** We define our own product types to demonstrate
-    the let notation.  *)     
-
-Inductive prod (X Y: Type) : Type :=
-| pair : X -> Y -> prod X Y.
-
-Check fun a: prod nat nat => let (x,y) := a in pair nat nat y x.
+Check fun a: Pair nat nat => let (x,y) := a in pair nat nat y x.
 
 (** Matches are equipped with return types,
-    simple function types are printed as dependent function types,
-    a generalization of both polymorphic function types and simple function types
-    that will be explained later. *)
+    simple function types are printed as dependent function types *)
 
 Unset Printing All.
 
@@ -164,10 +164,8 @@ Check fun b: bool => if b then false else true.
 Check fun a: prod nat nat => let (x,y) := a in pair nat nat y x.
 
 (** Commands used:
-    Abort, Inductive,
-    Definition, Lemma, Proof, Compute, Check
-    Set Printing All   
+    Abort, Example, Eval 
  *)
 (** Tactics used:
-    cbv, fold, set, subst, reflexivity
+    cbv, fold, set, subst
  *)

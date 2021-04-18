@@ -347,7 +347,7 @@ Proof.
 Qed.
 
 Module Ackermann_iter.
-  Definition B f y := iter f y (f 1).
+  Definition B f y := iter f (S y) 1.
   Definition A x := iter B x S.
 
   Fact eq1 y :
@@ -380,6 +380,24 @@ Fixpoint sub' (x y: nat) : nat :=
   | 0 => 0
   | S x' => sub'' (sub' x') x y
   end.
+
+Fact sub'_eq1 y :
+  sub' 0 y = 0.
+Proof.
+  reflexivity.
+Qed.
+
+Fact sub'_eq2 x :
+  sub' (S x) 0 = S x.
+Proof.
+  reflexivity.
+Qed.
+
+Fact sub'_eq3 x y :
+  sub' (S x) (S y) = sub' x y.
+Proof.
+  reflexivity.
+Qed.
 
 Fact sub_sub' x :
   forall y, sub' x y = x - y.
