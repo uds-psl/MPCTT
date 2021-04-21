@@ -1,9 +1,26 @@
-
 (** Beta and zeta reduction *)
 
-Eval cbv beta in (fun x => x + x) (2 * 3).
-Eval cbv zeta in let x := 2 * 5 in x + x.
+Eval cbv beta in
+(fun x => x + x) (2 * 3).
 
+Eval cbv zeta in
+let x := 2 * 5 in x + x.
+
+(** Match reduction *)
+
+Eval cbv match in
+fun x:nat => match 0 with 0 => x | S y => x + y end.
+            
+Eval cbv match in
+fun x:nat => match S (2 * x) with 0 => x | S y => x + y end.
+
+Eval cbv match beta in
+fun x:nat => match S (2 * x) with 0 => x | S y => x + y end.
+            
+Eval cbv match in
+fun x:nat => match x with 0 => x | S y => x + y end.
+   
+ 
 (** Delta reduction *)
 
 Definition T : nat -> nat :=
@@ -15,9 +32,7 @@ Proof.
   cbv delta [T].
   cbv beta.
 Abort.
-
-(** Match reduction *)
-
+                             
 Definition P : nat -> nat :=
   fun x => match x with 0 => 0 | S x' => x' end.
 
