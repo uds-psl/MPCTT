@@ -99,7 +99,7 @@ Section Demo.
   Goal ~(X <-> ~X).
   Proof.
     refine (fun a => match a with conj f g => _ end).
-    refine (let x := _ in f x x).
+    refine (let x:X := _ in f x x).
     refine (g (fun x => _)).
     exact (f x x).
     Show Proof.

@@ -178,9 +178,35 @@ Unset Printing All.
 Check fun b: bool => if b then false else true.
 Check fun a: prod nat nat => let (x,y) := a in pair nat nat y x.
 
+Section Currying.
+  Variables X Y Z : Type.
+  Definition C : (X * Y -> Z) -> X -> Y -> Z
+    := fun f x y => f (x,y).
+  Definition U : (X -> Y -> Z) -> X * Y -> Z
+    := fun f '(x,y) => f x y.
+  Goal forall f x y, U (C f) (x,y) = f (x,y).
+  Proof.  
+    reflexivity.
+  Qed.
+  Goal forall f x y, C (U f) x y = f x y.
+  Proof.
+    reflexivity.
+  Qed.
+  Goal forall f, C (U f) = f.
+  Proof.
+    cbv. reflexivity.
+  Qed.
+  Goal forall f, U (C f) = f.
+  Proof.
+    intros f.
+    cbv.
+  Abort.
+End Currying.
+
 (** Commands used:
     Abort, Example, Eval 
  *)
 (** Tactics used:
-    cbv, fold, set, subst
+    cbv, fold, set, subst, change
  *)
+

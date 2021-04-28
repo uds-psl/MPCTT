@@ -7,9 +7,18 @@ Fact Leibniz_symmetry X (x y: X) :
   (forall p: X -> Prop, p x -> p y) -> (forall p: X -> Prop, p y -> p x).
 Proof.
   intros f p.
-  (* change ((fun z => p z -> p x) y). *)
+  refine (f _ (fun a => a)).
+  Show Proof.
+Abort.
+
+Fact Leibniz_symmetry X (x y: X) :
+  (forall p: X -> Prop, p x -> p y) -> (forall p: X -> Prop, p y -> p x).
+Proof.
+  intros f p.
+  change ((fun z => p z -> p x) y).
   apply f.
-  exact (fun a => a).
+  intros a. exact a.
+  Show Proof.
 Qed.
 
 Locate "/\".

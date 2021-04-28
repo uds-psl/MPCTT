@@ -212,6 +212,24 @@ Proof.
     + exact (IH y).
 Qed.
 
+(** Fibonacci function *)
+
+Fixpoint fib' n b :=
+  match n, b with
+  | 0, false => 0
+  | 0, true => 1
+  | S n, false => fib' n true
+  | S n, true => fib' n false + fib' n true
+  end.
+
+Definition fib n := fib' n false.
+
+Fact fib_eq3 n :
+   fib (S (S n)) = fib n + fib (S n).
+Proof.
+  reflexivity.
+Qed.
+
 (** We now use the predefined pairs. *)
 
 Locate "*".
@@ -306,24 +324,55 @@ Proof.
   - cbn. f_equal. exact IH.
 Qed.
 
-Fixpoint fac (n :nat) : nat :=
-  match n with
-  | 0 => 1
-  | S n' => S n' * fac n'
-  end.
+Module Iter_Factorial.
+  Fixpoint fac (n :nat) : nat :=
+    match n with
+    | 0 => 1
+    | S n' => S n' * fac n'
+    end.
 
-Definition step '(n, a) := (S n, S n * a).
+  Definition sigma '(n, a) := (S n, S n * a).
 
-Fact iter_fact n :
-  (n, fac n) = iter step n (0,1).
-Proof.
-  induction n as [|n IH].
-  - cbn. reflexivity.
-  - cbn [iter step fac]. rewrite <-IH. reflexivity.
-Qed.
+  Fact iter_fact n :
+    (n, fac n) = iter sigma n (0,1).
+  Proof.
+    induction n as [|n IH].
+    - cbn. reflexivity.
+    - cbn [iter sigma fac]. rewrite <-IH. reflexivity.
+  Qed.
 
-Compute fac 5.
-Compute iter step 5 (0,1).
+  Compute fac 5.
+  Compute iter sigma 5 (0,1).
+End Iter_Factorial.
+
+Module Fib_Iter.
+  Definition sigma '(a,b) := (b, a + b).
+  Definition fib n := fst (iter sigma n (0, 1)).
+  Fact fib_eq0 :
+    fib 0 = 0.
+  Proof.
+    reflexivity.
+  Qed.
+  Fact fib_eq1 :
+    fib 1 = 1.
+  Proof.
+    reflexivity.
+  Qed.
+
+  Lemma L n :
+    forall c, fst (iter sigma (S (S n)) c) = fst (iter sigma n c) + fst (iter sigma (S n) c).
+  Proof.
+    induction n as [|n IH]; intros [a b].
+    - cbn. reflexivity.
+    - rewrite iter_shift, IH.  rewrite !iter_shift. reflexivity.
+  Qed.
+  
+  Fact fib_eq3 n :
+    fib (S (S n)) = fib n + fib (S n).
+  Proof.
+    apply L.
+  Qed.
+End Fib_Iter.
 
 
 (** Ackermann function *) 
@@ -340,13 +389,13 @@ Fixpoint acker (x:nat) : nat -> nat :=
   | S x' => acker' (acker x')
   end.
 
-Fact Ackermann x y :
+Fact acker_eq3 x y :
   acker (S x) (S y) = acker x (acker (S x) y).
 Proof.
   cbn [acker]. cbn [acker']. reflexivity.
 Qed.
 
-Module Ackermann_iter.
+Module Ack_Iter.
   Definition B f y := iter f (S y) 1.
   Definition A x := iter B x S.
 
@@ -365,7 +414,7 @@ Module Ackermann_iter.
   Proof.
     reflexivity.
   Qed.
-End Ackermann_iter.
+End Ack_Iter.
 
 (** Truncating subtraction with single discriminating argument *)
 
@@ -456,6 +505,56 @@ Check 2 + 3.
 (** There is a command that prints all defined constants *)
 
 Print All.
+
+Module Procedural_Specifications.
+  Definition Fib f n :=
+    match n with
+    | 0 => 0
+    | 1 => 1
+    | S (S n) => f n + f (S n)
+    end.
+
+  Fact fib_bool_correct n :
+    fib n = Fib fib n.
+  Proof.
+    destruct n. reflexivity.
+    destruct n; reflexivity.
+  Qed.
+
+  Definition fib_iter := Fib_Iter.fib.
+  Definition fib_iter_eq3 := Fib_Iter.fib_eq3.
+
+  Fact fib_iter_correct n :
+    fib_iter n = Fib fib_iter n.
+  Proof.
+    destruct n. reflexivity.
+    destruct n. reflexivity.
+    cbn [Fib]. apply fib_iter_eq3.
+  Qed.
+
+  Definition Acker f x y :=
+    match x, y with
+    | 0, y => S y
+    | S x, 0 => f x 1
+    | S x, S y => f x (f (S x) y)
+    end.
+
+  Fact ack_higher_correct x y :
+    acker x y = Acker acker x y.
+  Proof.
+    destruct x. reflexivity.
+    destruct y; cbn [Acker]; reflexivity.
+  Qed.
+
+  Definition ack_iter := Ack_Iter.A.
+
+  Fact ack_iter_correct x y :
+    ack_iter x y = Acker ack_iter x y.
+  Proof.
+    destruct x. reflexivity.
+    destruct y; cbn [Acker]; reflexivity.
+  Qed.
+End Procedural_Specifications.
 
 (** Comands used:
     Print, Check, Compute, 
