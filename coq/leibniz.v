@@ -3,12 +3,12 @@ Section Equality.
   Variable Q : forall X x, eq X x x.
   Variable R : forall X x y (p: X -> Prop), eq X x y -> p x -> p y.
 
-  Arguments eq [X].
-  Arguments Q [X].
-  Arguments R [X x y].
+  Arguments eq {X}.
+  Arguments Q {X}.
+  Arguments R {X x y}.
   Notation "s = t" := (eq s t) : type_scope.
   Notation "s <> t" := (~ s = t) : type_scope.
-
+    
 Goal True <> False.
 Proof.
   intros H.
