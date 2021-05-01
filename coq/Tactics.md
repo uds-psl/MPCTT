@@ -1,33 +1,27 @@
-#Tactics used
+# Tactics used
 
-##Basic
-
+## Basic
 refine, exact, apply, eapply
-
-##Basic automation
-
+## Basic automation
 assumption, eassumption, trivial, easy, subst, auto, eauto
 
-##More Automation
-
+## More Automation
 tauto, congruence, lia, nia, intuition, firstorder
 
-##Conversion
-
+## Conversion
 cbn, cbv, hnf, unfold, fold, change, pattern
 
-##Equality
-
+## Equality
 reflexivity, rewrite, f_equal, replace, symmetry, transitivity
 
-##Inductive types
+## Inductive types
 
 constructor, destruct, induction, discriminate
 
-##Logic
+## Logic
 
 split, left, right, exfalso, contradict, exists
 
-##Goal management
+## Goal management
 
 intros, revert, clear, assert, enough, set, pose, specialize, generalize
