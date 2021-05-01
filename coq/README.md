@@ -36,7 +36,7 @@
 
 * [List of tactics used](Tactics.md)
 
-#Tactics used
+# Tactics used
 
 ##Basic
 
