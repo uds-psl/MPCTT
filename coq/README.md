@@ -32,3 +32,6 @@
 30.  Natural Deduction [nd.v](nd.v)
 31.  Boolean Satisfiability [bsat.v](bsat.v)
 32.  Abstract Reduction Systems [ars.v](ars.v)
+
+
+* [List of tactics used](Tactics.md)
