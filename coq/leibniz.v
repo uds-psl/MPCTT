@@ -52,44 +52,52 @@ Proof.
   Show Proof.
 Qed.
 
-Definition pred (x: nat) : nat :=
-  match x with 0 => 0 | S x' => x' end.
-
-Goal forall x y, S x = S y -> x = y.
+Fact eq_sym X (x y: X) :
+  x = y -> y = x.
 Proof.
-  intros x y H.
-  change ((fun z => x = pred z) (S y)).
-  apply (R _ H).
-  exact (Q x).
-  Show Proof.
-Qed.
-
-Goal forall X (x y: X), x = y -> y = x.
-Proof.
-  intros X x y H.
+  intros H.
   change ((fun z => z = x) y).
   apply (R _ H).
   exact (Q x).
   Show Proof.
 Qed.
 
-Goal forall X (x y z: X), x = y -> y = z -> x = z.
+Fact eq_trans X (x y z: X) :
+  x = y -> y = z -> x = z.
 Proof.
-  intros X x y z H.
+  intros H.
   change ((fun a => a = z -> x = z) y).
   apply (R _ H).
   exact (fun h => h).
   Show Proof.
 Qed.
 
-Goal forall X Y (f: X -> Y) (x x': X),
+Fact f_eq {X Y} (f: X -> Y) {x x'} :
     x = x' -> f x = f x'.
 Proof.
-  intros X Y f x x' H.
+  intros H.
   change ((fun z => f x = f z) x').
   apply (R _ H).
   exact (Q (f x)).
   Show Proof.     
+Qed.
+
+Definition pred (x: nat) : nat :=
+  match x with 0 => 0 | S x' => x' end.
+
+Goal forall x y, S x = S y -> x = y.
+Proof.
+  intros x y H.
+  exact (f_eq pred H).
+Qed.
+
+Goal true <> false.
+Proof.
+  intros H.
+  enough (True = False) as H1.
+  - exact (R (fun a => a) H1 I).
+  - exact (f_eq (fun x:bool => if x then True else False) H).
+  Show Proof.
 Qed.
 
 Goal forall X x y, x = y <-> forall p: X -> Prop, p x -> p y.
@@ -114,6 +122,11 @@ Proof.
   discriminate.
 Qed.
 
+Goal forall x, S x <> 0.
+Proof.
+  discriminate.
+Qed.
+
 Goal forall x y, S x = S y -> x = y.
 Proof.
   congruence.
@@ -124,10 +137,12 @@ Proof.
   intros x y [= H]. exact H. 
 Qed.
 
-Goal forall x, S x <> 0.
+Goal forall x y, S x = S y -> x = y.
 Proof.
-  discriminate.
+  intros x y [= <-]. reflexivity. 
 Qed.
+
+
 
 (** Leibniz definition of equality *)
 
@@ -139,22 +154,16 @@ End EQ.
 
 Module EqLeibniz : EQ.
   Definition eq X x y := forall p: X -> Prop, p x -> p y.
-  Definition Q X x : eq X x x := fun p h => h.
+  Definition Q X x : eq X x x := fun p a => a.
   Definition R X x y p (f: eq X x y) := f p.
 End EqLeibniz.
 
+Fail Print R.
 Print EqLeibniz.R.
 
-(** Could import EqLeibniz with [Import EqLeibniz.].  **)
+Import EqLeibniz.
+Print R.
 
-(** Definition of equality with predefined inductive equality *)
-
-Module EqInductive : EQ.
-  Definition eq := @eq.
-  Definition Q := @eq_refl.
-  Definition R X x y (p: X -> Prop) (h: eq X x y) : p x -> p y
-    := match h with eq_refl => fun h => h end.
-End EqInductive.
 
 (** Commands used:
     Notation, Module,

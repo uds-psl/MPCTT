@@ -346,7 +346,7 @@ Module Iter_Factorial.
 End Iter_Factorial.
 
 Module Fib_Iter.
-  Definition sigma '(a,b) := (b, a + b).
+  Definition sigma c := (snd c, fst c + snd c).
   Definition fib n := fst (iter sigma n (0, 1)).
   Fact fib_eq0 :
     fib 0 = 0.
@@ -358,22 +358,12 @@ Module Fib_Iter.
   Proof.
     reflexivity.
   Qed.
-
-  Lemma L n :
-    forall c, fst (iter sigma (S (S n)) c) = fst (iter sigma n c) + fst (iter sigma (S n) c).
-  Proof.
-    induction n as [|n IH]; intros [a b].
-    - cbn. reflexivity.
-    - rewrite iter_shift, IH.  rewrite !iter_shift. reflexivity.
-  Qed.
-  
   Fact fib_eq3 n :
     fib (S (S n)) = fib n + fib (S n).
   Proof.
-    apply L.
+    reflexivity.
   Qed.
 End Fib_Iter.
-
 
 (** Ackermann function *) 
 

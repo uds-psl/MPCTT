@@ -133,7 +133,7 @@ Defined.
 Goal num 0 -> False.
 Proof.
   intros a.
-  contradiction (num_inv a).
+  contradict (num_inv a).
 Qed.
 
 Goal forall a: num 1,  a = Zero 0.
@@ -141,7 +141,7 @@ Proof.
   intros a.
   destruct (num_inv a) as [->|[a' ->]].
   - refl.
-  - contradiction (num_inv a').
+  - contradict (num_inv a').
 Qed.
 
 (** Smart matches are compiled to plain matches
@@ -265,7 +265,7 @@ Proof.
     destruct (num_inv a) as [->|[a' ->]];
     cbn.
   - refl.
-  - exfalso. contradiction (num_inv a').
+  - exfalso. contradict (num_inv a').
   - refl.
   - f_equal. apply IH.
 Qed.
@@ -274,7 +274,7 @@ Fact N_injective n (a b: num n) :
   N a = N b -> a = b.
 Proof.
   destruct n as [|n].
-  - contradiction (num_inv a).
+  - contradict (num_inv a).
   - intros H % (f_equal (fun k => B k n)).
     revert H. rewrite !BN_eq. easy.
 Qed.
@@ -383,7 +383,7 @@ Fact BN_eq n (c: fin (S n)) :
 Proof.
   induction n as [|n IH].
   - destruct c as [c|]; cbn.
-    + contradiction c.
+    + contradict c.
     + refl.
   - destruct c as [c|].
     + cbn . f_equal. apply IH.
