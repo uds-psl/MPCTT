@@ -12,7 +12,7 @@ split, left, right, exfalso, contradict, exists
 ## Goal management
 revert, clear, assert, enough, pose, specialize, generalize, set
 ## Basic automation
-assumption, trivial, easy, subst, auto
+assumption, trivial, easy, now, subst, auto
 ## More Automation
 lia, nia, tauto, congruence, intuition, firstorder
 ## Existential Variables

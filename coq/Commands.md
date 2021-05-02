@@ -2,8 +2,8 @@
 ## Definitions
 Definition, Fixpoint  
 Fact, Lemma, Theorem, Corollary, Example, Goal  
-Proof, Qed, Defined, Admitted, Abort, Restart, Show Proof, 
-## Implicit arguments and types
+Proof, Qed, Defined, Admitted, Abort, Restart, Show Proof
+## Implicit arguments andimplicit types
 Arguments, Implicit Types
 ## Sections
 Section, Variable, End

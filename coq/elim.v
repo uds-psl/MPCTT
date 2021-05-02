@@ -2,7 +2,7 @@
 
 Definition elim_bool
   : forall p: bool -> Type, p true -> p false -> forall x, p x
-  := fun p a b x => match x with true => a | false => b end.
+  := fun p e1 e2 x => match x with true => e1 | false => e2 end.
 
 (* Note: Coq derives the return type function of the match automatically *)
 
@@ -36,17 +36,25 @@ Proof.
   intros [|] [|] [|]; congruence.
 Qed.
 
+Goal forall (f: bool -> bool) x, f (f (f x)) = f x.
+Proof.
+  destruct x;
+    destruct (f true) eqn:H1;
+    destruct (f false) eqn:H2;
+    congruence.
+Qed.
+
 (*** Nat *)
 
 Definition match_nat
   : forall p: nat -> Type, p 0 -> (forall n, p (S n)) -> forall n, p n
-  := fun p h f n =>
-       match n with 0 => h | S n' => f n' end.
+  := fun p e1 e2 n =>
+       match n with 0 => e1 | S n' => e2 n' end.
 
 Definition elim_nat
   : forall p: nat -> Type, p 0 -> (forall n, p n -> p (S n)) -> forall n, p n
-  := fun p h f => fix F n :=
-       match n with 0 => h | S n' => f n' (F n') end.
+  := fun p e1 e2 => fix F n :=
+       match n with 0 => e1 | S n' => e2 n' (F n') end.
 
 Goal forall x, x + 0 = x.
 Proof.
@@ -59,11 +67,12 @@ Goal forall x y: nat, x = y \/ x <> y.
 Proof.
   refine (elim_nat _ _ _).
   - refine (match_nat _ _ _).
-    all: auto.
+    all: auto.  (* auto includes discriminate *)
   - intros x IH.
     refine (match_nat _ _ _).
     + auto.
-    + intros y. specialize (IH y). intuition.
+    + intros y. specialize (IH y).
+      destruct IH; auto.  (* auto includes injectivity *)
 Qed.
 
 Fixpoint  plus (x: nat) : nat -> nat :=
@@ -87,20 +96,14 @@ Qed.
 
 (*** [nat <> bool] *)
 
-Lemma diseq X (x y: X) :
- (exists p, ~ p x /\ p y) -> x <> y.
-Proof.
-  intros (p&H1&H2) <-. auto.
-Qed.
-
 Goal nat <> bool.
 Proof.
-  apply diseq.
-  exists  (fun X => forall x y z : X, x = y \/ x = z \/ y = z).
-  split.
-  - intros H.
-    specialize (H 0 1 2) as [H|[H|H]]; discriminate.
-  - intros [|] [|] [|]; auto.
+  pose  (p X := forall x y z : X, x = y \/ x = z \/ y = z).
+  enough (p bool /\ ~ p nat) as [H1 H2].
+  - intros H. apply H2. rewrite H. exact H1.
+  - split; unfold p. 
+    + intros [|] [|] [|]; auto.
+    + intros H. specialize (H 0 1 2) as [H|[H|H]]; discriminate.
 Qed.
 
 (*** Exercises *)
