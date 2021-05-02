@@ -35,4 +35,5 @@
 
 
 * [List of tactics used](Tactics.md)
+* [List of commands used](Commands.md)
 
