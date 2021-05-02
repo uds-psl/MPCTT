@@ -263,14 +263,3 @@ Proof.
     exact (f (X \/ Y) (@or_introl X Y) (@or_intror X Y)).
   Show Proof.
 Qed.
-
-(** New Commands used:
-    About, Show Proof,
-    Section, Variables, End
- *)
-(** Tactics used:
-    refine, 
-    intros, apply, exact, exfalso, assert, 
-    split, left, right,
-    auto, tauto   
- *)

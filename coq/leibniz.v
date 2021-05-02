@@ -163,15 +163,3 @@ Print EqLeibniz.R.
 
 Import EqLeibniz.
 Print R.
-
-
-(** Commands used:
-    Notation, Module,
-    Section, Variable, End, Arguments,
-    Goal, Proof, Show Proof, Qed
- *)
-(** Tactics used:
-    change, 
-    intros, apply, exact, split,
-    discriminate, congruence   
- *)

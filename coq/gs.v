@@ -545,18 +545,3 @@ Module Procedural_Specifications.
     destruct y; cbn [Acker]; reflexivity.
   Qed.
 End Procedural_Specifications.
-
-(** Commands used:
-    Print, Check, Compute, 
-    Definition, Fixpoint, Arguments,
-    Fact, Proof, Qed, Goal
-    Import Nat.
-    From Coq Require Import Bool.
-    Set Printing All.
-    Unset Printing All. 
-    Print All.
- *)
-(** Tactics used:
-    cbn, reflexivity, destruct, induction, rewrite, exact, f_equal,
-    lia
- *)

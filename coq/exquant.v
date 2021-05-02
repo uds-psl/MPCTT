@@ -118,7 +118,3 @@ Proof.
   pattern (X -> False). rewrite H.
   exists (id X). intros x. exists x. reflexivity.
 Qed.
-
-(** New tactics
-    exists, replace, enough
-*)

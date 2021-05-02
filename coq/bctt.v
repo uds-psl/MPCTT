@@ -202,11 +202,3 @@ Section Currying.
     cbv.
   Abort.
 End Currying.
-
-(** Commands used:
-    Abort, Example, Eval 
- *)
-(** Tactics used:
-    cbv, fold, set, subst, change
- *)
-
