@@ -1,7 +1,7 @@
 # Commands used
 ## Definitions
 Definition, Fixpoint  
-Fact, Lemma, Theorem, Corollary, Example, Goal__
+Fact, Lemma, Theorem, Corollary, Example, Goal  
 Proof, Qed, Defined, Admitted, Abort, Restart, Show Proof, 
 ## Implicit arguments and types
 Arguments, Implicit Types
