@@ -17,8 +17,7 @@ Check, Compute, Eval, Scheme
 Print, Print All, About, Locate, Search, Search concl:
 ## System settings
 Set Printing All, Implicit, Universes  
-Unset Printing ...  
-Unset Elimination Schemes
+Unset Printing ..., Elimination Schemes
 ## Demo
 Fail
 

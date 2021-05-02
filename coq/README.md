@@ -1,5 +1,4 @@
 # Directory of Coq Files
-
 1.  Getting Started	[gs.v](gs.v)
 2.  Basic Computational Type Theory [bctt.v](bctt.v)
 3.  Propositions as Types [pat.v](pat.v)
@@ -32,8 +31,6 @@
 30.  Natural Deduction [nd.v](nd.v)
 31.  Boolean Satisfiability [bsat.v](bsat.v)
 32.  Abstract Reduction Systems [ars.v](ars.v)
-
-
 * [List of tactics used](Tactics.md)
 * [List of commands used](Commands.md)
 
