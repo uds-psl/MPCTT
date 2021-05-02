@@ -546,7 +546,7 @@ Module Procedural_Specifications.
   Qed.
 End Procedural_Specifications.
 
-(** Comands used:
+(** Commands used:
     Print, Check, Compute, 
     Definition, Fixpoint, Arguments,
     Fact, Proof, Qed, Goal
