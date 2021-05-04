@@ -1,20 +1,21 @@
 Module Demo.
-  Inductive ex (X: Type) (p: X -> Prop) : Prop := E (x:X) (a: p x).
+  Inductive ex {X: Type} (p: X -> Prop) : Prop := E (x:X) (a: p x).
 
-  Definition elim_ex (X: Type) (p: X -> Prop) (Z: Prop) (f: forall x, p x -> Z) (b: ex X p) : Z :=
-    match b with E _ _ x a => f x a end.
+  (* X implicit for ex and E *)
+
+  Definition match_ex {X: Type} (p: X -> Prop) (Z: Prop)
+    : ex p -> (forall x, p x -> Z) -> Z
+    := fun a e => match a with E _ x b => e x b end.
 
   Lemma deMorgan X (p: X -> Prop) :
-    ~ ex X (fun x => p x) <-> forall x, ~ p x.
+    ~ ex (fun x => p x) <-> forall x, ~ p x.
   Proof.
     split.
-    - intros f x a. apply f.
-      apply (E X (fun x => p x) x).
-      (* Coq did beta-reduction immediately *)
-      exact a.
-    - intros f. hnf.
-      apply (elim_ex X (fun x => p x)).
-      (* Coq did beta-reduction immediately *)
+    - intros f x a.
+      apply f.
+      exact (E p x a).   (* note eta conversion *)
+    - intros f a.
+      apply (match_ex p False a).
       exact f.
     Show Proof.
   Qed.
@@ -29,6 +30,7 @@ Proof.
   split.
   - intros f x a. apply f. exists x. exact a.
   - intros f [x a]. exact (f x a).
+    Show Proof.
 Qed.
 
 Goal forall X (p: X -> Prop),
@@ -46,36 +48,21 @@ Proof.
   intros [x H]. specialize (H x). tauto.
 Qed.
 
-Lemma Russell (P: Prop) :
-  ~ (P <-> ~ P).
-Proof.
-  intros [f g].
-  assert (a: P).
-  { apply g. intros a. exact (f a a). }
-  exact (f a a).
-Qed.
-  
-Goal forall X (p: X -> X -> Prop),
-    ~ (exists x, forall y, p x y <-> ~ p y y).
-Proof.
-  intros X p [x H]. exact (Russell _ (H x)).
-  Show Proof.
-Qed.
+(** Lawvere *)
 
-Fact negb_fp :
+Fact negb_no_fp :
   ~ exists x, negb x = x.
 Proof.
-  intros [x H]. revert H.
-  destruct x; cbn; discriminate.
+  intros [[|] H]; discriminate.  
 Qed.
 
-Fact not_fp :
+Fact not_no_fp :
   ~ exists P: Prop, (~P) = P.
 Proof.
   intros [P H].
-  apply (Russell P).
-  replace (~P) with P.
-  tauto.
+  enough (H1: ~(P <-> P)).
+  - tauto.
+  - pattern P at 2. rewrite <-H. tauto.
 Qed.
 
 Definition surjective {X Y} (f: X -> Y) :=
@@ -86,7 +73,8 @@ Theorem Lawvere X Y (f: X -> X -> Y) (g: Y -> Y) :
 Proof.
   intros H.
   specialize (H (fun x => g (f x x))) as [a H].
-  exists (f a a). pattern (f a) at 2. rewrite H.
+  exists (f a a).
+  pattern (f a) at 2. rewrite H.
   reflexivity.
 Qed.
 
@@ -94,7 +82,7 @@ Corollary Lawvere_bool X :
   ~ exists f: X -> X -> bool, surjective f.
 Proof.
   intros [f H].
-  apply negb_fp.
+  apply negb_no_fp.
   revert H. apply Lawvere.
 Qed.
 
@@ -102,19 +90,20 @@ Corollary Lawvere_Prop X :
   ~ exists f: X -> X -> Prop, surjective f.
 Proof.
   intros [f H].
-  apply not_fp.
+  apply not_no_fp.
   revert H. apply Lawvere.
 Qed.
 
-Definition id X (x:X) := x.
+(** Exercise: Equational proof of not_no_fp, tricky *)
 
-Corollary not_no_fp X :
+Corollary not_no_fp' X :
   (~X) <> X.
 Proof.
   intros H.
-  enough (exists h, id False h = h) as [[] _].
+  pose (id:= fun a: False => a).
+  enough (exists a, id a = a) as [[] _].
   enough (exists f: X -> X -> False, surjective f) as [f H1].
-  { revert H1. apply Lawvere. }
-  pattern (X -> False). rewrite H.
-  exists (id X). intros x. exists x. reflexivity.
+  - revert H1. apply Lawvere.
+  - pattern (X -> False). rewrite H.
+    exists (fun x => x). intros x. exists x. reflexivity.
 Qed.
