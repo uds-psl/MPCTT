@@ -13,9 +13,9 @@ split, left, right, exfalso, contradict, exists
 revert, clear, assert, enough, pose, specialize, generalize, set
 ## Basic automation
 assumption, trivial, easy, subst, auto
-## Tacticals
-";", repeat, try, repeat
 ## More Automation
 lia, nia, tauto, congruence, intuition, firstorder
 ## Existential Variables
 eapply, eassumption, eauto
+## Tacticals
+";", repeat, try, repeat
