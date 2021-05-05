@@ -108,71 +108,67 @@ Qed.
 
 (*** Procedural Specifications *)
 
-Module Procedural_Specifications.
-
-  Definition Plus f x y :=
-    match x with
-    | 0 => y
-    | S x' => S (f x' y)
-    end.
+Definition Plus f x y :=
+  match x with
+  | 0 => y
+  | S x' => S (f x' y)
+  end.
   
-  Fact Plus_unique f g :
-    (forall x y, f x y = Plus f x y) ->
-    (forall x y, g x y = Plus g x y) ->
-    forall x y, f x y = g x y.
-  Proof.
-    intros Hf Hg x y.
-    induction x as [|x IH];
-      rewrite Hf, Hg; cbn.
-    - reflexivity.
-    - f_equal. exact IH.
-  Qed.
+Fact Plus_unique f g :
+  (forall x y, f x y = Plus f x y) ->
+  (forall x y, g x y = Plus g x y) ->
+  forall x y, f x y = g x y.
+Proof.
+  intros Hf Hg x y.
+  induction x as [|x IH];
+    rewrite Hf, Hg; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
   
-  Definition Fib f n :=
-    match n with
-    | 0 => 0
-    | 1 => 1
-    | S (S n) => f n + f (S n)
-    end.
+Definition Fib f n :=
+  match n with
+  | 0 => 0
+  | 1 => 1
+  | S (S n) => f n + f (S n)
+  end.
 
-  Fact Fib_unique f g :
-    (forall n, f n = Fib f n) ->
-    (forall n, g n = Fib g n) ->
-    forall n, f n = g n /\ f (S n) = g (S n).
-  Proof.
-    intros Hf Hg.
-    induction n as [|n [IH1 IH2]].
-    - rewrite !Hf, !Hg. easy.
-    - split. exact IH2.
+Fact Fib_unique f g :
+  (forall n, f n = Fib f n) ->
+  (forall n, g n = Fib g n) ->
+  forall n, f n = g n /\ f (S n) = g (S n).
+Proof.
+  intros Hf Hg.
+  induction n as [|n [IH1 IH2]].
+  - rewrite !Hf, !Hg. easy.
+  - split. exact IH2.
+    rewrite Hf, Hg; cbn.
+    congruence.
+Qed.
+
+Definition Acker f x y :=
+  match x, y with
+  | 0, y => S y
+  | S x, 0 => f x 1
+  | S x, S y => f x (f (S x) y)
+  end.
+
+Fact Acker_unique f g :
+  (forall x y, f x y = Acker f x y) ->
+  (forall x y, g x y = Acker g x y) ->
+  forall x y, f x y = g x y.
+Proof.
+  intros Hf Hg.
+  induction x as [|x IHx].
+  - destruct y;
+      rewrite Hf, Hg;
+      reflexivity.
+  - induction y as [|y IHy];
       rewrite Hf, Hg; cbn.
-      congruence.
-  Qed.
-
-  Definition Acker f x y :=
-    match x, y with
-    | 0, y => S y
-    | S x, 0 => f x 1
-    | S x, S y => f x (f (S x) y)
-    end.
-
-  Fact Acker_unique f g :
-    (forall x y, f x y = Acker f x y) ->
-    (forall x y, g x y = Acker g x y) ->
-    forall x y, f x y = g x y.
-  Proof.
-    intros Hf Hg.
-    induction x as [|x IHx].
-    - destruct y;
-        rewrite Hf, Hg;
-        reflexivity.
-    - induction y as [|y IHy];
-        rewrite Hf, Hg; cbn.
-      + apply IHx.
-      + rewrite IHy. apply IHx.
-  Qed.
-    
-End Procedural_Specifications.
-
+    + apply IHx.
+    + rewrite IHy. apply IHx.
+Qed.
+  
 (*** Exercises *)
 
 Module Exercises.
