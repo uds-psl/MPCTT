@@ -18,6 +18,7 @@ Print, Print All, About, Locate, Search, Search concl:
 ## System settings
 Set Printing All, Implicit, Universes  
 Unset Printing ..., Elimination Schemes
+Opaque
 ## Demo
 Fail
 
