@@ -1,10 +1,10 @@
 From Coq Require Import PeanoNat.
 Import Nat.
 
-Implicit Types (n x y: nat) (c: nat * nat).
+Implicit Types (n x y: nat) (a: nat * nat).
 
-Definition next c : nat * nat :=
-  match c with
+Definition next a : nat * nat :=
+  match a with
   | (0,y) => (S y, 0)
   | (S x, y) => (x, S y)
   end.
@@ -24,10 +24,10 @@ Fixpoint sum n : nat :=
 Definition encode '(x, y) : nat :=
   sum (x + y) + y.
 
-Fact encode_next c :
-  encode (next c) = S (encode c).
+Fact encode_next a :
+  encode (next a) = S (encode a).
 Proof.
-  destruct c as [[|x] y]; cbn -[sum].
+  destruct a as [[|x] y]; cbn -[sum].
   - rewrite !add_0_r. rewrite add_comm. reflexivity.
   - rewrite !add_succ_r. reflexivity.
 Qed.
@@ -40,20 +40,24 @@ Proof.
   - rewrite encode_next, IH. reflexivity.
 Qed.
 
-Fact decode_encode c :
-  decode (encode c) = c.
+Opaque encode.
+
+Fact decode_encode a :
+  decode (encode a) = a.
 Proof.
-  revert c.
-  enough (forall n c, encode c = n -> decode n = c) by eauto.
-  induction n as [|n IH]; intros [x y]; cbn [decode].
-  - destruct x, y.
-    1:reflexivity. all:intros [=].
-  - destruct y. 1:destruct x.
-    + intros [=].
-    + change (S x, 0) with (next (0,x)).
-      rewrite encode_next. intros H. f_equal.
-      apply IH. congruence.
-     + change (x, S y) with (next (S x, y)). 
-      rewrite encode_next. intros H. f_equal.
-      apply IH. congruence.
+  revert a.
+  enough (forall n a, encode a = n -> decode n = a) by eauto.
+  induction n as [|n IH]; intros [x y]; cbn.
+  - destruct x, y; cbn [encode]; cbn; easy.
+  - destruct y.
+    + destruct x.
+      * discriminate.
+      * change (S x, 0) with (next (0,x)).
+        rewrite encode_next.
+        intros [= <-].
+        f_equal. apply IH. reflexivity.
+    + change (x, S y) with (next (S x, y)). 
+      rewrite encode_next.
+      intros [= <-].
+      f_equal. apply IH. reflexivity.
 Qed.
