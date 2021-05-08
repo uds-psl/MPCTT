@@ -3,8 +3,8 @@
 Definition, Fixpoint  
 Fact, Lemma, Theorem, Corollary, Example, Goal  
 Proof, Qed, Defined, Admitted, Abort, Restart, Show Proof
-## Implicit arguments and implicit types
-Arguments, Implicit Types
+## Implicit arguments, implicit types, simplification
+Arguments, Implicit Types, Opaque
 ## Sections
 Section, Variable, End
 ## Modules
@@ -17,8 +17,8 @@ Check, Compute, Eval, Scheme
 Print, Print All, About, Locate, Search, Search concl:
 ## System settings
 Set Printing All, Implicit, Universes  
-Unset Printing ..., Elimination Schemes  
-Opaque
+Unset Printing ...__
+Unset Elimination Schemes
 ## Demo
 Fail
 

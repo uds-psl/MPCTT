@@ -1,5 +1,9 @@
+(* Load basic lemmas for addition *)
 From Coq Require Import PeanoNat.
 Import Nat.
+Search concl: (_ + S _ = _).
+Search concl: (_ + 0 = _).
+Search concl: (_ + _ = _ + _).
 
 Implicit Types (n x y: nat) (a: nat * nat).
 
@@ -32,6 +36,9 @@ Proof.
   - rewrite !add_succ_r. reflexivity.
 Qed.
 
+(* Disable simplification of encode *)
+Opaque encode. 
+
 Fact encode_decode n :
   encode (decode n) = n.
 Proof.
@@ -39,8 +46,6 @@ Proof.
   - reflexivity.
   - rewrite encode_next, IH. reflexivity.
 Qed.
-
-Opaque encode.
 
 Fact decode_encode a :
   decode (encode a) = a.
