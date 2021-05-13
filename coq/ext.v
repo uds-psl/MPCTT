@@ -2,18 +2,18 @@ Definition FE : Prop :=
   forall X (p: X -> Type) (f g: forall x, p x), (forall x, f x = g x) -> f = g.
 Definition PE : Prop :=
   forall P Q: Prop, P <-> Q -> P = Q.
-Definition pure (P: Prop) : Prop :=
+Definition unique (P: Prop) : Prop :=
   forall a b: P, a = b.
 Definition PI : Prop :=
-  forall P: Prop, pure P.
+  forall P: Prop, unique P.
 
-Fact pure_False :
-  pure False.
+Fact unique_False :
+  unique False.
 Proof.
   intros [].
 Qed.
-Fact pure_True :
-  pure True.
+Fact unique_True :
+  unique True.
 Proof.
   intros [] []. reflexivity.
 Qed.
@@ -22,10 +22,10 @@ Fact PE_PI :
   PE -> PI.
 Proof.
   intros H P a.
-  enough (pure P) as H1.
+  enough (unique P) as H1.
   { apply H1. }
   enough (P = True) as H1.
-  { rewrite H1. apply pure_True. }
+  { rewrite H1. apply unique_True. }
   apply H. tauto.
 Qed.
 
@@ -55,3 +55,9 @@ Section Elim_restriction_ex.
   Qed.
 End Elim_restriction_ex.
 
+Fact unique_Coquand (A: Prop) (E: Prop -> A) (D: A -> Prop) :
+  unique A -> (forall P, D (E P) <-> P) -> False.
+Proof.
+  intros HA H.
+  apply H. rewrite (HA (E False) (E True)). apply H, I.
+Qed.

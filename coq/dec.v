@@ -58,7 +58,7 @@ Proof.
 Defined.
 
 Definition dec2bool {P}
-  :  dec P -> bool
+  : dec P -> bool
   := fun a => if a then true else false.
 
 Compute dec2bool (option_eqdec nat nat_eqdec (Some 3) (Some 5)).

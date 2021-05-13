@@ -14,7 +14,8 @@ From Coq Require Import Lia
 Notation
 ## Services
 Check, Compute, Eval, Scheme  
-Print, Print All, About, Locate, Search, Search concl:
+Print, Print All, About, Locate, Search, Search concl:__
+Print Assumptions
 ## System settings
 Set Printing All, Implicit, Universes  
 Unset Printing ...__

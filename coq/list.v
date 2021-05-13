@@ -592,7 +592,6 @@ Section List.
   Qed.
   End SubPos.
 
-
   (*** Disjointness *)
 
   Fixpoint disjoint A B : Prop :=
@@ -703,6 +702,77 @@ Proof.
   intros k H3. apply seq_in. apply H in H3. lia.
 Qed.
 
+
+(*** Discrimination Lemma *)
+
+Ltac list := cbn; auto; firstorder.
+
+Fact neg_xm (P: Prop) {Q} :
+  (P -> ~Q) -> (~P -> ~Q) -> ~Q.
+Proof.
+  tauto.
+Qed.
+
+Fact neg_skip (Q: Prop) :
+  Q -> ~ ~Q.
+Proof.
+  tauto.
+Qed.
+
+Fact neg_skip' (P: Prop) {Q} :
+  (P -> ~Q) -> ~ ~P -> ~Q.
+Proof.
+  tauto.
+Qed.
+  
+Section Discrimination.
+  Variable X: Type.
+  Implicit Types (x: X) (A B: list X).
+
+  Lemma lem1 {x A} :
+    x el A -> exists B, A <<= x::B /\ length B < length A.
+  Proof.
+     induction A as [|a A' IH]; cbn.
+    - intros [].
+    - intros [->|H].
+      + exists A'. split. list. lia.
+      + specialize (IH H) as (B&H1&H2).
+        exists (a::B). split. list. cbn; lia.
+  Qed.
+  
+  Fact fac1 A B :
+    (forall P, P \/ ~P) -> 
+    length B < length A -> nrep A -> exists x, x el A /\ x nel B.
+  Proof.
+    intros xm.
+    induction A as [|a A' IH] in B |-*; cbn; intros H.
+    - exfalso. lia.
+    - intros [H1 H2].
+      destruct (xm (a el B)) as [H3|H3].
+      2:{ exists a. auto. }
+      destruct (lem1 H3) as (B'&H4&H5).
+      specialize (IH B') as (x&H6&H7). lia. exact H2.
+      exists x. split. 1:{ auto. }
+      intros H8. apply H4 in H8 as [<-|H8]; auto.
+  Qed.
+
+  Fact fac2 A B :
+    length B < length A -> nrep A -> ~ ~exists x, x el A /\ x nel B.
+  Proof.
+    induction A as [|a A' IH] in B |-*; cbn; intros H.
+    - exfalso. lia.
+    - intros [H1 H2].
+      apply (neg_xm (a el B)); intros H3.
+       2:{ apply neg_skip. exists a. auto. }
+       destruct (lem1 H3) as (B'&H4&H5).
+       specialize (IH B').
+       assert (H6: length B' < length A') by lia.
+       specialize (IH H6 H2). revert IH.
+       apply neg_skip'. intros (x&H7&H8). apply neg_skip.
+       exists x. split. 1:{ auto. } 
+       intros H9. apply H4 in H9 as [<-|H9]; auto.
+  Qed.
+End Discrimination.
 
 (*** Exercises: List Reversal *)
 
