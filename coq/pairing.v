@@ -1,5 +1,5 @@
 (* Load basic lemmas for addition *)
-From Coq Require Import PeanoNat.
+From Coq Require Import Arith.
 Import Nat.
 Search concl: (_ + S _ = _).
 Search concl: (_ + 0 = _).

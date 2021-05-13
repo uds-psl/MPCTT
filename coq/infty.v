@@ -74,7 +74,6 @@ Module Definitions.
     cbn. reflexivity.
   Qed.
 
-  
   Fact pi1_injective X (p: X -> Type) x (c: p x) x' (c': p x') :
     E x c = E x' c' -> x = x'.
   Proof.
@@ -112,6 +111,8 @@ Proof.
     + left. f_equal. exact H.
     + right. intros [= <-]. easy.
 Defined.
+
+(** We use the predefined sigma types with customized notation *)
 
 Print sigT.
 Notation sig := sigT.
@@ -229,6 +230,20 @@ Section SumAsSigma.
   Qed.
 End SumAsSigma.
 End SumAsSigma.
+
+Module Ex_eta.
+Section Ex_eta.
+  Variables (P: Prop) (p: P -> Prop).
+  Definition pi1 (a: ex p) : P :=
+    match a with ex_intro _ x c => x end.
+  Definition pi2 (a: ex p) : p (pi1 a) :=
+    match a with ex_intro _ x c => c end.
+  Goal forall a, a = ex_intro p (pi1 a) (pi2 a).
+  Proof.
+    intros [x a]. reflexivity.
+  Qed.
+End Ex_eta.
+End Ex_eta.
 
 (*** Truncation *)
 

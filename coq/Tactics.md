@@ -14,7 +14,7 @@ revert, clear, assert, enough, specialize, generalize, pose, set
 ## Basic automation
 assumption, trivial, easy, subst, auto
 ## More Automation
-lia, nia, tauto, congruence, intuition, firstorder
+lia, nia, tauto, congruence, intuition, firstorder, decide equality
 ## Existential Variables
 eapply, eassumption, eauto
 ## Tacticals
