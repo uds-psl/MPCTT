@@ -146,34 +146,6 @@ Proof.
   - intros [[|] z]; auto.
 Defined.
 
-Fact SkolemE X Y (p: X -> Y -> Prop) :
-  (exists f, forall x, p x (f x)) <=> forall x, exists y, p x y.
-Proof.
-  split.
-  - intros [f H] x. exists (f x). exact (H x).
-  - intros F.
-Abort.
-
-Fact sig_eta X (p: X -> Type) :
-  forall a, a = Sig p (pi1 a) (pi2 a).
-Proof.
-  intros [x H]. cbn. reflexivity.
-Qed.
-
-From Coq Require Import Lia.
-
-Goal forall x y, x - y = if pi2 (distance x y) then 0 else pi1 (distance x y).
-Proof.
-  intros x y.
-  destruct (distance x y) as [z [<-|<-]]; cbn; lia.
-Qed.
-
-Goal forall x y, (x - y) + (y - x) = pi1 (distance x y).
-Proof.
-  intros x y.
-  destruct (distance x y) as [z [<-|<-]]; cbn; lia.
-Qed.
-
 Module ProductAsSigma.
 Section ProductAsSigma.
   Variables X Y: Type.
@@ -230,6 +202,28 @@ Section SumAsSigma.
   Qed.
 End SumAsSigma.
 End SumAsSigma.
+
+(*** Full eliminator needed *)
+
+Fact sig_eta X (p: X -> Type) :
+  forall a, a = Sig p (pi1 a) (pi2 a).
+Proof.
+  intros [x H]. cbn. reflexivity.
+Qed.
+
+From Coq Require Import Lia.
+
+Goal forall x y, x - y = if pi2 (distance x y) then 0 else pi1 (distance x y).
+Proof.
+  intros x y.
+  destruct (distance x y) as [z [<-|<-]]; cbn; lia.
+Qed.
+
+Goal forall x y, (x - y) + (y - x) = pi1 (distance x y).
+Proof.
+  intros x y.
+  destruct (distance x y) as [z [<-|<-]]; cbn; lia.
+Qed.
 
 Module Ex_eta.
 Section Ex_eta.
