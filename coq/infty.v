@@ -41,15 +41,6 @@ Module Definitions.
       exact (pi2 (H x)).
   Defined.
     
-  Definition skolem' X Y (p: X -> Y -> Type) :
-    sig (fun f => forall x, p x (f x)) <=> forall x, sig (p x).
-  Proof.
-    split.
-    - intros [f H] x. exists (f x). apply H.
-    - intros H. exists (fun x => pi1 (H x)). intros x.
-      destruct (H x) as [y H1]. exact H1.
-  Defined.
-    
   Definition elim_sig {X: Type} {p: X -> Type} (q: sig p -> Type)
     : (forall x c, q (E x c)) -> forall a, q a
     := fun e a => match a with E x c => e x c end.
@@ -120,7 +111,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sig (fun x => .. (sig (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
@@ -132,9 +123,22 @@ Proof.
   - intros y. exists y. auto.
   - destruct y; cbn.
     + exists (S x). auto.
-    + specialize (IH y) as [z IH].
-      exists z. intuition.
+    + specialize (IH y) as [z [<-|<-]];
+        exists z; auto.
 Defined.
+
+Compute let d := distance 17 4 in (pi1 d, if pi2 d then true else false).
+
+Definition skolem X Y (p: X -> Y -> Type) :
+  (forall x, Sigma y, p x y) <=> (Sigma f, forall x, p x (f x)).
+Proof.
+  split.
+  - intros F.
+    exists (fun x => pi1 (F x)).
+    intros x. exact (pi2 (F x)).
+  - intros [f F] x.
+    exists (f x). exact (F x).
+Defined. 
 
 Fact sumAsSigma X Y:
   X + Y <=> Sigma b: bool, if b then X else Y.
@@ -154,7 +158,7 @@ Section ProductAsSigma.
     : X * Y -> sig p
     := fun z => Sig p (fst z) (snd z).
   Definition g
-    : sigT p -> X * Y
+    : sig p -> X * Y
     := fun a => (pi1 a, pi2 a).
 
   Fact gf_eq z :
@@ -183,7 +187,7 @@ Section SumAsSigma.
              end.
   
   Definition g
-    : sigT p -> X + Y
+    : sig p -> X + Y
     := fun a => match a with
              | Sig _ true x => inl x
              | Sig _ false y => inr y
