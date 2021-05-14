@@ -129,6 +129,18 @@ Defined.
 
 Compute let d := distance 17 4 in (pi1 d, if pi2 d then true else false).
 
+Definition div_two :
+  forall x, Sigma n, sum (x = n * 2) (x = S ( n * 2)).
+Proof.
+  induction x as [|x IH]; cbn.
+  - exists 0. left. reflexivity.
+  - destruct IH as [n [-> | ->]]; cbn.
+    + exists n; cbn. right. reflexivity.
+    + exists (S n); cbn. left. reflexivity.
+Defined.
+
+Compute let (n,a) := div_two 14 in (n, if a then 0 else 1).
+
 Definition skolem X Y (p: X -> Y -> Type) :
   (forall x, Sigma y, p x y) <=> (Sigma f, forall x, p x (f x)).
 Proof.
