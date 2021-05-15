@@ -14,6 +14,19 @@ Module Definitions.
     : sum X Y -> (X -> Z) -> (Y -> Z) -> Z
     := fun a e1 e2 => match a with L x => e1 x | R y => e2 y end.
  
+  Definition elim_sum {X Y: Type} (p: sum X Y -> Type)
+    : (forall x, p (L x)) -> (forall y, p (R y)) -> forall a, p a
+    := fun e1 e2 a => match a with L x => e1 x | R y => e2 y end.
+
+  Fact L_injective (X Y: Type) (x x': X) :
+    L (Y:= Y) x = L x' -> x = x'.
+  Proof.
+    intros H.
+    change (match_sum (Y:= Y) (L x) (fun x => x) (fun _ => x) = x').
+    rewrite H.
+    reflexivity.
+  Qed.    
+ 
   Inductive sig {X: Type} (p: X -> Type) : Type :=
   | E : forall x: X, p x -> sig p.
   Arguments E {X p}.
@@ -21,6 +34,10 @@ Module Definitions.
   Definition match_sig {X: Type} {p: X -> Type} {Z: Type}
     : sig p -> (forall x, p x -> Z) -> Z
     := fun a e => match a with E x c => e x c end.
+    
+  Definition elim_sig {X: Type} {p: X -> Type} (q: sig p -> Type)
+    : (forall x c, q (E x c)) -> forall a, q a
+    := fun e a => match a with E x c => e x c end.
 
   Definition pi1 {X: Type} {p: X -> Type}
     : sig p -> X
@@ -40,10 +57,6 @@ Module Definitions.
     - intros H. exists (fun x => pi1 (H x)). intros x.
       exact (pi2 (H x)).
   Defined.
-    
-  Definition elim_sig {X: Type} {p: X -> Type} (q: sig p -> Type)
-    : (forall x c, q (E x c)) -> forall a, q a
-    := fun e a => match a with E x c => e x c end.
 
   Goal forall X (p: X -> Type),
       @pi1 X p = elim_sig (fun _ => X) (fun x c => x).
@@ -64,6 +77,14 @@ Module Definitions.
     refine (elim_sig _ _).
     cbn. reflexivity.
   Qed.
+
+  Fact match_sum' X Y :
+    forall a: sum X Y, sig (fun x => a = L x) + sig (fun y => a = R y).
+  Proof.
+    apply elim_sum.
+    - intros x. left. exists x. reflexivity.
+    - intros y. right. exists y. reflexivity.
+  Qed.    
 
   Fact pi1_injective X (p: X -> Type) x (c: p x) x' (c': p x') :
     E x c = E x' c' -> x = x'.
@@ -88,116 +109,55 @@ Module Definitions.
 
 End Definitions.
 
+(*** Predefined Sum and Sigma Types *)
+
 Locate "+".
 Print sum.
 
-Definition nat_eqdec :
-  forall x y: nat, (x = y) + (x <> y).
-Proof.
-  induction x as [|x IH]; destruct y.
-  - left. reflexivity.
-  - right. intros [=].
-  - right. intros [=].
-  - destruct (IH y) as [H|H].
-    + left. f_equal. exact H.
-    + right. intros [= <-]. easy.
-Defined.
-
-(** We use the predefined sigma types with customized notation *)
-
+(** We use customized notation for the predefined sigma types *)
 Print sigT.
 Notation sig := sigT.
 Notation Sig := existT.
-Notation pi1 := projT1.
-Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
   (sig (fun x => .. (sig (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
-Definition distance :
-  forall x y: nat, Sigma z, sum (x + z = y) (y + z = x).
-Proof.
-  induction x as [|x IH]; cbn. 
-  - intros y. exists y. auto.
-  - destruct y; cbn.
-    + exists (S x). auto.
-    + specialize (IH y) as [z [<-|<-]];
-        exists z; auto.
-Defined.
-
-Compute let d := distance 17 4 in (pi1 d, if pi2 d then true else false).
-
-Definition div_two :
-  forall x, Sigma n, sum (x = n * 2) (x = S ( n * 2)).
-Proof.
-  induction x as [|x IH]; cbn.
-  - exists 0. left. reflexivity.
-  - destruct IH as [n [-> | ->]]; cbn.
-    + exists n; cbn. right. reflexivity.
-    + exists (S n); cbn. left. reflexivity.
-Defined.
-
-Compute let (n,a) := div_two 14 in (n, if a then 0 else 1).
-
-Definition skolem X Y (p: X -> Y -> Type) :
-  (forall x, Sigma y, p x y) <=> (Sigma f, forall x, p x (f x)).
-Proof.
-  split.
-  - intros F.
-    exists (fun x => pi1 (F x)).
-    intros x. exact (pi2 (F x)).
-  - intros [f F] x.
-    exists (f x). exact (F x).
-Defined. 
-
-Fact sumAsSigma X Y:
-  X + Y <=> Sigma b: bool, if b then X else Y.
-Proof.
-  split.
-  - intros [x|y].
-      + exists true. exact x.
-      + exists false. exact y.
-  - intros [[|] z]; auto.
-Defined.
-
 Module ProductAsSigma.
-Section ProductAsSigma.
+Section M.
   Variables X Y: Type.
-  Definition p (_:X) := Y.
+  Definition p: X -> Type := fun _=>  Y.
   Definition f
     : X * Y -> sig p
-    := fun z => Sig p (fst z) (snd z).
+    := fun a => Sig p (fst a) (snd a).
   Definition g
     : sig p -> X * Y
-    := fun a => (pi1 a, pi2 a).
+    := fun a => match a with Sig _ x c => (x, c) end.
 
-  Fact gf_eq z :
-    g (f z) = z.
+  Fact gf_eq a :
+    g (f a) = a.
   Proof.
-    destruct z as [x y]. reflexivity.
+    destruct a as [x y]. reflexivity.
   Qed.
-
   Fact fg_eq a :
     f (g a) = a.
   Proof.
     destruct a as [x y]. reflexivity.
   Qed.
-End ProductAsSigma.
+End M.
 End ProductAsSigma.
 
 Module SumAsSigma.
-Section SumAsSigma.
+Section M.
   Variables X Y: Type.
-  Definition p (b: bool) := if b then X else Y.
+  Definition p: bool -> Type := fun b => if b then X else Y.
   Definition f
     : X + Y -> sig p
     := fun a => match a with
              | inl x => Sig p true x
              | inr y => Sig p false y
-             end.
-  
+             end.  
   Definition g
     : sig p -> X + Y
     := fun a => match a with
@@ -210,16 +170,29 @@ Section SumAsSigma.
   Proof.
     destruct a as [x|y]; reflexivity.
   Qed.
-
   Fact fg_eq a :
     f (g a) = a.
   Proof.
     destruct a as [[|] z]; reflexivity.
   Qed.
-End SumAsSigma.
+End M.
 End SumAsSigma.
 
-(*** Full eliminator needed *)
+(*** Projections *)
+
+Notation pi1 := projT1.
+Notation pi2 := projT2.
+
+Definition skolem X Y (p: X -> Y -> Type) :
+  (forall x, Sigma y, p x y) <=> (Sigma f, forall x, p x (f x)).
+Proof.
+  split.
+  - intros F.
+    exists (fun x => pi1 (F x)).
+    intros x. exact (pi2 (F x)).
+  - intros [f F] x.
+    exists (f x). exact (F x).
+Defined. 
 
 Fact sig_eta X (p: X -> Type) :
   forall a, a = Sig p (pi1 a) (pi2 a).
@@ -227,22 +200,8 @@ Proof.
   intros [x H]. cbn. reflexivity.
 Qed.
 
-From Coq Require Import Lia.
-
-Goal forall x y, x - y = if pi2 (distance x y) then 0 else pi1 (distance x y).
-Proof.
-  intros x y.
-  destruct (distance x y) as [z [<-|<-]]; cbn; lia.
-Qed.
-
-Goal forall x y, (x - y) + (y - x) = pi1 (distance x y).
-Proof.
-  intros x y.
-  destruct (distance x y) as [z [<-|<-]]; cbn; lia.
-Qed.
-
 Module Ex_eta.
-Section Ex_eta.
+Section M.
   Variables (P: Prop) (p: P -> Prop).
   Definition pi1 (a: ex p) : P :=
     match a with ex_intro _ x c => x end.
@@ -252,7 +211,7 @@ Section Ex_eta.
   Proof.
     intros [x a]. reflexivity.
   Qed.
-End Ex_eta.
+End M.
 End Ex_eta.
 
 (*** Truncation *)
@@ -296,4 +255,92 @@ Proof.
   - intros H. contradict H. intros [a|a]; eauto.
 Qed.
 
+(*** Equality Decider *)
+
+Definition nat_eqdec :
+  forall x y: nat, (x = y) + (x <> y).
+Proof.
+  induction x as [|x IH]; destruct y.
+  - left. reflexivity.
+  - right. intros [=].
+  - right. intros [=].
+  - destruct (IH y) as [H|H].
+    + left. f_equal. exact H.
+    + right. intros [= <-]. easy.
+Defined.
+
+(*** Distance *)
+
+Definition distance :
+  forall x y: nat, Sigma z, sum (x + z = y) (y + z = x).
+Proof.
+  induction x as [|x IH]; cbn. 
+  - intros y. exists y. auto.
+  - destruct y; cbn.
+    + exists (S x). auto.
+    + specialize (IH y) as [z [<-|<-]];
+        exists z; auto.
+Defined.
+
+Compute
+  let d := distance 17 4 in
+  (pi1 d, if pi2 d then true else false).
+
+From Coq Require Import Lia.
+
+Section Distance.
+  Variable D: forall x y: nat, Sigma z, sum (x + z = y) (y + z = x).
+  
+  Fact D_sub x y :
+      x - y = if pi2 (D x y) then 0 else pi1 (D x y).
+  Proof.
+    destruct (D x y) as [z [<-|<-]]; cbn; lia.
+  Qed.
+
+  Fact D_pi1 x y :
+      pi1 (D x y) = (x - y) + (y - x).
+  Proof.
+    destruct (D x y) as [z [<-|<-]]; cbn; lia.
+  Qed.
+
+  Goal pi1 (D 3 7) = 4.
+  Proof.
+    rewrite D_pi1. reflexivity.
+  Qed.
+End Distance.
+
+(*** Division by 2 *)
+
+Definition Div_two :
+  forall x, Sigma n, sum (x = n * 2) (x = S ( n * 2)).
+Proof.
+  induction x as [|x IH]; cbn.
+  - exists 0. left. reflexivity.
+  - destruct IH as [n [-> | ->]]; cbn.
+    + exists n; cbn. right. reflexivity.
+    + exists (S n); cbn. left. reflexivity.
+Defined.
+
+Definition div_two (x: nat) : nat * nat :=
+  let (n,a) := Div_two x in (n, if a then 0 else 1).
+
+Compute div_two 15.
+
+Section Div_two.
+  Variable D: forall x, Sigma n, sum (x = n * 2) (x = S ( n * 2)).
+  Definition d (x: nat) : nat * nat :=
+    let (n,a) := D x in (n, if a then 0 else 1).
+
+  Fact d_correct x :
+    let  (n,k) := d x in
+    x = k + n*2 /\ (k = 0 \/ k = 1).
+  Proof.
+    unfold d.
+    destruct (D x) as [n [-> | ->]]; cbn; auto.
+  Qed.
+End Div_two.
+
+(*** Coq specialiaties *)
+
+(* Products are universe polymorpihic *)
 Check (True * True) <-> (True /\ True).
