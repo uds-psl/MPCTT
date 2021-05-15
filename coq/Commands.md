@@ -18,7 +18,7 @@ Print, Print All, About, Locate, Search, Search concl:__
 Print Assumptions
 ## System settings
 Set Printing All, Implicit, Universes  
-Unset Printing ...__
+Unset Printing ...   
 Unset Elimination Schemes
 ## Demo
 Fail
