@@ -1,4 +1,5 @@
 Unset Elimination Schemes.
+(* Switches off automatic generation of eliminators *)
 
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
@@ -118,6 +119,8 @@ Print sum.
 Print sigT.
 Notation sig := sigT.
 Notation Sig := existT.
+Notation pi1 := projT1.
+Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
   (sig (fun x => .. (sig (fun y => p)) ..))
     (at level 200, x binder, right associativity,
@@ -180,9 +183,6 @@ End SumAsSigma.
 
 (*** Projections *)
 
-Notation pi1 := projT1.
-Notation pi2 := projT2.
-
 Definition skolem X Y (p: X -> Y -> Type) :
   (forall x, Sigma y, p x y) <=> (Sigma f, forall x, p x (f x)).
 Proof.
@@ -214,50 +214,9 @@ Section M.
 End M.
 End Ex_eta.
 
-(*** Truncation *)
-
-Inductive trunc (X: Type) : Prop :=
-| T: X -> trunc X.
-
-Goal forall P Q, P \/ Q <-> trunc (P + Q).
-Proof.
-  split.
-  - intros [a|b]; constructor; auto.
-  - intros [[a|b]]; auto.
-Qed.
-
-Goal forall X (p: X -> Prop), ex p <-> trunc (sig p).
-Proof.
-  split.
-  - intros [x H]. constructor. eauto.
-  - intros [[x H]]. eauto.
-Qed.
-
-Fact trunc_equi X :
-  trunc X <=> exists x:X, True.
-Proof.
-  split.
-  - intros [x]. exists x. exact I.
-  - intros [x _]. constructor. exact x.
-Qed.
-
-Goal forall X (p: X -> Prop), ~ ~ex p <-> ~(sig p -> False).
-Proof.
-  split.
-  - intros H. contradict H. intros [x H1]. eauto.
-  - intros H. contradict H. intros [x H1]. eauto.
-Qed.
-
-Goal forall P Q, ~ ~(P \/ Q) <-> ~(P + Q -> False).
-Proof.
-  split.
-  - intros H. contradict H. intros [a|a]; eauto.
-  - intros H. contradict H. intros [a|a]; eauto.
-Qed.
-
 (*** Equality Decider *)
 
-Definition nat_eqdec :
+Definition eqdec :
   forall x y: nat, (x = y) + (x <> y).
 Proof.
   induction x as [|x IH]; destruct y.
@@ -268,6 +227,37 @@ Proof.
     + left. f_equal. exact H.
     + right. intros [= <-]. easy.
 Defined.
+
+Definition eqb (x y: nat) : bool :=
+  if eqdec x y then true else false.
+
+Fact eqb_correct x y :
+    eqb x y = true <-> x = y.
+Proof.
+  unfold eqb.
+  pattern (eqdec x y).
+  apply sum_rect.
+  - tauto.
+  - intuition congruence.
+Qed.
+
+Fact eqb_correct' x y :
+    eqb x y = true <-> x = y.
+Proof.
+  apply (sum_rect (fun a => (if a then true else false) = true <-> x = y)).
+  - tauto.
+  - intuition congruence.
+Qed.
+
+Fact eqb_correct'' x y :
+    eqb x y = true <-> x = y.
+Proof.
+  unfold eqb.
+  destruct eqdec as [H|H].
+  - tauto.
+  - intuition congruence.
+Qed.
+
 
 (*** Distance *)
 
@@ -339,6 +329,47 @@ Section Div_two.
     destruct (D x) as [n [-> | ->]]; cbn; auto.
   Qed.
 End Div_two.
+
+(*** Truncation *)
+
+Inductive trunc (X: Type) : Prop :=
+| T: X -> trunc X.
+
+Goal forall P Q, P \/ Q <-> trunc (P + Q).
+Proof.
+  split.
+  - intros [a|b]; constructor; auto.
+  - intros [[a|b]]; auto.
+Qed.
+
+Goal forall X (p: X -> Prop), ex p <-> trunc (sig p).
+Proof.
+  split.
+  - intros [x H]. constructor. eauto.
+  - intros [[x H]]. eauto.
+Qed.
+
+Fact trunc_equi X :
+  trunc X <=> exists x:X, True.
+Proof.
+  split.
+  - intros [x]. exists x. exact I.
+  - intros [x _]. constructor. exact x.
+Qed.
+
+Goal forall X (p: X -> Prop), ~ ~ex p <-> ~(sig p -> False).
+Proof.
+  split.
+  - intros H. contradict H. intros [x H1]. eauto.
+  - intros H. contradict H. intros [x H1]. eauto.
+Qed.
+
+Goal forall P Q, ~ ~(P \/ Q) <-> ~(P + Q -> False).
+Proof.
+  split.
+  - intros H. contradict H. intros [a|a]; eauto.
+  - intros H. contradict H. intros [a|a]; eauto.
+Qed.
 
 (*** Coq specialiaties *)
 
