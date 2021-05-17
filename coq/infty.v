@@ -231,6 +231,8 @@ Defined.
 Definition eqb (x y: nat) : bool :=
   if eqdec x y then true else false.
 
+(* sum_rect is the predefined eliminator for sums *)
+
 Fact eqb_correct x y :
     eqb x y = true <-> x = y.
 Proof.
@@ -248,6 +250,8 @@ Proof.
   - tauto.
   - intuition congruence.
 Qed.
+
+(* using destruct is more convenient *)
 
 Fact eqb_correct'' x y :
     eqb x y = true <-> x = y.
