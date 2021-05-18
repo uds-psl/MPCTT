@@ -122,7 +122,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sig (fun x => .. (sig (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
@@ -375,7 +375,51 @@ Proof.
   - intros H. contradict H. intros [a|a]; eauto.
 Qed.
 
-(*** Coq specialiaties *)
+(*** Bijections *)
 
-(* Products are universe polymorpihic *)
-Check (True * True) <-> (True /\ True).
+Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
+
+Inductive bijection (X Y: Type) : Type :=
+| Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
+Arguments Bijection {X Y}.
+
+Definition bijection_sig (X Y: Type) : Type :=
+  Sigma (f: X -> Y) (g: Y -> X), inv g f /\ inv f g.
+
+Fact bij_bij_sig' X Y:
+  bijection X Y <=> bijection_sig X Y.
+Proof.
+  split.
+  - intros [f g H1 H2]. exists f, g. easy.
+  - intros (f&g&H1&H2). apply (Bijection f g); easy.
+Defined.
+
+Fact bij_bij_sig X Y:
+  bijection (bijection X Y) (bijection_sig X Y).
+Proof.
+  pose (P := bij_bij_sig' X Y).
+  apply (Bijection (fst P) (snd P)).
+  - intros [f g H1 H2]. cbn. reflexivity.
+  - intros (f&g&H1&H2). cbn. reflexivity.
+Defined.
+
+Fact bij_bij_sig'' X Y:
+  bijection (bijection X Y) (bijection_sig X Y).
+Proof.
+  (* Using existential variables, for Coq wizards *)
+  eexists. Unshelve.
+  4:{ intros (f&g&H1&H2). apply (Bijection f g); easy. }
+  3:{ intros [f g H1 H2]. exists f, g. easy. }
+  - intros [f g H1 H2]. reflexivity.
+  - intros (f&g&H1&H2). reflexivity.
+Defined.
+
+(*** Products and sums are universe polymorphic *)
+
+Check prod True True.
+Check prod bool bool.
+Check prod Prop Prop.
+Check sum True True.
+Check sum bool bool.
+Check sum Prop Prop.
+
