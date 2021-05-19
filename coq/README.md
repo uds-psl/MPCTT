@@ -7,7 +7,7 @@
 6.  Universal Inductive Eliminators [elim.v](elim.v)
 7.  Case Study: Cantor Pairing [pairing.v](pairing.v)
 8.  Existential Quantification [exquant.v](exquant.v)
-9.  Informative Types [infty.v](infty.v)
+9.  Informative Types and Certifying Functions [infty.v](infty.v)
 10.  Decision Types, Discrete Types, and Option Types [dec.v](dec.v)
 11.  Extensionality [ext.v](ext.v)
 12.  Excluded Middle and Double Negation [xm.v](xm.v)

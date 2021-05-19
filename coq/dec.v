@@ -6,10 +6,7 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
-(** We choose a less general definition of dec than in the text
-    to be compatible with Coq's standard library *)
-
-Definition dec (P: Prop) := { P } + { ~P }.
+Definition dec (X: Type) := sum X (X -> False).
 
 Fact dec_boolean X (p: X -> Prop) :
   (forall x, dec (p x)) <=> Sigma f, forall x, p x <-> f x = true.
@@ -17,49 +14,108 @@ Proof.
   split.
   - intros F.
     exists (fun x => if F x then true else false).
-    intros x. destruct (F x) as [H|H]; intuition congruence.
+    intros x.
+    destruct (F x) as [H|H];
+      intuition congruence.
   - intros [f H] x. specialize (H x). unfold dec.
-    destruct (f x); intuition congruence.
+    destruct (f x);
+      intuition congruence.
 Qed.
 
 Fact dec_prop_impl P Q:
   dec P -> dec Q -> dec (P -> Q).
 Proof.
-  intros [H1|H1].
-  - intros [H2|H2].
-    + left. auto.
-    + right. auto.
-  - intros _. left. intros H. destruct (H1 H).
+  unfold dec. intuition.
 Qed.
+
+Fact dec_iff_invariance {X Y} :
+  X <=> Y -> dec X -> dec Y.
+Proof.
+  intros H [H1|H1].
+  - left. apply H, H1.
+  - right. intros y. apply H1, H, y.
+Defined.
+
+Definition dec2bool {X} : dec X -> bool :=
+  fun a => if a then true else false.
+
+
+(*** Equality Deciders *)
 
 Definition eqdec X := forall x y: X, dec (x = y).
 
-From Coq Require Import Arith.
-Search concl: ({_=_} + {_}).
-
-Definition nat_eqdec :
-  eqdec nat.
+Definition nat_eqdec : eqdec nat.
 Proof.
-  hnf. unfold dec. decide equality.
-  Restart.
-  exact Nat.eq_dec.
+  hnf. induction x as [|x IH]; destruct y.
+  - left. reflexivity.
+  - right. congruence.
+  - right. congruence.
+  - destruct (IH y) as [H|H].
+    + left. congruence.
+    + right. congruence.
 Defined.
 
-Definition option_eqdec X :
+Compute dec2bool (nat_eqdec 3 5).
+
+Definition option_eqdec {X} :
   eqdec X -> eqdec (option X).
 Proof.
   intros H [x|] [y|].
-  - specialize (H x y) as [<-|H].
-    + left. reflexivity.
-    + right. intros [= <-]. auto.
-  - right. intros [=].
-  - right. intros [=].
+  - specialize (H x y) as [H|H].
+    + left. congruence.
+    + right. congruence.
+  - right. congruence.
+  - right. congruence.
   - left. reflexivity.
 Defined.
 
-Definition dec2bool {P}
-  : dec P -> bool
-  := fun a => if a then true else false.
+Compute dec2bool (option_eqdec nat_eqdec (Some 3) (Some 5)).
 
-Compute dec2bool (option_eqdec nat nat_eqdec (Some 3) (Some 5)).
+
+(*** Coq's Decision Format *)
+
+(** Coq offers support for equality decisions 
+    but uses a different decision format. *)
+
+Print sumbool.
+
+Definition dec_adapt (P: Prop) :
+  { P } + { ~ P} <=> dec P.
+Proof.
+  split.
+  - intros [H|H].
+    + left. exact H.
+    + right. exact H.
+  - intros [H|H].
+    + left. exact H.
+    + right. exact H.
+Defined.
+
+Definition coq_nat_eqdec : eqdec nat.
+Proof.
+  intros x y. apply dec_adapt. decide equality.
+Defined.
+
+Compute dec2bool (coq_nat_eqdec 3 5).
+
+Definition coq_option_eqdec {X} :
+  eqdec X -> eqdec (option X).
+Proof.
+  intros H x y. apply dec_adapt. decide equality.
+  apply dec_adapt, H.
+Defined.
+  
+Compute dec2bool (coq_option_eqdec coq_nat_eqdec (Some 5) (Some 5)).
+
+From Coq Require Import PeanoNat.
+Search concl: ({_=_} + {_}).
+
+Definition coq_nat_eqdec' : eqdec nat.
+Proof.
+  intros x y. apply dec_adapt. apply Nat.eq_dec.
+Defined.
+
+Compute dec2bool (coq_nat_eqdec' 3 5).
+
+
 
