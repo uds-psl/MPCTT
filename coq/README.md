@@ -12,7 +12,7 @@
 -  Extensionality [ext.v](ext.v)
 -  Excluded Middle and Double Negation [xm.v](xm.v)
 -  Provability [provability.v](provability.v)
--  Numbers [nat.v](nat.v) [nat_lia.v](nat_lia.v)
+-  Numbers [nat.v](nat.v), [nat_lia.v](nat_lia.v)
 -  Least Witnesses [lw.v](lw.v)
 -  Size Recursion [sizerec.v](sizerec.v)
 -  Lists [list.v](list.v)
@@ -31,6 +31,7 @@
 -  Natural Deduction [nd.v](nd.v)
 -  Boolean Satisfiability [bsat.v](bsat.v)
 -  Abstract Reduction Systems [ars.v](ars.v)
-* [List of tactics used](Tactics.md)
-* [List of commands used](Commands.md)
+
+- [List of tactics used](Tactics.md)
+- [List of commands used](Commands.md)
 
