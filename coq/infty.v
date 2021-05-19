@@ -420,8 +420,8 @@ Fact bij_bij_sig X Y:
   bijection (bijection X Y) (Sigma f g, @inv X Y g f /\ inv f g).
 Proof.
   unshelve eexists.
-  - intros [f g H1 H2]. exists f, g. easy.
-  - intros (f&g&H1&H2). exists f g; easy.
+  - intros [f g H1 H2]. exists f, g. exact (conj H1 H2).
+  - intros (f&g&H1&H2). exact (Bijection f g H1 H2). 
   - intros [f g H1 H2]. reflexivity.
   - intros (f&g&H1&H2). reflexivity.
 Defined.
