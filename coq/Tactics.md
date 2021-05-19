@@ -16,6 +16,6 @@ assumption, trivial, easy, subst, auto
 ## More Automation
 lia, nia, tauto, congruence, intuition, firstorder, decide equality
 ## Existential Variables
-eapply, eassumption, eauto, eexists, unshelve eexists
+eapply, eexists, eassumption, eauto
 ## Tacticals
-";", now, repeat, try
+";", now, repeat, try, unshelve

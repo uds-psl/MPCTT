@@ -407,11 +407,11 @@ Fact bijection_sum X Y :
 Proof.
   unshelve eexists.
   - intros [x|y].
-    + exists true; exact x.
-    + exists false; exact y.
+    + exists true. exact x.
+    + exists false. exact y.
   - intros [[] z].
-    + left; exact z.
-    + right; exact z. 
+    + left. exact z.
+    + right. exact z. 
   - intros [x|y]; reflexivity.
   - intros [[] z]; reflexivity.
 Defined.
