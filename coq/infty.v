@@ -383,33 +383,45 @@ Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
 Arguments Bijection {X Y}.
 
-Definition bijection_sig (X Y: Type) : Type :=
-  Sigma (f: X -> Y) (g: Y -> X), inv g f /\ inv f g.
-
-Fact bij_bij_sig' X Y:
-  bijection X Y <=> bijection_sig X Y.
+Fact bijection_trans X Y Z :
+  bijection X Y -> bijection Y Z -> bijection X Z.
 Proof.
-  split.
-  - intros [f g H1 H2]. exists f, g. easy.
-  - intros (f&g&H1&H2). apply (Bijection f g); easy.
+  intros [f g H1 H2] [f' g' H1' H2'].
+  exists (fun x => f' (f x)) (fun z => g (g' z)).
+  - intros z. rewrite H1'. apply H1.
+  - intros x. rewrite H2. apply H2'.
+Qed.
+
+Fact bijection_prod X Y :
+  bijection (X * Y) (sig (fun x: X => Y)).
+Proof.
+  unshelve eexists.
+  - intros [x y]. exists x. exact y.
+  - intros [x y]. exact (x,y).
+  - intros [x y]. reflexivity.
+  - intros [x y]. reflexivity.
+Defined.
+
+Fact bijection_sum X Y :
+  bijection (X + Y) (sig (fun b: bool => if b then X else Y)).
+Proof.
+  unshelve eexists.
+  - intros [x|y].
+    + exists true; exact x.
+    + exists false; exact y.
+  - intros [[] z].
+    + left; exact z.
+    + right; exact z. 
+  - intros [x|y]; reflexivity.
+  - intros [[] z]; reflexivity.
 Defined.
 
 Fact bij_bij_sig X Y:
-  bijection (bijection X Y) (bijection_sig X Y).
+  bijection (bijection X Y) (Sigma f g, @inv X Y g f /\ inv f g).
 Proof.
-  pose (P := bij_bij_sig' X Y).
-  apply (Bijection (fst P) (snd P)).
-  - intros [f g H1 H2]. cbn. reflexivity.
-  - intros (f&g&H1&H2). cbn. reflexivity.
-Defined.
-
-Fact bij_bij_sig'' X Y:
-  bijection (bijection X Y) (bijection_sig X Y).
-Proof.
-  (* Using existential variables, for Coq wizards *)
-  eexists. Unshelve.
-  4:{ intros (f&g&H1&H2). apply (Bijection f g); easy. }
-  3:{ intros [f g H1 H2]. exists f, g. easy. }
+  unshelve eexists.
+  - intros [f g H1 H2]. exists f, g. easy.
+  - intros (f&g&H1&H2). exists f g; easy.
   - intros [f g H1 H2]. reflexivity.
   - intros (f&g&H1&H2). reflexivity.
 Defined.
