@@ -426,6 +426,12 @@ Proof.
   - intros (f&g&H1&H2). reflexivity.
 Defined.
 
+Goal bijection nat bool -> False.
+Proof.
+  intros [f g H _].
+  (* Challenge: There is a two line proof using lia. *)
+Abort.
+
 (*** Products and sums are universe polymorphic *)
 
 Check prod True True.
