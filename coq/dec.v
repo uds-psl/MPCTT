@@ -78,6 +78,8 @@ Compute dec2bool (option_eqdec nat_eqdec (Some 3) (Some 5)).
     but uses a different decision format. *)
 
 Print sumbool.
+From Coq Require Import PeanoNat.
+Search concl: ({_=_} + {_}).
 
 Definition dec_adapt (P: Prop) :
   { P } + { ~ P} <=> dec P.
@@ -106,9 +108,6 @@ Proof.
 Defined.
   
 Compute dec2bool (coq_option_eqdec coq_nat_eqdec (Some 5) (Some 5)).
-
-From Coq Require Import PeanoNat.
-Search concl: ({_=_} + {_}).
 
 Definition coq_nat_eqdec' : eqdec nat.
 Proof.
