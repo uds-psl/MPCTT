@@ -1,17 +1,10 @@
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
 Arguments Bijection {X Y}.
 Definition dec (X: Type) := sum X (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Fact inv_injective X Y f g x x' :
-  @inv X Y g f -> f x = f x' -> x = x'.
-Proof.
-  intros H H1. rewrite <-(H x), <-(H x').
-  f_equal. exact H1.
-Qed.
+
 
 Definition FE : Prop :=
   forall X (p: X -> Type) (f g: forall x, p x), (forall x, f x = g x) -> f = g.
