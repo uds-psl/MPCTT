@@ -38,6 +38,19 @@ Proof.
   apply H. tauto.
 Qed.
 
+Fact bool_bool_enum :
+  FE -> forall f,
+    f = (fun _ => true) \/
+    f = (fun _ => false) \/
+    f = (fun b => b) \/
+    f = negb.
+Proof.
+  intros H f.
+  assert (forall g, f true = g true -> f false = g false -> f = g).
+  - intros g ? ?. apply H. intros []; easy.
+  - destruct (f true) eqn:?, (f false) eqn:?; auto.
+Qed.
+
 Goal
   FE -> bijection (True -> True) True.
 Proof.
@@ -67,45 +80,14 @@ Definition decode (a: bool * bool) : bool -> bool :=
   | (false, false) => fun _ => false
   end.
 
-Fact inv_decode_encode :
-  FE -> inv decode encode.
-Proof.
-  intros H f.
-  apply H. intros x. unfold encode. 
-  destruct x, (f true), (f false); reflexivity.
-Qed.
-
 Goal
   FE -> bijection (bool -> bool) (bool * bool).
 Proof.
   intros H.
   exists encode decode; hnf.
-  - apply inv_decode_encode, H.
+  - intros f. apply H. intros x. unfold encode. 
+    destruct x, (f true), (f false); reflexivity.
   - intros [x y]. unfold decode. destruct x, y; reflexivity.
-Qed.
-
-Fact dis_eq_fun {X Y g f x1 x2 x3 x4 x5 x6 x7 x8} :
-  @inv X Y g f ->
-  f x1 = f x2 \/ f x3 = f x4 \/ f x5 = f x6 \/ f x7 = f x8 ->
-  x1 = x2 \/ x3 = x4 \/ x5 = x6 \/ x7 = x8.
-Proof.
-  intros F.
-  intros [H|[H|[H|H]]];
-    generalize (f_equal g H);
-    rewrite !F;
-    auto.
-Qed.
-
-Fact bool_bool_enum :
-  FE -> forall f,
-    f = (fun _ => true) \/
-    f = (fun _ => false) \/
-    f = (fun b => b) \/
-    f = negb.
-Proof.
-  intros H f.
-  apply (dis_eq_fun (inv_decode_encode H)).
-  destruct (encode f) as [[] []]; auto.
 Qed.
 
 Goal forall X, unique X -> eqdec X.
