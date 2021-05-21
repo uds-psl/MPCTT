@@ -69,25 +69,15 @@ Proof.
   - intros b. reflexivity.
 Qed.
 
-Definition encode (f: bool -> bool) : bool * bool :=
-  (f true, f false).
-
-Definition decode (a: bool * bool) : bool -> bool :=
-  match a with
-  | (true, true) => fun _ => true
-  | (true, false) => fun b => b
-  | (false, true) => negb
-  | (false, false) => fun _ => false
-  end.
-
 Goal
   FE -> bijection (bool -> bool) (bool * bool).
 Proof.
   intros H.
-  exists encode decode; hnf.
-  - intros f. apply H. intros x. unfold encode. 
-    destruct x, (f true), (f false); reflexivity.
-  - intros [x y]. unfold decode. destruct x, y; reflexivity.
+  exists (fun f => (f true, f false))
+    (fun a => fun b: bool => if b then fst a else snd a)
+  ; hnf.
+  - intros f. apply H. cbn. intros [|]; reflexivity.
+  - intros [x y]. reflexivity.
 Qed.
 
 Goal forall X, unique X -> eqdec X.
