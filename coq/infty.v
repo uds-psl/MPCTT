@@ -334,6 +334,22 @@ Section Div_two.
   Qed.
 End Div_two.
 
+(*** Ackermann *)
+
+Definition ack : nat -> nat -> nat.
+Proof.
+  induction 1 as [|x IHx].
+  - exact S.
+  - induction 1 as [|y IHy].
+    + exact (IHx 1).
+    + exact (IHx IHy).
+Defined.
+
+Goal forall x y, ack (S x) (S y) = ack x (ack (S x) y).
+Proof.
+  reflexivity.
+Qed.
+
 (*** Truncation *)
 
 Inductive trunc (X: Type) : Prop :=
