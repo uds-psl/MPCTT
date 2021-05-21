@@ -28,7 +28,7 @@ Proof.
   unfold dec. intuition.
 Qed.
 
-Fact dec_iff_invariance {X Y} :
+Definition dec_iff_invariance {X Y} :
   X <=> Y -> dec X -> dec Y.
 Proof.
   intros H [H1|H1].

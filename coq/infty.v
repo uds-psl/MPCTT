@@ -408,7 +408,7 @@ Proof.
   - intros x. rewrite H2. apply H2'.
 Qed.
 
-Fact bijection_prod X Y :
+Definition bijection_prod X Y :
   bijection (X * Y) (sig (fun x: X => Y)).
 Proof.
   unshelve eexists.
@@ -418,7 +418,7 @@ Proof.
   - intros [x y]. reflexivity.
 Defined.
 
-Fact bijection_sum X Y :
+Definition bijection_sum X Y :
   bijection (X + Y) (sig (fun b: bool => if b then X else Y)).
 Proof.
   unshelve eexists.
@@ -432,7 +432,7 @@ Proof.
   - intros [[] z]; reflexivity.
 Defined.
 
-Fact bij_bij_sig X Y:
+Definition bij_bij_sig X Y:
   bijection (bijection X Y) (Sigma f g, @inv X Y g f /\ inv f g).
 Proof.
   unshelve eexists.
