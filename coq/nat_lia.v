@@ -131,11 +131,13 @@ Fact delta_unique'' x y a b a' b' :
 Proof.
   intros [-> H1] [H3 H2].
   revert a' H3.
-  induction a as [|a IH]; destruct a'; cbn; intros H3.
-  - auto.
-  - exfalso. lia.
-  - exfalso. clear IH. lia.
-  - destruct (IH a') as [<- <-]. lia. auto.
+  induction a as [|a IH]; destruct a'; cbn.
+  - easy. 
+  - intros ->. exfalso. clear H2. lia.
+  - intros <-. exfalso. clear H1 IH. lia.
+  -intros [= H3].
+   destruct (IH a' ltac:(lia)) as [<- <-].
+   easy.
 Qed.
 
 (** Complete Induction  *)
