@@ -1,4 +1,13 @@
 From Coq Require Import Arith Lia.
+Notation sig := sigT.
+Notation Sig := existT.
+Notation pi1 := projT1.
+Notation pi2 := projT2.
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+  : type_scope.
 
 Goal forall x y, x <= y <-> x - y = 0.
 Proof.
@@ -16,6 +25,20 @@ Fact le_tricho x y :
   x < y \/ x = y \/ y < x.
 Proof.
   lia.
+Qed.
+
+(* lia cannot do sums *)
+
+Lemma le_lt_dec x y :
+  (x <= y) + (y < x).
+Proof.
+  induction x as [|x IH] in y |-*.
+  - left. lia.
+  - destruct y as [|y].
+    + right. lia.
+    + specialize (IH y) as [IH|IH].
+      * left. lia.
+      * right. lia.
 Qed.
 
 (** Euclidean Division *)
@@ -39,7 +62,7 @@ Proof.
 Qed.
 
 Fact delta_total :
-  forall x y, { a & { b & delta x y a b } }.
+  forall x y, Sigma a b, delta x y a b.
 Proof.
   intros x y.
   induction x as [|x (a&b&IH)].
@@ -49,8 +72,8 @@ Proof.
     + exists a, (S b). apply delta2; assumption.
 Defined.
 
-Definition D x y := projT1 (delta_total x y).
-Definition M x y := projT1 (projT2 (delta_total x y)).
+Definition D x y := pi1 (delta_total x y).
+Definition M x y := pi1 (pi2 (delta_total x y)).
 
 Compute D 100 3.
 
@@ -58,7 +81,7 @@ Goal forall x y,
     x = D x y * S y + M x y
     /\ M x y <= y.
 Proof.
-  intros x y. exact (projT2 (projT2 (delta_total x y))).
+  intros x y. exact (pi2 (pi2 (delta_total x y))).
 Qed.
 
 Fixpoint Delta (x y: nat) : nat * nat :=
@@ -125,18 +148,3 @@ Proof.
   - exfalso. lia.
   - apply H. intros z H2. apply IH. lia.
 Defined.
-
-(** Decision *)
-(* lia cannot do sums *)
-
-Lemma le_lt_dec x y :
-  {x <= y} + {y < x}.
-Proof.
-  induction x as [|x IH] in y |-*.
-  - left. lia.
-  - destruct y as [|y].
-    + right. lia.
-    + specialize (IH y) as [IH|IH].
-      * left. lia.
-      * right. lia.
-Qed.

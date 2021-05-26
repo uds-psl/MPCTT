@@ -1,11 +1,10 @@
 Unset Elimination Schemes.
-Definition dec P := { P } + { ~P }.
+Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 
-Module Scratch.
-Section Scratch.
+Module M.
   Inductive nat: Type := O | S (n: nat).
 
   Implicit Types (n x y: nat).
@@ -37,8 +36,7 @@ Section Scratch.
     - apply S_O.
     - intros n IH H. eapply IH, S_injective, H.
   Qed.
-End Scratch.
-End Scratch.
+End M.
 
 (* From now on we use the predefined numbers from the library *)
 
@@ -278,7 +276,7 @@ Proof.
 Defined.
 
 Fact le_lt_eq x y :
-  x <= y <=> {x < y} + {x = y}.
+  x <= y <=> (x < y) + (x = y).
 Proof.
   split.
   - destruct (le_tricho x y) as [[H|H]|H].
@@ -292,7 +290,7 @@ Proof.
 Qed.
 
 Fact le_lt_dec x y :
-  {x <= y} + {y < x}.
+  (x <= y) + (y < x).
 Proof.
   induction x as [|x IH] in y |-*.
   - left. reflexivity.
