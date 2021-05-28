@@ -99,11 +99,12 @@ Qed.
 
 (*** Subtraction *)
 
-
-Fact sub_O_right x :
-  x - 0 = x.
+Fact sub_add_left x y :
+  (x + y) - x = y.
 Proof.
-  destruct x; reflexivity.
+  induction x as [|x IH]; cbn.
+  - destruct y; reflexivity.
+  - exact IH.
 Qed.
 
 Fact sub_add_right x y :
@@ -114,37 +115,74 @@ Proof.
   - exact IH.
 Qed.
 
+Fact sub_O_right x :
+  x - 0 = x.
+Proof.
+  destruct x; reflexivity.
+Qed.
+
 Fact sub_xx x :
   x - x = 0.
 Proof.
-  pattern x at 2. rewrite <-(addO x). apply sub_add_right.
-Qed.
-
-Fact sub_add_left x y :
-  (x + y) - x = y.
-Proof.
-  induction x as [|x IH]; cbn.
-  - apply sub_O_right.
-  - exact IH.
+  replace (x - x) with (x - (x + 0)).
+  - apply sub_add_right.
+  - rewrite addO. reflexivity.
 Qed.
 
 (*** Order *)
 
 
-Definition le x y : Prop := x - y = 0.
-Notation "x <= y" := (le x y).
-Notation "x < y" := (le (S x) y).
+(* Definition le x y : Prop := x - y = 0. *)
+Notation le x y := (x - y = 0).
+(* Make direction "<" default *)
 Notation "x >= y" := (le y x).
 Notation "x > y" := (le (S y) x).
+Notation "x <= y" := (le x y).
+Notation "x < y" := (le (S x) y).
+
+(** Case analysis *)
 
 Definition le_dec x y : dec ( x <= y).
 Proof.
-  induction x as [|x IH] in y |-*; destruct y.
-  - left. reflexivity.
-  - left. reflexivity.
-  - right. cbv. intros [=].
-  - apply IH.
+  apply nat_eqdec.
 Defined.
+
+Fact le_lt_dec x y :
+  (x <= y) + (y < x).
+Proof.
+  induction x as [|x IH] in y |-*.
+  - left. reflexivity.
+  - destruct y.
+    + right. reflexivity.
+    + apply (IH y).
+Defined.
+
+Fact le_tricho x y :
+  (x < y) + (x = y) + (y < x).
+Proof.
+  induction x as [|x IH] in y |-*; destruct y.
+  - auto.
+  - left. left. reflexivity.
+  - right. reflexivity.
+  - destruct (IH y) as [[H|H]|H].
+    + left. left. exact H.
+    + left. right. f_equal. exact H.
+    + right. exact H.
+Defined.
+
+Fact le_lt_eq_dec x y :
+  x <= y -> (x < y) + (x = y).
+Proof.
+  induction x as [|x IH] in y |-*; destruct y.
+  - auto.
+  - auto.
+  - intros [=].
+  - intros H. specialize (IH y H) as [IH|IH].
+    + left. exact IH.
+    + right. f_equal. exact IH.
+Defined.
+
+(** Existential characterization *)
 
 Fact le_eq_sub x y :
   x <= y -> x + (y - x) = y.
@@ -160,9 +198,11 @@ Fact le_ex x y :
   x <= y <-> exists k, x + k = y.
 Proof.
   split.
-  - exists (y - x). apply le_eq_sub, H.
+  - intros H. exists (y - x). apply le_eq_sub, H.
   - intros [k <-]. apply sub_add_right.
 Qed.
+
+(** Order properties *)
 
 Fact le_add x y :
   x <= x + y.
@@ -181,7 +221,7 @@ Qed.
 Fact le_add_O x y :
   x + y <= x -> y = 0.
 Proof.
-  unfold le. rewrite sub_add_left. auto.
+  rewrite sub_add_left. easy.
 Qed.
 
 Fact le_eq_O x :
@@ -200,13 +240,15 @@ Fact le_trans x y z:
   x <= y -> y <= z -> x <= z.
 Proof.
   intros [a <-]%le_ex [b <-]%le_ex.
-  rewrite add_assoc. apply le_add.
+  rewrite add_assoc. rewrite sub_add_right. reflexivity.
 Qed.
   
 Fact le_anti x y :
   x <= y -> y <= x -> x = y.
 Proof.
-  intros [a <-]%le_ex->%le_add_O. symmetry. apply addO.
+  intros [a <-]%le_ex.
+  rewrite sub_add_left.
+  intros ->. symmetry. apply addO.
 Qed.
 
 Fact le_trans_lt_le x y z :
@@ -225,7 +267,7 @@ Qed.
 Fact le_strict_add x y :
   ~ x + y < x.
 Proof.
-  unfold le. rewrite <-addS. rewrite sub_add_left. intros [=].
+  rewrite <-addS. rewrite sub_add_left. intros [=].
 Qed.
 
 Fact le_strict x :
@@ -248,56 +290,21 @@ Proof.
   - rewrite addS, addO. reflexivity.
 Qed.
 
-Fact le_sub x y :
-  x - y <= x.
+Fact lt_le x y :
+  x < y -> x <= y.
 Proof.
-  induction x as [|x IH] in y |-*.
-  - reflexivity.
-  - destruct y; cbn.
-    + apply sub_xx.
-    + eapply le_trans.
-      * apply IH.
-      * apply le_S.
+  destruct y.
+  - intros [=].
+  - cbn. apply le_add_S.
 Qed.
 
-(*** Trichotomy *)
-
-Fact le_tricho x y :
-  (x < y) + (x = y) + (y < x).
+Fact lt_eq_le x y :
+   (x < y) \/ (x = y) -> x <= y.
 Proof.
-  induction x as [|x IH] in y |-*; destruct y.
-  - auto.
-  - left. left. reflexivity.
-  - right. reflexivity.
-  - destruct (IH y) as [[H|H]|H].
-    + left. left. exact H.
-    + left. right. f_equal. exact H.
-    + right. exact H.
-Defined.
-
-Fact le_lt_eq x y :
-  x <= y <=> (x < y) + (x = y).
-Proof.
-  split.
-  - destruct (le_tricho x y) as [[H|H]|H].
-    + auto.
-    + auto.
-    + intros H1. exfalso.
-      eapply le_strict, le_trans_lt_le; eassumption.
-  - intros [H|<-].
-    + eapply le_trans. 2:exact H. apply le_S.
-    + apply le_refl.
+  intros [H|<-].
+  + apply lt_le, H.
+  + apply le_refl.
 Qed.
-
-Fact le_lt_dec x y :
-  (x <= y) + (y < x).
-Proof.
-  induction x as [|x IH] in y |-*.
-  - left. reflexivity.
-  - destruct y.
-    + right. reflexivity.
-    + apply (IH y).
-Defined.
 
 Fact le_contra x y :
   ~ x > y -> x <= y.
@@ -319,11 +326,23 @@ Lemma bounded_forall_dec (p: nat -> Prop) k:
 Proof.
   intros H.
   induction k as [|k IH].
-  - left. intros x []%le_strict_O.
+  - left. intros x [=].
   - destruct (H k) as [H1|H1].
-    + destruct IH as [IH|IH].
-      * left. intros x H2. change (x <= k) in H2.
-        apply le_lt_eq in H2 as [H2| ->]; auto.
-      * right. contradict IH. intros x H2. apply IH, le_add_S, H2.
+    + destruct IH as [IH|IH]; cbn.
+      * left. intros x H2.
+        apply le_lt_eq_dec in H2 as [H2| ->]; auto.
+      * right. contradict IH. intros x H2. apply IH, lt_le, H2.
     + right. contradict H1. apply H1, le_refl.
+Qed.
+
+Fact le_sub x y :
+  x - y <= x.
+Proof.
+  induction x as [|x IH] in y |-*.
+  - reflexivity.
+  - destruct y; cbn.
+    + apply sub_xx.
+    + eapply le_trans.
+      * apply IH.
+      * apply le_S.
 Qed.

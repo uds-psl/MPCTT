@@ -55,8 +55,21 @@ Module Definitions.
     - intros a.
       apply (match_sig a). intros f H x.
       exists (f x). apply H.
-    - intros H. exists (fun x => pi1 (H x)). intros x.
-      exact (pi2 (H x)).
+    - intros F. exists (fun x => pi1 (F x)). intros x.
+      exact (pi2 (F x)).
+  Defined.
+
+  (* Can be done at term level *)
+  Definition skolem' X Y (p: X -> Y -> Type) :
+    sig (fun f => forall x, p x (f x)) <=> forall x, sig (p x).
+  Proof.
+    refine (_,_).
+    - refine (fun a => (match_sig a (fun f h x => _))).
+      cbn in h.
+      exact (E (f x) (h x)).
+    - unshelve refine (fun F => E _ _).
+      + exact (fun x => pi1 (F x)).
+      + exact (fun x => pi2 (F x)).
   Defined.
 
   Goal forall X (p: X -> Type),
