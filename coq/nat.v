@@ -131,14 +131,10 @@ Qed.
 
 (*** Order *)
 
+Notation "x <= y" := (x - y = 0).
+Notation "x < y" := (S x - y = 0).
+(* Negations don't print correctly *)
 
-(* Definition le x y : Prop := x - y = 0. *)
-Notation le x y := (x - y = 0).
-(* Make direction "<" default *)
-Notation "x >= y" := (le y x).
-Notation "x > y" := (le (S y) x).
-Notation "x <= y" := (le x y).
-Notation "x < y" := (le (S x) y).
 
 (** Case analysis *)
 
@@ -181,6 +177,14 @@ Proof.
     + left. exact IH.
     + right. f_equal. exact IH.
 Defined.
+
+Fact le_contra x y :
+  ~(y < x) -> x <= y.
+Proof.
+  destruct (le_lt_dec x y) as [H|H].
+  - intros _. exact H.
+  - intros H1. exfalso.  apply H1, H.
+Qed.
 
 (** Existential characterization *)
 
@@ -259,19 +263,19 @@ Proof.
 Qed.
   
 Fact le_strict_O x :
-  ~ x < 0.
+  ~(x < 0).
 Proof.
   cbv. intros [=].
 Qed.
 
 Fact le_strict_add x y :
-  ~ x + y < x.
+  ~(x + y < x).
 Proof.
   rewrite <-addS. rewrite sub_add_left. intros [=].
 Qed.
 
 Fact le_strict x :
-  ~ x < x.
+  ~(x < x).
 Proof.
   pattern x at 1. rewrite <-(addO x). apply le_strict_add.
 Qed.
@@ -306,16 +310,8 @@ Proof.
   + apply le_refl.
 Qed.
 
-Fact le_contra x y :
-  ~ x > y -> x <= y.
-Proof.
-  destruct (le_lt_dec x y) as [H|H].
-  - intros _. exact H.
-  - intros H1. exfalso.  apply H1, H.
-Qed.
-
 Fact le_contra_eq x y :
-  ~ x < y -> ~ y < x -> x = y.
+  ~(x < y) -> ~(y < x) -> x = y.
 Proof.
   intros H1%le_contra H2%le_contra.
   eapply le_anti; eassumption.
