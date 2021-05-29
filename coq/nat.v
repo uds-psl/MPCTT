@@ -3,6 +3,15 @@ Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Notation sig := sigT.
+Notation Sig := existT.
+Notation pi1 := projT1.
+Notation pi2 := projT2.
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+  : type_scope.
 
 Module M.
   Inductive nat: Type := O | S (n: nat).
@@ -52,7 +61,7 @@ Proof.
   - destruct (IH y) as [H|H].
     + left. f_equal. exact H.
     + right. intros [= H1]. apply H, H1.
-Qed.
+Defined.
 
 Lemma add_assoc x y z :
   x + y + z = x + (y +z).
@@ -342,3 +351,63 @@ Proof.
       * apply IH.
       * apply le_S.
 Qed.
+
+(*** Euclidean Division *)
+
+Definition delta x y a b := x = a * S y + b /\ b <= y.
+
+Fact delta0 y :
+  delta 0 y 0 0.
+Proof.
+  unfold delta. easy.
+Qed.
+Fact delta1 x y a b :
+  delta x y a b -> b = y -> delta (S x) y (S a) 0.
+Proof.
+  unfold delta. intros [-> H] ->. split.
+  - rewrite addO. cbn. f_equal. apply add_comm.
+  - reflexivity.
+Qed.
+Fact delta2 x y a b :
+  delta x y a b -> b <> y -> delta (S x) y a (S b).
+Proof.
+  unfold delta. intros [-> H] H1. split.
+  - rewrite addS. reflexivity.
+  - apply le_lt_eq_dec in H as [H| ->].
+    + exact H.
+    + easy.
+Qed.
+
+Fact delta_total :
+  forall x y, Sigma a b, delta x y a b.
+Proof.
+  intros x y.
+  induction x as [|x (a&b&IH)].
+  - exists 0, 0. apply delta0.
+  - destruct (nat_eqdec b y) as [->|H].
+    + exists (S a), 0. eapply delta1. exact IH. reflexivity.
+    + exists a, (S b). apply delta2; assumption.
+Defined.
+
+Definition D x y := pi1 (delta_total x y).
+Definition M x y := pi1 (pi2 (delta_total x y)).
+
+Compute D 100 3.
+
+Fact delta_unique x y a b a' b' :
+  delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
+Proof.
+  intros [-> H1] [H3 H2].
+  revert a' H3.
+  induction a as [|a IH]; destruct a'; cbn.
+  - easy. 
+  - intros ->. exfalso. clear H2. revert H1.
+    rewrite add_assoc. apply le_strict_add.
+  - intros <-. exfalso. clear H1 IH. revert H2.
+    rewrite add_assoc. apply le_strict_add.   
+  - intros [= H3].
+    destruct (IH a') as [<- <-].
+    + revert H3. rewrite !add_assoc. apply add_injective.
+    + easy.
+Qed.
+
