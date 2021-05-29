@@ -392,7 +392,14 @@ Defined.
 Definition D x y := pi1 (delta_total x y).
 Definition M x y := pi1 (pi2 (delta_total x y)).
 
-Compute D 100 3.
+Compute D 103 3.
+Compute M 103 3.
+
+Goal forall  x y, x = D x y * S y + M x y /\ M x y <= y.
+Proof.
+  intros x y. unfold D, M.
+  destruct delta_total as (a&b&H); cbn. exact H.
+Qed.
 
 Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
