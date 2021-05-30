@@ -405,16 +405,15 @@ Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
   intros [-> H1] [H3 H2].
-  revert a' H3.
+  revert a a' H3.
   induction a as [|a IH]; destruct a'; cbn.
   - easy. 
   - intros ->. exfalso. clear H2. revert H1.
     rewrite add_assoc. apply le_strict_add.
   - intros <-. exfalso. clear H1 IH. revert H2.
     rewrite add_assoc. apply le_strict_add.   
-  - intros [= H3].
-    destruct (IH a') as [<- <-].
-    + revert H3. rewrite !add_assoc. apply add_injective.
-    + easy.
+  - intros [= H3]. rewrite !add_assoc in H3. 
+    apply add_injective, IH in H3 as [<- <-].
+    easy.
 Qed.
 
