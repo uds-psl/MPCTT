@@ -142,7 +142,7 @@ Qed.
 
 Notation "x <= y" := (x - y = 0).
 Notation "x < y" := (S x - y = 0).
-(* Negations don't print correctly *)
+(* Negations ~(x < y) don't print correctly *)
 
 
 (** Case analysis *)
