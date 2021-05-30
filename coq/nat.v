@@ -395,10 +395,29 @@ Definition M x y := pi1 (pi2 (delta_total x y)).
 Compute D 103 3.
 Compute M 103 3.
 
-Goal forall  x y, x = D x y * S y + M x y /\ M x y <= y.
+Fact delta_DM x y :
+  delta x y (D x y) (M x y).
 Proof.
-  intros x y. unfold D, M.
-  destruct delta_total as (a&b&H); cbn. exact H.
+  exact (pi2 (pi2 (delta_total x y))).
+Qed.
+
+Fixpoint Delta x y : nat * nat :=
+  match x with
+  | 0 => (0,0)
+  | S x' => let (a,b) := Delta x' y in
+           if nat_eqdec b y then (S a, 0) else (a, S b)
+  end.
+
+Fact Delta_correct x y :
+  delta x y (fst (Delta x y)) (snd (Delta x y)).
+Proof.
+  induction x as [|x IH].
+  - apply delta0.
+  - unfold delta. cbn.
+    destruct (Delta x y) as [a b]. cbn in IH.
+    destruct nat_eqdec as [->|H]; cbn [fst snd].
+    + eapply delta1. exact IH. reflexivity.
+    + eapply delta2. exact IH.  exact H.
 Qed.
 
 Fact delta_unique x y a b a' b' :
