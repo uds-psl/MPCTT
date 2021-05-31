@@ -49,6 +49,8 @@ End M.
 
 (* From now on we use the predefined numbers from the library *)
 
+From Coq Require Import Nat.
+
 Implicit Types x y z n k : nat.
 
 Fact nat_eqdec : eqdec nat.
@@ -108,6 +110,9 @@ Qed.
 
 (*** Subtraction *)
 
+Locate "-".
+Arguments sub : simpl nomatch.
+
 Fact sub_add_left x y :
   (x + y) - x = y.
 Proof.
@@ -140,8 +145,10 @@ Qed.
 
 (*** Order *)
 
-Notation "x <= y" := (x - y = 0).
-Notation "x < y" := (S x - y = 0).
+Notation "x <= y" := (x - y = 0) : nat_scope.
+Notation "x < y" := (S x - y = 0) : nat_scope.
+Notation "x >= y" := (y - x = 0) (only parsing) : nat_scope.
+Notation "x > y" := (S y - x = 0) (only parsing) : nat_scope.
 (* Negations ~(x < y) don't print correctly *)
 
 
@@ -356,23 +363,25 @@ Qed.
 
 Definition delta x y a b := x = a * S y + b /\ b <= y.
 
-Fact delta0 y :
+Fact delta1 y :
   delta 0 y 0 0.
 Proof.
-  unfold delta. easy.
+  unfold delta. cbn. easy.
 Qed.
-Fact delta1 x y a b :
+
+Fact delta2 x y a b :
   delta x y a b -> b = y -> delta (S x) y (S a) 0.
 Proof.
-  unfold delta. intros [-> H] ->. split.
-  - rewrite addO. cbn. f_equal. apply add_comm.
+  unfold delta. intros [-> H] ->. cbn. split.
+  - f_equal. rewrite addO. apply add_comm.
   - reflexivity.
 Qed.
-Fact delta2 x y a b :
+
+Fact delta3 x y a b :
   delta x y a b -> b <> y -> delta (S x) y a (S b).
 Proof.
-  unfold delta. intros [-> H] H1. split.
-  - rewrite addS. reflexivity.
+  unfold delta. intros [-> H] H1. cbn. split.
+  - symmetry. apply addS. 
   - apply le_lt_eq_dec in H as [H| ->].
     + exact H.
     + easy.
@@ -383,10 +392,10 @@ Fact delta_total :
 Proof.
   intros x y.
   induction x as [|x (a&b&IH)].
-  - exists 0, 0. apply delta0.
+  - exists 0, 0. apply delta1.
   - destruct (nat_eqdec b y) as [->|H].
-    + exists (S a), 0. eapply delta1. exact IH. reflexivity.
-    + exists a, (S b). apply delta2; assumption.
+    + exists (S a), 0. eapply delta2. exact IH. reflexivity.
+    + exists a, (S b). apply delta3; assumption.
 Defined.
 
 Definition D x y := pi1 (delta_total x y).
@@ -412,12 +421,12 @@ Fact Delta_correct x y :
   delta x y (fst (Delta x y)) (snd (Delta x y)).
 Proof.
   induction x as [|x IH].
-  - apply delta0.
+  - apply delta1.
   - unfold delta. cbn.
     destruct (Delta x y) as [a b]. cbn in IH.
     destruct nat_eqdec as [->|H]; cbn [fst snd].
-    + eapply delta1. exact IH. reflexivity.
-    + eapply delta2. exact IH.  exact H.
+    + eapply delta2. exact IH. reflexivity.
+    + eapply delta3. exact IH.  exact H.
 Qed.
 
 Fact delta_unique x y a b a' b' :
@@ -435,4 +444,33 @@ Proof.
     apply add_injective, IH in H3 as [<- <-].
     easy.
 Qed.
+
+Fact delta4 x y:
+  x <= y -> delta x y 0 x.
+Proof.
+  unfold delta. cbn. easy.
+Qed.
+
+Fact delta5 x y a b:
+  delta (x - S y) y a b -> x > y -> delta x y (S a) b.
+Proof.
+  unfold delta. cbn [mul]. rewrite add_assoc. intros [<- H1] H2.
+  split. 2:exact H1.
+  symmetry. apply (le_eq_sub (S y) x), H2.
+Qed.
+
+Goal forall x y,
+    (D x y = if le_lt_dec x y then 0 else S (D (x - S y) y)) /\
+    (M x y = if le_lt_dec x y then x else M (x - S y) y).
+Proof.
+  intros x y.
+  apply (delta_unique x y).
+  - apply delta_DM.
+  - destruct (le_lt_dec x y) as [H|H].
+    + apply delta4, H.
+    + apply delta5.
+      * apply delta_DM.
+      * exact H.
+Qed.
+
 

@@ -28,7 +28,6 @@ Proof.
 Qed.
 
 (* lia cannot do sums *)
-
 Lemma le_lt_dec x y :
   (x <= y) + (y < x).
 Proof.
@@ -41,21 +40,21 @@ Proof.
       * right. lia.
 Qed.
 
-(** Euclidean Division *)
+(*** Euclidean Division *)
 
 Definition delta x y a b := x = a * S y + b /\ b <= y.
 
-Fact delta0 y :
+Fact delta1 y :
   delta 0 y 0 0.
 Proof.
   unfold delta. lia.
 Qed.
-Fact delta1 x y a b :
+Fact delta2 x y a b :
   delta x y a b -> b = y -> delta (S x) y (S a) 0.
 Proof.
   unfold delta. lia.
 Qed.
-Fact delta2 x y a b :
+Fact delta3 x y a b :
   delta x y a b -> b <> y -> delta (S x) y a (S b).
 Proof.
   unfold delta. lia.
@@ -66,10 +65,10 @@ Fact delta_total :
 Proof.
   intros x y.
   induction x as [|x (a&b&IH)].
-  - exists 0, 0. apply delta0.
+  - exists 0, 0. apply delta1.
   - destruct (Nat.eq_dec b y) as [H|H].
-    + exists (S a), 0. eapply delta1; eassumption.
-    + exists a, (S b). apply delta2; assumption.
+    + exists (S a), 0. eapply delta2; eassumption.
+    + exists a, (S b). apply delta3; assumption.
 Defined.
 
 Definition D x y := pi1 (delta_total x y).
@@ -77,11 +76,10 @@ Definition M x y := pi1 (pi2 (delta_total x y)).
 
 Compute D 100 3.
 
-Goal forall x y,
-    x = D x y * S y + M x y
-    /\ M x y <= y.
+Fact delta_DM x y :
+delta x y (D x y) (M x y).
 Proof.
-  intros x y. exact (pi2 (pi2 (delta_total x y))).
+  exact (pi2 (pi2 (delta_total x y))).
 Qed.
 
 Fixpoint Delta (x y: nat) : nat * nat :=
@@ -95,52 +93,53 @@ Fact Delta_correct x y :
   delta x y (fst (Delta x y)) (snd (Delta x y)).
 Proof.
   induction x as [|x IH]; cbn.
-  - apply delta0.
+  - apply delta1.
   - destruct (Delta x y) as [a b]; cbn in *.
     destruct (Nat.eq_dec b y) as [H|H]; cbn.
-    + eapply delta1; eassumption.
-    + apply delta2; assumption.
+    + eapply delta2; eassumption.
+    + apply delta3; assumption.
 Qed.
-
-(* Uniqueness is amazingly tricky; we offer 3 variants. *)
 
 Fact delta_unique x y a b a' b' :
-  delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
-Proof.
-  intros [-> H1] [H3 H2]. 
-  enough (a = a') by lia. nia.
-Qed.
-
-Fact delta_unique' x y a b a' b' :
-  delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
-Proof.
-  intros [-> H1] [H3 H2]. 
-  enough (a = a') by lia.
-  enough (~ a < a' /\ ~ a' < a) by lia.
-  split; intros H; revert H3.
-  - clear H2.
-    assert (a' = a + S (a' - S a)) as -> by lia. clear H.
-    lia.
-  - clear H1.
-    assert (a = a' + S (a - S a')) as -> by lia. clear H.
-    lia.
-Qed.
-
-Fact delta_unique'' x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
   intros [-> H1] [H3 H2].
   revert a' H3.
   induction a as [|a IH]; destruct a'; cbn.
   - easy. 
-  - intros ->. exfalso. clear H2. lia.
-  - intros <-. exfalso. clear H1 IH. lia.
-  -intros [= H3].
-   destruct (IH a' ltac:(lia)) as [<- <-].
-   easy.
+  - lia. 
+  - lia.
+  - specialize (IH a'). lia.
 Qed.
 
-(** Complete Induction  *)
+Fact delta4 x y:
+  x <= y -> delta x y 0 x.
+Proof.
+  unfold delta. cbn. easy.
+Qed.
+
+Fact delta5 x y a b:
+  delta (x - S y) y a b -> x > y -> delta x y (S a) b.
+Proof.
+  unfold delta. cbn. rewrite <- plus_assoc.
+  intros [<- H1] H2. lia.
+Qed.
+
+Goal forall x y,
+    (D x y = if le_lt_dec x y then 0 else S (D (x - S y) y)) /\
+    (M x y = if le_lt_dec x y then x else M (x - S y) y).
+Proof.
+  intros x y.
+  apply (delta_unique x y).
+  - apply delta_DM.
+  - destruct (le_lt_dec x y) as [H|H].
+    + apply delta4, H.
+    + apply delta5.
+      * apply delta_DM.
+      * exact H.
+Qed.
+
+(*** Complete Induction  *)
 
 Definition nat_compl_ind (p: nat -> Type) :
   (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
