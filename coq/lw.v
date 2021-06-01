@@ -1,9 +1,25 @@
 From Coq Require Import Arith Lia.
-Definition dec P := { P } + { ~P }.
+Notation sig := sigT.
+Notation Sig := existT.
+Notation pi1 := projT1.
+Notation pi2 := projT2.
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+  : type_scope.
+Definition dec (X: Type) : Type := X + (X -> False).
+Definition eqdec X := forall x y: X, dec (x = y).
 Notation decidable p := (forall x, dec (p x)).
 Notation unique p := (forall x y, p x -> p y -> x = y).
-Definition eqdec X := forall x y: X, dec (x = y).
-Definition nat_eqdec : eqdec nat := Nat.eq_dec.
+
+Definition nat_eqdec : eqdec nat.
+Proof.
+  intros x y.
+  destruct (Nat.eq_dec x y) as [H|H].
+  - left. exact H.
+  - right. exact H.
+Defined.
 
 Implicit Types (n k: nat).
 
@@ -39,7 +55,7 @@ Section Least.
   Variable p_dec: decidable p.
 
   Lemma least_sigma_safe :
-    forall n, safe p n + { k & least p k }.
+    forall n, safe p n + sig (least p).
   Proof.
     induction n as [|n IH].
     - left. apply safe_O.
@@ -51,12 +67,12 @@ Section Least.
   Qed.
 
   Lemma least_sigma :
-    sigT p -> sigT (least p).
+    sig p -> sig (least p).
   Proof.
     intros [n H].
     destruct (least_sigma_safe n) as [H1|H1].
-    2:exact H1.
-    exists n. hnf. auto.
+    - exists n. hnf. auto.
+    - exact H1.
   Qed.
 
   Fact least_ex :
@@ -132,7 +148,7 @@ Section Least_linear_search.
   Variable p_dec: decidable p.
 
   Lemma least_linear_sigma_safe :
-    forall n k, p (n + k) -> safe p k -> sigT (least p).
+    forall n k, p (n + k) -> safe p k -> sig (least p).
   Proof.
     induction n as [|n IH].
     - intros k H1 H2. exists k. hnf. auto.
@@ -145,7 +161,7 @@ Section Least_linear_search.
   Qed.
 
   Lemma least_linear_sigma :
-    sigT p -> sigT (least p).
+    sig p -> sig (least p).
   Proof.
     intros [n H].
     apply (least_linear_sigma_safe n 0).
@@ -169,7 +185,7 @@ Section S.
   Proof.
     induction n as [|n IH]; intros k H1 H2; cbn.
     - hnf. auto.
-    - destruct (f k) as [H|H] eqn:H3.
+    - destruct (f k) as [|] eqn:H3.
       + hnf. auto.
       + apply IH.
         * replace (n + S k) with (S n + k) by lia. exact H1.
@@ -210,10 +226,10 @@ Proof.
   - intros H p. apply least_ex_or. intros x. apply H.
   - intros H P.
     destruct (H (fun x => if x then P else True)) as (n&H1&H2).
-    { exists 1. exact I. }
-    destruct n.
-    { auto. } 
-    right. intros H3. hnf in H2. specialize (H2 0). apply H2 in H3. lia.
+    + exists 1. exact I.
+    + destruct n.
+      * auto. 
+      * right. intros H3. hnf in H2. specialize (H2 0). apply H2 in H3. lia.
 Qed.
 
     
