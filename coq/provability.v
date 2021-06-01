@@ -104,5 +104,13 @@ Section Provable.
       eapply MP. exact H. exact H1.
     - intros H H1.  eapply H. exact H1. apply LI.
   Qed.
-    
+
+  Fact cons4 :
+    ~provable False <-> forall P, disprovable P -> ~provable P.
+  Proof.
+    unfold disprovable. split.
+    - intros H1 P H2. contradict H1. apply (MP _ _ H2 H1).
+    - intros H. specialize (H False). apply H. apply LI.
+  Qed.
+
 End Provable.
