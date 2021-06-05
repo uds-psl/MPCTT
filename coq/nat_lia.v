@@ -139,6 +139,15 @@ Proof.
       * exact H.
 Qed.
 
+Fact predefined_div_mod_delta x y :
+  delta x y (x / S y) (x mod S y).
+Proof.
+  unfold delta.
+  generalize (Nat.div_mod x (S y)).
+  generalize (Nat.mod_upper_bound x (S y)).
+  lia.
+Qed.
+
 (*** Complete Induction  *)
 
 Definition nat_compl_ind (p: nat -> Type) :

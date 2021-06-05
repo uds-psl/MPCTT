@@ -470,3 +470,80 @@ Check sum True True.
 Check sum bool bool.
 Check sum Prop Prop.
 
+Fact bijection_refl X :
+  bijection X X.
+Proof.
+  exists (fun x => x) (fun x => x); easy.
+Qed.
+
+Fact bijection_sym X Y :
+  bijection X Y -> bijection Y X.
+Proof.
+  intros [f g H1 H2]. exists g f; assumption.
+Qed.
+
+Fixpoint Num n : Type :=
+  match n with
+  | 0 => False
+  | S n' => option (Num n')
+  end.
+
+Fact bijection_Num_void n :
+  bijection (Num 0) (Num (S n)) -> False.
+Proof.
+  intros [f g H1 H2]. contradiction (g None).
+Qed.
+
+Fact bijection_Num_void2 n :
+  bijection (Num 1) (Num (S (S n))) -> False.
+Proof.
+  intros [f g H1 H2].
+  enough (H: g None = g (Some None)).
+  { apply (f_equal f) in H. rewrite !H2 in H. discriminate H. }
+  destruct g as [[]|], g as [[]|]. reflexivity.
+Qed.
+
+Definition lower {X Y} (f: option X -> option Y)
+  : Y -> X -> Y
+  := fun y0 x => match (f (Some x)) with
+              | Some y => y
+              | None => y0
+              end.
+
+Fact lower_inv X Y f g (x0: X) (y0: Y) :
+  inv g f -> f None = Some y0 -> g None = Some x0 ->  inv (lower g x0) (lower f y0).
+Proof.
+  intros H H1 H2 x. unfold lower at 2.
+  destruct (f (Some x)) as [y|] eqn:E1; unfold lower.
+  - rewrite <-E1, H. reflexivity.
+  - rewrite <-H1, H. congruence.
+Qed.
+
+Fact lower_inv_None X Y (f : option (option X) -> option (option Y)) g :
+  inv g f -> g None = None -> inv (lower g None) (lower f None).
+Proof.
+  intros H H1 x. unfold lower at 2.
+  destruct (f (Some x)) as [y|] eqn:E1; unfold lower.
+  - rewrite <-E1, H. reflexivity.
+  - exfalso. congruence.
+Qed.
+
+Lemma num_agree m n :
+  bijection (Num m ) (Num n) -> m = n.
+Proof.
+  induction m as [|m IH] in n |-*;  destruct n; cbn.
+  - easy.
+  - intros [] %bijection_Num_void.
+  - intros [] %bijection_sym %bijection_Num_void.
+  - intros H. f_equal. apply IH. clear IH.
+    destruct m, n.
+    + apply bijection_refl.
+    + exfalso. apply bijection_Num_void2 in H. exact H.
+    + exfalso. apply bijection_sym, bijection_Num_void2 in H. exact H.
+    + destruct H as [f g H1 H2].
+      destruct (f None) as [y0|] eqn:E1, (g None) as [x0|] eqn:E2.
+      * exists (lower f y0) (lower g x0); apply lower_inv; assumption.
+      * exfalso. congruence.
+      * exfalso. congruence.
+      * exists (lower f None) (lower g None); apply lower_inv_None; assumption.
+Qed.

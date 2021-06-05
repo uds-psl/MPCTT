@@ -195,7 +195,7 @@ Proof.
 Defined.
 
 Fact le_contra x y :
-  ~(y < x) -> x <= y.
+  (y < x -> False) -> x <= y.
 Proof.
   destruct (le_lt_dec x y) as [H|H].
   - intros _. exact H.
@@ -279,19 +279,19 @@ Proof.
 Qed.
   
 Fact le_strict_O x :
-  ~(x < 0).
+  (x < 0) -> False.
 Proof.
   cbv. intros [=].
 Qed.
 
 Fact le_strict_add x y :
-  ~(x + y < x).
+  (x + y < x) -> False.
 Proof.
   rewrite <-addS. rewrite sub_add_left. intros [=].
 Qed.
 
 Fact le_strict x :
-  ~(x < x).
+  (x < x) -> False.
 Proof.
   pattern x at 1. rewrite <-(addO x). apply le_strict_add.
 Qed.
@@ -327,7 +327,7 @@ Proof.
 Qed.
 
 Fact le_contra_eq x y :
-  ~(x < y) -> ~(y < x) -> x = y.
+  (x < y -> False) -> (y < x -> False) -> x = y.
 Proof.
   intros H1%le_contra H2%le_contra.
   eapply le_anti; eassumption.
