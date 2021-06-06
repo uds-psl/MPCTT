@@ -3,5 +3,5 @@
 Using the Coq Proof Assistant
 (by Gert Smolka)**
 
-[Text](https://www.ps.uni-saarland.de/~smolka/drafts/icl2021.pdf)  
-[Accompanying Coq files](coq)
+[Text as pdf](https://www.ps.uni-saarland.de/~smolka/drafts/icl2021.pdf)  
+[Coq files](coq)
