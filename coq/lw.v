@@ -1,4 +1,6 @@
 From Coq Require Import Arith Lia.
+Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
+Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
@@ -112,41 +114,19 @@ Section Direct_search.
   Variable p: nat -> Prop.
 
   (** Certifying version *)
-  
-  Definition delta n : Type := safe p n + sig (least p).
-
-  Fact delta1 :
-    delta 0.
-  Proof.
-    left. apply safe_O.
-  Qed.
-
-  Fact delta2 n :
-    delta n -> p n -> delta (S n).
-  Proof.
-    intros [H|H] H1.
-    - right. exists n. easy.
-    - right. exact H.
-  Qed.
- 
-  Fact delta3 n :
-    delta n -> ~p n -> delta (S n).
-  Proof.
-    intros [H|H] H1.
-    - left. apply safe_S; assumption.
-    - right. exact H.
-  Qed.
 
   Variable p_dec: decidable p.
   
   Lemma least_direct_sigma' :
-    forall n, delta n.
+    forall n, safe p n + sig (least p).
   Proof.
     induction n as [|n IH].
-    - apply delta1.
-    - destruct (p_dec n) as [H|H].
-      + apply delta2; assumption.
-      + apply delta3; assumption.
+    - left. apply safe_O.
+    - destruct IH as [IH|IH].
+      + destruct (p_dec n) as [H|H].
+        * right. exists n. easy.
+        * left. apply safe_S; assumption.
+      + right. exact IH.
   Qed.
 
   Lemma least_direct_sigma :
@@ -179,7 +159,7 @@ Section Direct_search.
     - right. contradict H2. eapply least_unique; eassumption.
   Qed.
 
-  (** Plain version *)
+  (** Simply-typed version *)
 
   Fixpoint D n : option nat :=
     match n with
@@ -216,6 +196,68 @@ Section Direct_search.
   Proof.
     intros H. unfold W. generalize (D_correct n).
     destruct (D n) as [x|]; easy.
+  Qed.
+
+  (** Derivation rules *)
+
+  Definition delta n (a: option nat) : Prop :=
+    match a with None => safe p n | Some x => least p x end.
+
+  Fact delta1 :
+    delta 0 None.
+  Proof.
+    apply safe_O.
+  Qed.
+  
+  Fact delta2 n x :
+    delta n (Some x) -> delta (S n) (Some x).
+  Proof.
+    easy.
+  Qed.
+  
+  Fact delta3 n :
+    delta n None -> p n -> delta (S n) (Some n).
+  Proof.
+    easy.
+  Qed.
+  
+  Fact delta4 n :
+    delta n None -> ~p n -> delta (S n) None.
+  Proof.
+    intros H1 H2. apply safe_S; assumption.
+  Qed.
+
+  Goal forall n, delta n (D n).
+  Proof.
+    induction n as [|n IH].
+    - apply delta1.
+    - cbn. destruct (D n) as [x|].
+      + apply delta2, IH.
+      + destruct (p_dec n) as [H|H].
+        * apply delta3; assumption.
+        * apply delta4; assumption.
+  Qed.
+  
+  Goal forall n, sig (delta n).
+  Proof.
+    induction n as [|n IH]; cbn.
+    - exists None. apply delta1.
+    - destruct IH as [[x|] IH].
+      + exists (Some x). apply delta2, IH.
+      + destruct (p_dec n) as [H|H].
+        * exists (Some n). apply delta3; assumption.
+        * exists None. apply delta4; assumption.
+  Qed.
+
+  Goal forall n, sig (delta n) <=> safe p n + sig (least p).
+  Proof.
+    split.
+    - intros [[x|] H].
+      + right. exists x. exact H.
+      + left. exact H.
+    - intros [H|[x H]].
+      + exists None. exact H.
+      + exists (Some x). exact H.
   Qed.
 End Direct_search.
 

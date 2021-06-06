@@ -359,6 +359,18 @@ Proof.
       * apply le_S.
 Qed.
 
+(*** Complete Induction  *)
+
+Definition nat_compl_ind (p: nat -> Type) :
+  (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
+Proof.
+  intros H x. apply H.
+  induction x as [|x IH]; intros y H1.
+  - exfalso. discriminate H1.
+  - apply H. intros z H2. apply IH.
+    eapply le_trans_lt_le. exact H2. exact H1.
+Defined.
+
 (*** Euclidean Division *)
 
 Definition delta x y a b := x = a * S y + b /\ b <= y.

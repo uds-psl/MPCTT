@@ -147,14 +147,3 @@ Proof.
   generalize (Nat.mod_upper_bound x (S y)).
   lia.
 Qed.
-
-(*** Complete Induction  *)
-
-Definition nat_compl_ind (p: nat -> Type) :
-  (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
-Proof.
-  intros H x. apply H.
-  induction x as [|x IH]; intros y H1.
-  - exfalso. lia.
-  - apply H. intros z H2. apply IH. lia.
-Defined.
