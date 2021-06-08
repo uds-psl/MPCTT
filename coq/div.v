@@ -139,6 +139,8 @@ Proof.
       * exact H.
 Qed.
 
+(*** Predefined div and mod *)
+
 Fact predefined_div_mod_delta x y :
   delta x y (x / S y) (x mod S y).
 Proof.
