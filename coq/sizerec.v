@@ -155,7 +155,7 @@ Proof.
   cbn. destruct le_lt_dec as [H|H]; apply IH; lia.
 Qed.
 
-(** Totality of gcd predicate follows best with gcd recursion. *)
+(** Totality of gcd relation follows best with gcd recursion. *)
 Definition gcd_rec (p: nat -> nat -> Type) :
   (forall y, p 0 y) ->
   (forall x y, p y x -> p x y) ->
@@ -234,22 +234,22 @@ Section Gcd_function.
   Qed.
 End Gcd_function.
 
-(*** Concrete GCD Predicate *)
+(*** Concrete GCD Relation *)
 
-Definition divides n x : Prop
-  := exists k, x = k * n.
+Definition divides n x : Prop := exists k, x = k * n.
+Notation "( n | x )" := (divides n x) (at level 0) : nat_scope.
 
 Definition gamma x y z : Prop :=
-  forall n, divides n z <-> divides n x /\ divides n y.
+  forall n, (n | z) <-> (n | x) /\ (n | y).
 
 Fact divides_zero n :
-  divides n 0.
+  (n | 0).
 Proof.
   exists 0. reflexivity.
 Qed.
 
 Fact divides_minus x y n :
-  x <= y -> divides n x -> divides n y <->  divides n (y - x).
+  x <= y -> (n | x) -> (n | y) <->  (n | y - x).
 Proof.
   intros H [k ->]. split.
   - intros [l ->]. exists (l-k). nia.
@@ -278,7 +278,7 @@ Proof.
 Qed.
 
 Fact divides_bnd n x :
-  x > 0 -> divides n x -> n <= x.
+  x > 0 -> (n | x) -> n <= x.
 Proof.
   intros H [k ->]. destruct k.
   - exfalso. lia.
@@ -286,13 +286,13 @@ Proof.
 Qed.
  
 Fact divides_eq' x y :
-  x > 0 -> y > 0 -> divides x y -> divides y x -> x = y.
+  x > 0 -> y > 0 -> (x | y) -> (y | x) -> x = y.
 Proof.
   intros H1 H2 H3%divides_bnd H4%divides_bnd; lia.
 Qed.
 
 Fact divides_eq x y :
-  (forall n, divides n x <-> divides n y) -> x = y.
+  (forall n, (n | x) <-> (n | y)) -> x = y.
 Proof.
   destruct x, y; intros H.
   - reflexivity.
@@ -316,6 +316,91 @@ Proof.
   apply divides_eq. intros n. split.
   - intros H1. apply H',H,H1.
   - intros H1. apply H,H',H1.
+Qed.
+
+Fact Gamma_concrete_gamma g :
+  agree g (Gamma g) <-> forall x y n, (n | g x y) <-> (n | x) /\ (n | y).
+Proof.
+  split; intros H.
+  - apply (Gamma_gamma gamma gamma1 gamma2 gamma3), H.
+  - apply (gamma_Gamma gamma gamma1 gamma2 gamma3).
+    + apply gamma_fun.
+    + exact H.
+Qed.
+
+(*** GCDs with modulo *)
+
+Module GCD_mod.
+Section GCD_mod.
+  Variable M: nat -> nat -> nat.
+  Variable M_eq : forall x y, M x y = if le_lt_dec x y then x else M (x - S y) y.
+
+  Fact M_le {x y} :
+    M x y <= y.
+  Proof.
+    revert x.
+    refine (size_rec (fun x => x) _).
+    intros x IH. rewrite M_eq.
+    destruct le_lt_dec as [H|H]. exact H.
+    apply IH. lia.
+  Qed.
+  
+  Variable gamma: nat -> nat -> nat -> Prop.
+  Variable gamma1: forall y, gamma 0 y y.
+  Variable gamma2: forall x y z, gamma x y z -> gamma y x z.
+  Variable gamma3: forall x y z, x <= y -> gamma x (y - x) z -> gamma x y z.
+
+  Fact gamma_M x y z :
+    gamma (M y x) (S x) z -> gamma (S x) y z.
+  Proof.
+    revert y.
+    refine (size_rec (fun x => x) _).
+    intros y IH.
+    rewrite M_eq.
+    destruct le_lt_dec as [H|H].
+    - apply gamma2.
+    - intros H1. apply gamma3. lia. apply IH. lia. exact H1.
+  Qed.
+  
+  Variable G: nat -> nat -> nat.
+  Variable G_eq: forall x y, G x y = match x with 0 => y | S x' => G (M y x') x end.
+
+  Fact G_gamma :
+    respects G gamma.
+  Proof.
+    refine (size_rec (fun x => x) _).
+    intros x IH y. rewrite G_eq.
+    destruct x; cbn.
+    - apply gamma1.
+    - apply gamma_M. apply IH.
+      enough (M y x <= x) by lia.
+      apply M_le.
+  Qed.
+
+  Fact gamma_functional_respects g :
+    respects g gamma -> functional gamma ->
+    forall x y, g x y = match x with 0 => y | S x' => g (M y x') x end.
+  Proof.
+    intros HR HF x y.
+    apply (HF x y).
+    - apply HR.
+    - destruct x.
+      + apply gamma1.
+      + apply gamma_M, HR.
+  Qed.
+End GCD_mod.
+End GCD_mod.
+
+(*** Predefined gcd function *)
+
+Fact predefined_gcd x y :
+  gamma x y (Nat.gcd x y).
+Proof.
+  intros n. split.
+  - unfold divides. intros [k1 H]. split.
+    + destruct (Nat.gcd_divide_l x y) as [k2 H1]. exists (k2 * k1). lia.
+    + destruct (Nat.gcd_divide_r x y) as [k2 H1]. exists (k2 * k1). lia.
+  - intros [H1 H2]. apply Nat.gcd_greatest; assumption.
 Qed.
 
 
@@ -437,66 +522,3 @@ Proof.
 Defined.
 
 Compute fib' 10.
-
-(*** GCDs with modulo *)
-
-Module GCD_mod.
-Section GCD_mod.
-  Variable M: nat -> nat -> nat.
-  Variable M_eq : forall x y, M x y = if le_lt_dec x y then x else M (x - S y) y.
-
-  Fact M_le {x y} :
-    M x y <= y.
-  Proof.
-    revert x.
-    refine (size_rec (fun x => x) _).
-    intros x IH. rewrite M_eq.
-    destruct le_lt_dec as [H|H]. exact H.
-    apply IH. lia.
-  Qed.
-  
-  Variable gamma: nat -> nat -> nat -> Prop.
-  Variable gamma1: forall y, gamma 0 y y.
-  Variable gamma2: forall x y z, gamma x y z -> gamma y x z.
-  Variable gamma3: forall x y z, x <= y -> gamma x (y - x) z -> gamma x y z.
-
-  Fact gamma_M x y z :
-    gamma (M y x) (S x) z -> gamma (S x) y z.
-  Proof.
-    revert y.
-    refine (size_rec (fun x => x) _).
-    intros y IH.
-    rewrite M_eq.
-    destruct le_lt_dec as [H|H].
-    - apply gamma2.
-    - intros H1. apply gamma3. lia. apply IH. lia. exact H1.
-  Qed.
-  
-  Variable G: nat -> nat -> nat.
-  Variable G_eq: forall x y, G x y = match x with 0 => y | S x' => G (M y x') x end.
-
-  Fact G_gamma :
-    respects G gamma.
-  Proof.
-    refine (size_rec (fun x => x) _).
-    intros x IH y. rewrite G_eq.
-    destruct x; cbn.
-    - apply gamma1.
-    - apply gamma_M. apply IH.
-      enough (M y x <= x) by lia.
-      apply M_le.
-  Qed.
-
-  Fact gamma_functional_respects g :
-    respects g gamma -> functional gamma ->
-    forall x y, g x y = match x with 0 => y | S x' => g (M y x') x end.
-  Proof.
-    intros HR HF x y.
-    apply (HF x y).
-    - apply HR.
-    - destruct x.
-      + apply gamma1.
-      + apply gamma_M, HR.
-  Qed.
-End GCD_mod.
-End GCD_mod.
