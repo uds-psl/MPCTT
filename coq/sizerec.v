@@ -438,3 +438,65 @@ Defined.
 
 Compute fib' 10.
 
+(*** GCDs with modulo *)
+
+Module GCD_mod.
+Section GCD_mod.
+  Variable M: nat -> nat -> nat.
+  Variable M_eq : forall x y, M x y = if le_lt_dec x y then x else M (x - S y) y.
+
+  Fact M_le {x y} :
+    M x y <= y.
+  Proof.
+    revert x.
+    refine (size_rec (fun x => x) _).
+    intros x IH. rewrite M_eq.
+    destruct le_lt_dec as [H|H]. exact H.
+    apply IH. lia.
+  Qed.
+  
+  Variable gamma: nat -> nat -> nat -> Prop.
+  Variable gamma1: forall y, gamma 0 y y.
+  Variable gamma2: forall x y z, gamma x y z -> gamma y x z.
+  Variable gamma3: forall x y z, x <= y -> gamma x (y - x) z -> gamma x y z.
+
+  Fact gamma_M x y z :
+    gamma (M y x) (S x) z -> gamma (S x) y z.
+  Proof.
+    revert y.
+    refine (size_rec (fun x => x) _).
+    intros y IH.
+    rewrite M_eq.
+    destruct le_lt_dec as [H|H].
+    - apply gamma2.
+    - intros H1. apply gamma3. lia. apply IH. lia. exact H1.
+  Qed.
+  
+  Variable G: nat -> nat -> nat.
+  Variable G_eq: forall x y, G x y = match x with 0 => y | S x' => G (M y x') x end.
+
+  Fact G_gamma :
+    respects G gamma.
+  Proof.
+    refine (size_rec (fun x => x) _).
+    intros x IH y. rewrite G_eq.
+    destruct x; cbn.
+    - apply gamma1.
+    - apply gamma_M. apply IH.
+      enough (M y x <= x) by lia.
+      apply M_le.
+  Qed.
+
+  Fact gamma_functional_respects g :
+    respects g gamma -> functional gamma ->
+    forall x y, g x y = match x with 0 => y | S x' => g (M y x') x end.
+  Proof.
+    intros HR HF x y.
+    apply (HF x y).
+    - apply HR.
+    - destruct x.
+      + apply gamma1.
+      + apply gamma_M, HR.
+  Qed.
+End GCD_mod.
+End GCD_mod.
