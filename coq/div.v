@@ -100,16 +100,25 @@ Proof.
     + apply delta3; assumption.
 Qed.
 
+Fact delta_unique' y a b a' b' :
+  b <= y ->
+  b' <= y ->
+  a * S y + b = a' * S y + b' ->
+  a = a' /\ b = b'.
+Proof.
+  intros H1 H2.
+  induction a as [|a IH]  in a' |-* ; destruct a'; cbn.
+  - easy. 
+  - intros ->. exfalso. lia. 
+  - intros <-. exfalso. lia.
+  - specialize (IH a'). lia.
+Qed.
+
 Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
   intros [-> H1] [H3 H2].
-  revert a' H3.
-  induction a as [|a IH]; destruct a'; cbn.
-  - easy. 
-  - lia. 
-  - lia.
-  - specialize (IH a'). lia.
+  eapply delta_unique'; eassumption.
 Qed.
 
 Fact delta4 x y:
@@ -137,6 +146,11 @@ Proof.
     + apply delta5.
       * apply delta_DM.
       * exact H.
+Qed.
+
+Goal forall x y z, x * S (S z) + 1 <> y * S (S z) + 0.
+Proof.
+  intros x y z [H [=]] %delta_unique'; lia.
 Qed.
 
 (*** Predefined div and mod *)

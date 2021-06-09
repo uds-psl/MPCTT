@@ -407,31 +407,23 @@ Qed.
 (*** Step-indexed Construction *)
 
 Module Gcd_Step_Indexed.
-Fixpoint G n x y :=
-  match n, x, y with
-  | 0, _, _ => 0
-  | S _, 0, y' => y'
-  | S _, S x' , 0 => S x'
-  | S n', S x' , S y' => if le_lt_dec x' y'
-                        then G n' x (y' - x')
-                        else G n' (x' - y') y
-  end.
 
+Fixpoint G n x y := match n with 0 => 0 | S n' => Gamma (G n') x y end.
 Definition gcd x y := G (S (x + y)) x y.
 
 Compute gcd 12 16.
 
-Fact G_index_eq n n' x y :
+Fact G_index n n' x y :
   n > x + y -> n' >  x + y -> G n x y = G n' x y.
 Proof.
-  revert x y n n'.
-  refine (size_rec2 (fun x y => x + y) _).
-  intros x y IH n n' H1 H2.
-  destruct n. exfalso. lia.
-  destruct n'. exfalso. lia.
-  destruct x. reflexivity. 
-  destruct y. reflexivity.
-  cbn. destruct le_lt_dec; apply IH; lia.
+  induction n as [|n IH] in n',x,y |-*;
+    intros H1 H2.
+  - exfalso. lia.
+  - destruct n'.
+    + exfalso. lia.
+    + destruct x. reflexivity. 
+      destruct y. reflexivity.
+      cbn. destruct le_lt_dec; eapply IH;  lia.
 Qed.
 
 Fact Gamma_sat_gcd :
@@ -439,13 +431,15 @@ Fact Gamma_sat_gcd :
 Proof.
   hnf. intros [|x] y. reflexivity.
   destruct y as [|y]. reflexivity.
-  unfold gcd at 1. cbn [Gamma G].
+  unfold gcd at 1. cbn [Gamma G]. 
   destruct le_lt_dec as [H|H];
-    apply G_index_eq; lia.
+    apply G_index; lia.
 Qed.
 End Gcd_Step_Indexed.
 
 (*** Fibonacci *)
+
+Notation agree1 f g := (forall n, f n = g n).
 
 Definition Phi (f: nat -> nat) (n: nat) : nat :=
   match n with
@@ -453,8 +447,6 @@ Definition Phi (f: nat -> nat) (n: nat) : nat :=
   | 1 => 1
   | S (S n') => f n' + f (S n')
   end.
-
-Notation agree1 f g := (forall n, f n = g n).
 
 Fact phi_unique f g :
   agree1 f (Phi f) -> agree1 g (Phi g) -> agree1 f g.
@@ -467,38 +459,31 @@ Proof.
   cbn. f_equal; apply IH; lia.
 Qed.
 
-Fixpoint Fib k n :=
-  match k, n with
-  | 0, _ => 0
-  | S _, 0 => 0
-  | S _, 1 => 1
-  | S k', S (S n') => Fib k' n' + Fib k' (S n')
-  end.
-Arguments Fib : simpl nomatch.
-
-Fact Fib_index :
-  forall n k k', n < k -> n < k' -> Fib k n = Fib k' n.
-Proof.
-  refine (size_rec (fun n => n) _).
-  intros n IH.
-  intros [|k]. lia.
-  intros [|k']. lia.
-  intros H1 H2.
-  destruct n. reflexivity.
-  destruct n. reflexivity.
-  cbn. f_equal; apply IH; lia.
-Qed.
-  
+Fixpoint Fib k n := match k with 0 => 0 | S k' => Phi (Fib k') n end.
 Definition fib n := Fib (S n) n.
 
 Compute fib 10.
+
+Fact Fib_index n k k' :
+  n < k -> n < k' -> Fib k n = Fib k' n.
+Proof.
+  induction k as [|k IH] in k', n |-*;
+    intros H1 H2.
+  - exfalso. lia.
+  - destruct k'.
+    + exfalso. lia.
+    + destruct n. reflexivity.
+      destruct n. reflexivity.
+      cbn. f_equal; apply IH; lia.
+Qed.
 
 Fact Phi_fib :
   agree1 fib (Phi fib).
 Proof.
   intros [|n]. reflexivity.
   destruct n. reflexivity.
-  cbn. unfold fib. f_equal. apply Fib_index; lia.
+  change (fib (S (S n))) with (Phi (Fib (S (S n))) (S (S n))).
+  cbn [Phi]. f_equal. apply Fib_index; lia.
 Qed.
 
 Definition fib_rec {p: nat -> Type} :
