@@ -481,9 +481,9 @@ Fact Phi_fib :
   agree1 fib (Phi fib).
 Proof.
   intros [|n]. reflexivity.
-  destruct n. reflexivity.
+  destruct n. reflexivity. 
   change (fib (S (S n))) with (Phi (Fib (S (S n))) (S (S n))).
-  cbn [Phi]. f_equal. apply Fib_index; lia.
+  cbn [Phi]. unfold fib.  f_equal. apply Fib_index; lia.
 Qed.
 
 Definition fib_rec {p: nat -> Type} :
