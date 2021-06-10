@@ -404,22 +404,21 @@ Proof.
 Qed.
 
 
-(*** Step-indexed Construction *)
+(*** Step-indexed GCD *)
 
 Module Gcd_Step_Indexed.
-
-Fixpoint G n x y := match n with 0 => 0 | S n' => Gamma (G n') x y end.
+Fixpoint G k x y := match k with 0 => 0 | S k' => Gamma (G k') x y end.
 Definition gcd x y := G (S (x + y)) x y.
 
 Compute gcd 12 16.
 
-Fact G_index n n' x y :
-  n > x + y -> n' >  x + y -> G n x y = G n' x y.
+Fact G_index k k' x y :
+  k > x + y -> k' >  x + y -> G k x y = G k' x y.
 Proof.
-  induction n as [|n IH] in n',x,y |-*;
+  induction k as [|k IH] in k',x,y |-*;
     intros H1 H2.
   - exfalso. lia.
-  - destruct n'.
+  - destruct k'.
     + exfalso. lia.
     + destruct x. reflexivity. 
       destruct y. reflexivity.
@@ -437,9 +436,7 @@ Proof.
 Qed.
 End Gcd_Step_Indexed.
 
-(*** Fibonacci *)
-
-Notation agree1 f g := (forall n, f n = g n).
+(*** Step-indexed Fibonacci *)
 
 Definition Phi (f: nat -> nat) (n: nat) : nat :=
   match n with
@@ -447,6 +444,8 @@ Definition Phi (f: nat -> nat) (n: nat) : nat :=
   | 1 => 1
   | S (S n') => f n' + f (S n')
   end.
+
+Notation agree1 f g := (forall n, f n = g n).
 
 Fact phi_unique f g :
   agree1 f (Phi f) -> agree1 g (Phi g) -> agree1 f g.
@@ -481,9 +480,10 @@ Fact Phi_fib :
   agree1 fib (Phi fib).
 Proof.
   intros [|n]. reflexivity.
-  destruct n. reflexivity. 
+  destruct n. reflexivity.
+  (* simplification of Fib overshoots *)
   change (fib (S (S n))) with (Phi (Fib (S (S n))) (S (S n))).
-  cbn [Phi]. unfold fib.  f_equal. apply Fib_index; lia.
+  cbn [Phi]. f_equal. apply Fib_index; lia.
 Qed.
 
 Definition fib_rec {p: nat -> Type} :
