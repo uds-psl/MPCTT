@@ -100,18 +100,6 @@ Definition div (x y: nat) : nat :=
 Compute div 7 3.
 Compute div 48 8.
 
-Fact delta_Delta f :
-  respects f delta -> agree f (Delta f).
-Proof.
-  intros H x y.
-  apply (delta_fun x y).
-  - apply H.
-  - unfold Delta.
-    destruct le_lt_dec as [H1|H1].
-    + apply delta1. exact H1.
-    + apply delta2. exact H1. apply H.
-Qed.
-
 Fact Delta_delta f :
   agree f (Delta f) -> respects f delta.
 Proof.
@@ -122,6 +110,18 @@ Proof.
   destruct le_lt_dec as [H1|H1].
   - apply delta1, H1.
   - apply delta2. exact H1. apply IH. lia.
+Qed.
+
+Fact delta_Delta f :
+  respects f delta -> agree f (Delta f).
+Proof.
+  intros H x y.
+  apply (delta_fun x y).
+  - apply H.
+  - unfold Delta.
+    destruct le_lt_dec as [H1|H1].
+    + apply delta1. exact H1.
+    + apply delta2. exact H1. apply H.
 Qed.
 
 Definition div' : nat -> nat -> nat.
@@ -184,7 +184,7 @@ Defined.
 
 Compute gcd' 49 63.
 
-Section Gcd_function.
+Section Gcd_relation.
   Variable gamma: nat -> nat -> nat -> Prop.
   Variable gamma1: forall y, gamma 0 y y.
   Variable gamma2: forall x y z, gamma x y z -> gamma y x z.
@@ -203,20 +203,6 @@ Section Gcd_function.
     pi1 (GCD x y).
     
   Compute gcd 49 63.
-  
-  Fact gamma_Gamma f :
-    functional gamma -> respects f gamma -> agree f (Gamma f).
-  Proof.
-    intros H1 H2 x y. apply (H1 x y).
-    - apply H2.
-    - destruct x.
-      + apply gamma1.
-      + destruct y.
-        * apply gamma2, gamma1.
-        * cbn. destruct le_lt_dec as [H|H].
-          -- apply gamma3. lia. apply H2.
-          -- apply gamma2, gamma3. lia. apply gamma2, H2.
-  Qed.
 
   Fact Gamma_gamma f :
     agree f (Gamma f) -> respects f gamma.
@@ -232,7 +218,66 @@ Section Gcd_function.
         * apply gamma3. lia. apply IH. lia.
         * apply gamma2,gamma3. lia. apply gamma2, IH. lia.
   Qed.
-End Gcd_function.
+    
+  Fact gamma_Gamma f :
+    functional gamma -> respects f gamma -> agree f (Gamma f).
+  Proof.
+    intros H1 H2 x y. apply (H1 x y).
+    - apply H2.
+    - destruct x.
+      + apply gamma1.
+      + destruct y.
+        * apply gamma2, gamma1.
+        * cbn. destruct le_lt_dec as [H|H].
+          -- apply gamma3. lia. apply H2.
+          -- apply gamma2, gamma3. lia. apply gamma2, H2.
+  Qed.
+End Gcd_relation.
+
+Definition gcd_rel (gamma: nat -> nat -> nat -> Prop) :=
+  (forall y, gamma 0 y y) /\
+  (forall x y z, gamma x y z -> gamma y x z) /\
+  (forall x y z, x <= y -> gamma x (y - x) z -> gamma x y z).
+
+Fact fun_gcd_rel_agree G G' :
+  gcd_rel G -> functional G ->
+  gcd_rel G' -> 
+  forall x y z, G x y z -> G' x y z.
+Proof.
+  intros (H1&H2&H3) Hfun (H1'&H2'&H3').
+  assert (Sigma g, respects g G) as [g Hg].
+  { exists (fun x y => pi1 (GCD G H1 H2 H3 x y)).
+    intros x y. exact (pi2 (GCD G H1 H2 H3 x y)). }
+  assert (respects g G') as Hg'.
+  { apply (Gamma_gamma G' H1' H2' H3').
+    eapply (gamma_Gamma G H1 H2 H3).
+    exact Hfun. exact Hg. }
+  intros x y z H.
+  assert (z = g x y) as ->.
+  { eapply Hfun. exact H. apply Hg. }
+  apply Hg'.
+Qed.
+
+Fact Gamma_fun_gcd_rel f :
+  agree f (Gamma f) -> gcd_rel (fun x y z => f x y = z).
+Proof.
+  intros H. repeat split.
+  - intros y. rewrite H. reflexivity.
+  - refine (size_rec2 (fun x y => x + y) _).
+    intros x y IH z. rewrite H, H.
+    destruct x as [|x], y as [|y]; cbn. 1-3:easy.
+    destruct le_lt_dec as [H1|H1]; destruct le_lt_dec as [H2|H2].
+    + assert (x = y) as <- by lia. easy.
+    + apply IH. lia.
+    + apply IH. lia. 
+    + exfalso. lia.
+  - destruct x as [|x], y as [|y]; cbn. 1-3:easy.
+    intros z H1 H2. rewrite H. cbn.
+    destruct le_lt_dec as [H3|H3].
+    + exact H2.
+    + exfalso. lia.
+Qed.
+
 
 (*** Concrete GCD Relation *)
 
@@ -418,7 +463,7 @@ Proof.
   induction k as [|k IH] in k',x,y |-*;
     intros H1 H2.
   - exfalso. lia.
-  - destruct k'.
+  - destruct k'; cbn.
     + exfalso. lia.
     + destruct x. reflexivity. 
       destruct y. reflexivity.
