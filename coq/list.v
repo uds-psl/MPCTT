@@ -71,7 +71,7 @@ Section List.
   Proof.
     induction A as [|y A IH].
     - intros [=].
-    - intros [= <- H]. auto.
+    - intros [= <- H]. easy. 
   Qed.
 
   Goal forall A B,
@@ -93,8 +93,8 @@ Section List.
     - specialize (H x y) as [<-|H].
       + specialize (IH B) as [<-|IH].
         * left. reflexivity.
-        * right. intros [= <-]. auto.
-      + right. intros [= <- _]. auto.
+        * right. intros [= <-]. easy.
+      + right. intros [= <- _]. easy.
   Qed.
 
   Fact mem_dec x A :
@@ -160,7 +160,7 @@ Section List.
     - cbn. tauto.
     - cbn [rem].
       destruct (X_eqdec z y) as [<-|H]; cbn;
-        intuition; congruence.
+        intuition congruence.
   Qed.
 
   Fact rem_length_le A  x:
@@ -179,7 +179,7 @@ Section List.
     - destruct X_eqdec as [->|H1].
       + generalize (rem_length_le A x). lia.
       + intros [->|H2]; cbn.
-        * exfalso; auto.
+        * exfalso. easy.
         * apply IH in H2. lia.
   Qed.
 
@@ -189,7 +189,7 @@ Section List.
     induction A as [|y A IH]; cbn.
     - intros _. reflexivity.
     - destruct (X_eqdec y x) as [<-|H].
-      + intros []. now left.
+      + intros []. auto.
       + intros H1. f_equal. tauto.
   Qed.
 
@@ -263,11 +263,11 @@ Section List.
     induction A as [|x A IH].
     - intros [].
     - destruct (mem_dec x A) as [H|H].
-      + intros _. exists [], x, A. auto.
+      + intros _. exists [], x, A. easy.
       + intros H1.
         destruct IH as (A1&y&A2&IH1&IH2).
         * revert H H1. cbn. tauto.
-        * subst A. exists (x::A1), y, A2. cbn. auto.
+        * subst A. exists (x::A1), y, A2. cbn. easy.
   Qed.
 
   Fact nrep_equiv :
@@ -297,7 +297,7 @@ Section List.
       + apply rem_length_lt in H. lia.
       + exists z. split. 2:{ auto. }
         destruct (X_eqdec z x) as [->|H6]. 1:tauto.
-        contradict H4. apply rem_el. auto.
+        contradict H4. apply rem_el. easy.
   Qed.
  
   Fact nrep_le A B :
@@ -332,7 +332,7 @@ Section List.
     intros H1 H2 H3 x H4.
     destruct (mem_dec x A) as [H5|H5]. exact H5. exfalso.
     destruct (@nrep_discriminate (x::A) B) as (z&H6&H7); cbn.
-    - auto.
+    - easy.
     - lia.
     - destruct H7 as [->|H7]; auto.
   Qed.
@@ -344,7 +344,7 @@ Section List.
     apply nrep_not_rep.
     intros (B1&x&B2&->&H5)%rep_sigma.
     assert (H6: length A <= length (B1 ++ B2)).
-    {  apply nrep_le.  exact H1.
+    {  apply nrep_le. exact H1.
        intros z [H6|[<-|H6]] %H2 %in_app_iff; apply in_app_iff; auto. }
      revert H3 H6. rewrite !app_length. cbn. lia.
   Qed.
@@ -408,7 +408,7 @@ Section List.
         * apply IH1. destruct H1 as [->|H1]; assumption.
       + exists (x::B). cbn. split. 2:split.
         *  split; intros z [->|H1].
-           -- cbn; auto.
+           -- cbn. auto.
            -- right. apply IH1, H1.
            -- cbn; auto.
            -- right. apply IH1, H1.
@@ -552,11 +552,8 @@ Section List.
   Proof.
     induction A as [|y A IH]; cbn.
     - intros [].
-    - destruct X_eqdec as [<-|H].
-      { auto. }
-      intros [->|H1].
-      { exfalso; auto. }
-      auto.
+    - destruct X_eqdec as [<-|H]. easy.
+      intros [->|H1]. easy. auto.
   Qed.
 
   Fact pos_bnd A x :
@@ -567,7 +564,7 @@ Section List.
     - destruct X_eqdec as [->|H].
       + lia.
       + intros [->|H1].
-        * exfalso; auto. 
+        * easy.
         * apply IH in H1; lia.
   Qed.
 
@@ -588,7 +585,7 @@ Section List.
     - cbn. lia.
     - intros [H1 H2] H3.
       destruct n as [|n]; cbn.
-      { destruct X_eqdec as [_|H]. reflexivity. exfalso; auto. }
+      { destruct X_eqdec as [_|H]. reflexivity. easy. }
       cbn in H3.
       destruct X_eqdec as [->|_].
       { contradict H1. apply sub_neq. lia. }
@@ -645,8 +642,8 @@ Proof.
   - intros [].
   - intros [->|H3] [->|H4] [H5 H6].
     + reflexivity.
-    + contradict H5. apply in_map_iff. exists x'. auto.
-    + contradict H5. apply in_map_iff. exists x. auto.
+    + contradict H5. apply in_map_iff. exists x'. easy.
+    + contradict H5. apply in_map_iff. exists x. easy.
     + auto.
 Qed.
 
@@ -690,7 +687,7 @@ Proof.
   - destruct (le_lt_dec n x) as [H|H].
     + left. exists x. cbn;auto.
     + destruct IH as [(k&H1&H2)|H1].
-      * left. exists k. cbn;auto.
+      * left. exists k. cbn. auto.
       * right. intros k [<-|H3]; auto.
 Qed.
 
@@ -708,8 +705,6 @@ Qed.
 
 
 (*** Constructive Discrimination Lemma *)
-
-Ltac list := cbn; auto; firstorder.
 
 Fact neg_xm (P: Prop) {Q} :
   (P -> ~Q) -> (~P -> ~Q) -> ~Q.
@@ -739,9 +734,9 @@ Section Discrimination.
      induction A as [|a A' IH]; cbn.
     - intros [].
     - intros [->|H].
-      + exists A'. split. list. lia.
+      + exists A'. split. now intuition. lia.
       + specialize (IH H) as (B&H1&H2).
-        exists (a::B). split. list. cbn; lia.
+        exists (a::B). split. now firstorder. cbn; lia.
   Qed.
   
   Fact fac1 A B :
@@ -757,7 +752,7 @@ Section Discrimination.
       destruct (lem1 H3) as (B'&H4&H5).
       specialize (IH B') as (x&H6&H7). lia. exact H2.
       exists x. split. 1:{ auto. }
-      intros H8. apply H4 in H8 as [<-|H8]; auto.
+      intros H8. apply H4 in H8 as [<-|H8]; easy.
   Qed.
 
   Fact fac2 A B :
@@ -774,7 +769,7 @@ Section Discrimination.
        specialize (IH H6 H2). revert IH.
        apply neg_skip'. intros (x&H7&H8). apply neg_skip.
        exists x. split. 1:{ auto. } 
-       intros H9. apply H4 in H9 as [<-|H9]; auto.
+       intros H9. apply H4 in H9 as [<-|H9]; easy.
   Qed.
 End Discrimination.
 
