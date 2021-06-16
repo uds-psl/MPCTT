@@ -1,15 +1,19 @@
+From Coq Require Import Arith Lia.
 Unset Elimination Schemes.
-Definition dec P := { P } + { ~P }.
+Definition dec (X: Type) := sum X (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Definition nat_eqdec : eqdec nat.
+Proof.
+  intros x y.
+  destruct (Nat.eq_dec x y) as [H|H].
+  - left. exact H.
+  - right. exact H.
+Defined.
 Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
-Ltac refl := reflexivity.
-
 
 Module Scratch.
 Section Scratch.
@@ -50,8 +54,8 @@ Section Scratch.
 End Scratch.
 End Scratch.
 
-(* From now on we use the predefined lists from the library *)
-From Coq Require Import List Arith Lia.
+(* From now on we use Coq's predefined lists *)
+From Coq Require Import List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
@@ -75,7 +79,7 @@ Section List.
   Proof.
     intros A B.
     induction A as [|x A IH]; cbn.
-    - refl.
+    - reflexivity.
     - f_equal. exact IH.
   Qed.
 
@@ -83,12 +87,12 @@ Section List.
   Proof.
     intros H A B.
     induction A as [|x A IH] in B |-*; destruct B as [|y B].
-    - left. refl.
+    - left. reflexivity.
     - right. intros [=].
     - right. intros [=].
     - specialize (H x y) as [<-|H].
       + specialize (IH B) as [<-|IH].
-        * left. refl.
+        * left. reflexivity.
         * right. intros [= <-]. auto.
       + right. intros [= <- _]. auto.
   Qed.
@@ -108,16 +112,16 @@ Section List.
   (*** Inclusion and Equivalence *)
  
   Fact mem_sigma x A :
-    x el A -> {A1 &{A2 | A=A1++x::A2 }}.
+    x el A -> Sigma A1 A2, A = A1 ++ x::A2.
   Proof.
     intros H.
     induction A as [|y A IH].
     - contradict H.
     - destruct (X_eqdec x y) as [<-|H1].
-      + exists [], A. refl.
+      + exists [], A. reflexivity.
       + destruct IH as (A1&A2&IH).
         * destruct H as [<-|H]; intuition.
-        * exists (y::A1), A2. rewrite IH. refl.
+        * exists (y::A1), A2. rewrite IH. reflexivity.
   Qed.
 
   Definition equi A B := A <<= B /\ B <<= A.
@@ -183,7 +187,7 @@ Section List.
     x nel A -> rem A x = A.
   Proof.
     induction A as [|y A IH]; cbn.
-    - intros _. refl.
+    - intros _. reflexivity.
     - destruct (X_eqdec y x) as [<-|H].
       + intros []. now left.
       + intros H1. f_equal. tauto.
@@ -254,7 +258,7 @@ Section List.
   Qed.
 
   Fact rep_sigma A :
-    rep A -> {A1 &{x &{A2 | A=A1++x::A2 /\ x el A2 }}}.
+    rep A -> Sigma A1 x A2, A=A1++x::A2 /\ x el A2.
   Proof.
     induction A as [|x A IH].
     - intros [].
@@ -267,7 +271,7 @@ Section List.
   Qed.
 
   Fact nrep_equiv :
-    forall A, { B & B == A /\ nrep B }.
+    forall A, Sigma B, B == A /\ nrep B.
   Proof.
     induction A as [|x A (B&IH1&IH2)].
     - exists nil. cbn. auto using equi_refl.
@@ -282,7 +286,7 @@ Section List.
   Qed.
  
   Fact nrep_discriminate {A B} :
-    nrep A -> length B < length A -> { z & z nel B /\ z el A }.
+    nrep A -> length B < length A -> Sigma z, z nel B /\ z el A.
   Proof.
     induction A as [|x A IH] in B |-*; cbn.
     - lia.
@@ -351,7 +355,7 @@ Section List.
   Definition listing A : Prop := nrep A /\ covering A.
 
   Fact covering_listing A :
-    covering A -> { B: list X | listing B }.
+    covering A -> Sigma B: list X, listing B.
   Proof.
     intros H.
     destruct (nrep_equiv A) as (B&H1&H2).
@@ -391,8 +395,8 @@ Section List.
     | x:: A' => if mem_dec x A' then card A' else S (card A')
     end.
 
-  Fact card_sigma A :
-    { B | B == A /\ nrep B /\ length B = card A }.
+  Fact card_sigma :
+    forall A, Sigma B, B == A /\ nrep B /\ length B = card A.
   Proof.
     induction A as [|x A (B&IH1&IH2&IH3)]; cbn.
     - exists []. cbv; auto.
@@ -475,8 +479,8 @@ Section List.
     intros H.
     replace (card A) with (card (x::(rem A x))).
     - cbn. destruct mem_dec as [H1|H1].
-      + exfalso. apply rem_el in H1. apply H1. refl.
-      + refl.
+      + exfalso. apply rem_el in H1. apply H1. reflexivity.
+      + reflexivity.
     - apply card_eq. split; intros z H1.
       + destruct H1 as [->|H1%rem_el]. exact H. apply H1.
       + cbn. destruct (X_eqdec x z) as [<-|H2].
@@ -514,7 +518,7 @@ Section List.
       + intros [].
       + destruct mem_dec as [H|H].
         * apply IH.
-        * intros <-%IH. refl.
+        * intros <-%IH. reflexivity.
     - intros <-.
       induction A as [|x A IH].
       + exact I.
@@ -584,7 +588,7 @@ Section List.
     - cbn. lia.
     - intros [H1 H2] H3.
       destruct n as [|n]; cbn.
-      { destruct X_eqdec as [_|H]. refl. exfalso; auto. }
+      { destruct X_eqdec as [_|H]. reflexivity. exfalso; auto. }
       cbn in H3.
       destruct X_eqdec as [->|_].
       { contradict H1. apply sub_neq. lia. }
@@ -640,7 +644,7 @@ Proof.
   induction A as [|a A IH]; cbn.
   - intros [].
   - intros [->|H3] [->|H4] [H5 H6].
-    + refl.
+    + reflexivity.
     + contradict H5. apply in_map_iff. exists x'. auto.
     + contradict H5. apply in_map_iff. exists x. auto.
     + auto.
@@ -658,7 +662,7 @@ Fact seq_length n k :
   length (seq n k) = k.
 Proof.
   induction k as [|k IH] in n |-*; cbn.
-  - refl.
+  - reflexivity.
   - f_equal. apply IH.
 Qed.
 
@@ -698,12 +702,12 @@ Proof.
   exfalso.
   enough (length A <= n) by lia.
   rewrite <-(seq_length 0 n).
-  apply nrep_le. exact Nat.eq_dec. exact H1.
+  apply nrep_le. exact nat_eqdec. exact H1.
   intros k H3. apply seq_in. apply H in H3. lia.
 Qed.
 
 
-(*** Discrimination Lemma *)
+(*** Constructive Discrimination Lemma *)
 
 Ltac list := cbn; auto; firstorder.
 

@@ -81,63 +81,36 @@ Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
 Arguments Bijection {X Y}.
 
-Definition R {X Y} 
-  : (option X -> option Y) -> (option X -> option Y)
-  := fun f a => match a with
-             | None => None
-             | Some x => match f (Some x) with
-                        | Some y => Some y
-                        | None => f None
-                        end
-             end.
+Fact R {X Y f g} :
+  @inv (option X) (option Y) g f ->
+  forall x, Sigma y, match f (Some x) with Some y' => y = y' | None => f None = Some y end.
+Proof.
+  intros H x.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  - exists y. reflexivity.
+  - destruct (f None) as [y|] eqn:E2.
+    + exists y. reflexivity.
+    + exfalso. congruence.
+Qed.
 
-Section Lemmas.
-  Variables X Y: Type.
-  Variable f: option X -> option Y.
-  Variable g: option Y -> option X.
-  Variable H: inv g f.
-
-  Lemma RL: forall x, Sigma y, R f (Some x) = Some y.
-  Proof.
-    intros x. unfold R.
-    destruct (f (Some x)) as [y|] eqn:E1.
-    - exists y. reflexivity.
-    - destruct (f None) as [y|] eqn:E2.
-      + exists y. reflexivity.
-      + exfalso. congruence.
-  Qed.
-
-  Lemma R_inv: inv (R g) (R f) .
-  Proof.
-    intros a. unfold R at 2.
-    destruct a as [x|]. 2:reflexivity.
-    destruct (f (Some x)) as [y|] eqn:E1; unfold R.
-    - rewrite <-E1, H. reflexivity.
-    - destruct (f None) as [y|] eqn:E2.
-      + rewrite <-E2, H. congruence.
-      + exfalso. congruence.
-  Qed.
-
-  Lemma lower_inv  
-        {F: forall x, Sigma y, f (Some x) = Some y}
-        {G: forall y, Sigma x, g (Some y) = Some x} :
-    inv (fun y => pi1 (G y)) (fun x => pi1 (F x)).
-  Proof.
-    intros x.
-    destruct (F x) as [y H1]; cbn.
-    destruct (G y) as [x' H2]; cbn.
+Fact R_inv {X Y f g} :
+  forall (H1: @inv (option X) (option Y) g f)
+    (H2: inv f g),
+    inv (fun y => pi1 (R H2 y)) (fun x => pi1 (R H1 x)).
+Proof.
+  intros H1 H2 x.
+  destruct (R H1 x) as [y H3]; cbn.
+  destruct (R H2 y) as [x' H4]; cbn.
+  destruct (f (Some x)) as [y1|] eqn:E3;
+    destruct (g (Some y)) as [x1|] eqn:E1;
     congruence.
-  Qed.
-End Lemmas.
-Arguments RL {X Y f g}.
+Qed.
 
-Lemma bijection_option X Y : 
+Fact bijection_option X Y : 
   bijection (option X) (option Y) -> bijection X Y.
 Proof.
   intros [f g H1 H2].
-  exists (fun x => pi1 (RL H1 x)) (fun y => pi1 (RL H2 y)).
-  - apply lower_inv, R_inv, H1.
-  - apply lower_inv, R_inv, H2.
+  exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
 Qed.
 
 (*** Coq's Decision Format *)
