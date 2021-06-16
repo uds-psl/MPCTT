@@ -4,7 +4,7 @@ Definition dec (X: Type) := sum X (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition nat_eqdec : eqdec nat.
 Proof.
-  intros x y.
+  intros x y.  
   destruct (Nat.eq_dec x y) as [H|H].
   - left. exact H.
   - right. exact H.
