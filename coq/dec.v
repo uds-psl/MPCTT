@@ -1,7 +1,6 @@
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation pi1 := projT1.
-Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,
@@ -101,9 +100,10 @@ Proof.
   intros H1 H2 x.
   destruct (R H1 x) as [y H3]; cbn.
   destruct (R H2 y) as [x' H4]; cbn.
-  destruct (f (Some x)) as [y1|] eqn:E3;
-    destruct (g (Some y)) as [x1|] eqn:E1;
-    congruence.
+  revert H3 H4.  
+  destruct (f (Some x)) as [y1|] eqn:E.
+  - intros <-. rewrite <-E, H1. easy.
+  - intros <-.  rewrite H1. rewrite <-E, H1. congruence.
 Qed.
 
 Fact bijection_option X Y : 
@@ -141,6 +141,13 @@ Defined.
 
 Compute dec2bool (coq_nat_eqdec 3 5).
 
+Definition coq_nat_eqdec' : eqdec nat.
+Proof.
+  intros x y. apply dec_adapt. apply Nat.eq_dec.
+Defined.
+
+Compute dec2bool (coq_nat_eqdec' 3 5).
+
 Definition coq_option_eqdec {X} :
   eqdec X -> eqdec (option X).
 Proof.
@@ -149,13 +156,6 @@ Proof.
 Defined.
   
 Compute dec2bool (coq_option_eqdec coq_nat_eqdec (Some 5) (Some 5)).
-
-Definition coq_nat_eqdec' : eqdec nat.
-Proof.
-  intros x y. apply dec_adapt. apply Nat.eq_dec.
-Defined.
-
-Compute dec2bool (coq_nat_eqdec' 3 5).
 
 
 

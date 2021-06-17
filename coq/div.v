@@ -1,6 +1,4 @@
 From Coq Require Import Arith Lia.
-Notation sig := sigT.
-Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
