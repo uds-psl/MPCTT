@@ -58,7 +58,6 @@ Notation "A <<= B" := (incl A B) (at level 70).
 
 Section List.
   Variable X : Type.
-  Variables X_eqdec: eqdec X.
   Implicit Types (x y z : X) (A B C : list X).
 
   Goal forall x A,
@@ -78,19 +77,32 @@ Section List.
     - f_equal. exact IH.
   Qed.
 
-  Goal eqdec X -> eqdec (list X).
+  Variables X_eqdec: eqdec X.
+
+  Goal eqdec (list X).
   Proof.
-    intros H A B.
+    intros A B.
     induction A as [|x A IH] in B |-*; destruct B as [|y B].
     - left. reflexivity.
     - right. intros [=].
     - right. intros [=].
-    - specialize (H x y) as [<-|H].
+    - specialize (X_eqdec x y) as [<-|H].
       + specialize (IH B) as [<-|IH].
         * left. reflexivity.
         * right. intros [= <-]. easy.
       + right. intros [= <- _]. easy.
-  Qed.
+  Defined.
+
+  Fact mem_sum x a A :
+    x el a :: A -> (x = a) + (x el A).
+  Proof.
+    intros H.
+    destruct (X_eqdec x a) as [H1|H1].
+    - left. exact H1.
+    - right. destruct H as [H|H].
+      + exfalso. auto.
+      + exact H.
+  Defined.
 
   Fact mem_dec x A :
     dec (x el A).
@@ -101,8 +113,8 @@ Section List.
       + left. cbn. auto.
       + destruct IH as [IH|IH].
         * left. cbn. auto.
-        * right. cbn.  intuition.
-  Qed.
+        * right. cbn. intuition.
+  Defined.
 
   (*** Inclusion and Equivalence *)
  
@@ -112,11 +124,10 @@ Section List.
     intros H.
     induction A as [|y A IH].
     - contradict H.
-    - destruct (X_eqdec x y) as [<-|H1].
+    - apply mem_sum in H as [<-|H1].
       + exists [], A. reflexivity.
-      + destruct IH as (A1&A2&IH).
-        * destruct H as [<-|H]; intuition.
-        * exists (y::A1), A2. rewrite IH. reflexivity.
+      + destruct (IH H1) as (A1&A2&->).
+        exists (y::A1), A2. reflexivity.
   Qed.
 
   Definition equi A B := A <<= B /\ B <<= A.
@@ -199,7 +210,6 @@ Section List.
   Proof.
     cbn. destruct (X_eqdec y x) as [<-|H]; tauto.
   Qed.
-
 
   (*** Non-Repeating Lists *)
   
@@ -608,8 +618,9 @@ Section List.
         * eauto 6.
         * apply IH. intros (z&H1&H2). eauto.
   Qed.
-
 End List.
+Arguments mem_dec {X}.
+Arguments mem_sum {X}.
 Arguments nrep {X}.
 Arguments rep {X}.
 
@@ -691,7 +702,7 @@ Fact nat_list_nrep (A: list nat) n :
 Proof.
   intros H1 H2.
   destruct (nat_list_le A n) as [H|H]. exact H.
-  exfalso.
+  exfalso. (* computational exfalso *)
   enough (length A <= n) by lia.
   rewrite <-(seq_length 0 n).
   apply nrep_le. exact nat_eqdec. exact H1.
@@ -700,6 +711,8 @@ Qed.
 
 
 (*** Constructive Discrimination Lemma *)
+
+Definition XM := forall P, P \/ ~P.
 
 Fact neg_xm (P: Prop) {Q} :
   (P -> ~Q) -> (~P -> ~Q) -> ~Q.
@@ -723,7 +736,7 @@ Section Discrimination.
   Variable X: Type.
   Implicit Types (x: X) (A B: list X).
 
-  Lemma lem1 {x A} :
+  Lemma shorten {x A} :
     x el A -> exists B, A <<= x::B /\ length B < length A.
   Proof.
      induction A as [|a A' IH]; cbn.
@@ -734,9 +747,8 @@ Section Discrimination.
         exists (a::B). split. now firstorder. cbn; lia.
   Qed.
   
-  Fact fac1 A B :
-    (forall P, P \/ ~P) -> 
-    length B < length A -> nrep A -> exists x, x el A /\ x nel B.
+  Fact discriminate A B :
+    XM -> length B < length A -> nrep A -> exists x, x el A /\ x nel B.
   Proof.
     intros xm.
     induction A as [|a A' IH] in B |-*; cbn; intros H.
@@ -744,13 +756,13 @@ Section Discrimination.
     - intros [H1 H2].
       destruct (xm (a el B)) as [H3|H3].
       2:{ exists a. auto. }
-      destruct (lem1 H3) as (B'&H4&H5).
+      destruct (shorten H3) as (B'&H4&H5).
       specialize (IH B') as (x&H6&H7). lia. exact H2.
       exists x. split. 1:{ auto. }
       intros H8. apply H4 in H8 as [<-|H8]; easy.
   Qed.
 
-  Fact fac2 A B :
+  Fact discriminate_DN A B :
     length B < length A -> nrep A -> ~ ~exists x, x el A /\ x nel B.
   Proof.
     induction A as [|a A' IH] in B |-*; cbn; intros H.
@@ -758,13 +770,42 @@ Section Discrimination.
     - intros [H1 H2].
       apply (neg_xm (a el B)); intros H3.
        2:{ apply neg_skip. exists a. auto. }
-       destruct (lem1 H3) as (B'&H4&H5).
+       destruct (shorten H3) as (B'&H4&H5).
        specialize (IH B').
        assert (H6: length B' < length A') by lia.
        specialize (IH H6 H2). revert IH.
        apply neg_skip'. intros (x&H7&H8). apply neg_skip.
        exists x. split. 1:{ auto. } 
        intros H9. apply H4 in H9 as [<-|H9]; easy.
+  Qed.
+
+  (** Computational versions *)
+
+  Variables X_eqdec: eqdec X.
+ 
+  Lemma shorten' {x A} :
+    x el A -> Sigma B, A <<= x::B /\ length B < length A.
+  Proof.
+     induction A as [|a A' IH]; cbn.
+    - intros [].  (* computational exfalso *)
+    - intros [->|H] % (mem_sum X_eqdec).
+      + exists A'. split. now intuition. lia.
+      + specialize (IH H) as (B&H1&H2).
+        exists (a::B). split. now firstorder. cbn; lia.
+  Defined.
+  
+  Fact discriminate' A B :
+    length B < length A -> nrep A -> Sigma x, x el A /\ x nel B.
+  Proof.
+    induction A as [|a A' IH] in B |-*; cbn; intros H.
+    - exfalso. lia.  (* computational exfalso *)
+    - intros [H1 H2].
+      destruct (mem_dec X_eqdec a B) as [H3|H3].
+      2:{ exists a. auto. }
+      destruct (shorten' H3) as (B'&H4&H5).
+      specialize (IH B') as (x&H6&H7). lia. exact H2.
+      exists x. split. 1:{ auto. }
+      intros H8. apply H4 in H8 as [<-|H8]; easy.
   Qed.
 End Discrimination.
 
