@@ -10,6 +10,26 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
+
+Definition XM := forall P, P \/ ~P.
+
+Fact neg_xm (P: Prop) {Q} :
+  (P -> ~Q) -> (~P -> ~Q) -> ~Q.
+Proof.
+  tauto.
+Qed.
+Fact neg_skip (Q: Prop) :
+  Q -> ~ ~Q.
+Proof.
+  tauto.
+Qed.
+Fact neg_skip' (P: Prop) {Q} :
+  (P -> ~Q) -> ~ ~P -> ~Q.
+Proof.
+  tauto.
+Qed.
+
+
 Module Scratch.
 Section Scratch.
   Variable X: Type.
@@ -76,8 +96,43 @@ Section List.
     - reflexivity.
     - f_equal. exact IH.
   Qed.
+ 
+  Fact mem_ex x A :
+    x el A -> exists A1 A2, A = A1 ++ x::A2.
+  Proof.
+    intros H.
+    induction A as [|y A IH].
+    - contradict H.
+    - destruct H as [<-|H1].
+      + exists [], A. reflexivity.
+      + destruct (IH H1) as (A1&A2&->).
+        exists (y::A1), A2. reflexivity.
+  Qed.
 
   Variables X_eqdec: eqdec X.
+
+  Fact mem_sum x a A :
+    x el a :: A -> (x = a) + (x el A).
+  Proof.
+    intros H.
+    destruct (X_eqdec x a) as [H1|H1].
+    - left. exact H1.
+    - right. destruct H as [H|H].
+      + exfalso. auto.
+      + exact H.
+  Defined.
+ 
+  Fact mem_sig x A :
+    x el A -> Sigma A1 A2, A = A1 ++ x::A2.
+  Proof.
+    intros H.
+    induction A as [|y A IH].
+    - contradict H.
+    - apply mem_sum in H as [<-|H1].
+      + exists [], A. reflexivity.
+      + destruct (IH H1) as (A1&A2&->).
+        exists (y::A1), A2. reflexivity.
+  Qed.
 
   Goal eqdec (list X).
   Proof.
@@ -93,17 +148,6 @@ Section List.
       + right. intros [= <- _]. easy.
   Defined.
 
-  Fact mem_sum x a A :
-    x el a :: A -> (x = a) + (x el A).
-  Proof.
-    intros H.
-    destruct (X_eqdec x a) as [H1|H1].
-    - left. exact H1.
-    - right. destruct H as [H|H].
-      + exfalso. auto.
-      + exact H.
-  Defined.
-
   Fact mem_dec x A :
     dec (x el A).
   Proof.
@@ -117,18 +161,6 @@ Section List.
   Defined.
 
   (*** Inclusion and Equivalence *)
- 
-  Fact mem_sigma x A :
-    x el A -> Sigma A1 A2, A = A1 ++ x::A2.
-  Proof.
-    intros H.
-    induction A as [|y A IH].
-    - contradict H.
-    - apply mem_sum in H as [<-|H1].
-      + exists [], A. reflexivity.
-      + destruct (IH H1) as (A1&A2&->).
-        exists (y::A1), A2. reflexivity.
-  Qed.
 
   Definition equi A B := A <<= B /\ B <<= A.
   Notation "A == B" := (equi A B) (at level 70).
@@ -149,6 +181,368 @@ Section List.
   Proof.
     unfold equi, incl. intuition.
   Qed.
+ 
+  Fact mem_del_ex {x A} :
+    x el A -> exists A', A == x::A' /\ length A = S (length A').
+  Proof.
+    intros (A1&A2&->) %mem_ex.
+    exists (A1++A2). split.
+    - split; intros z; cbn; rewrite !in_app_iff; cbn; intuition.
+      (* Note the use of setoid rewriting *)
+    - rewrite !app_length. cbn. lia.
+  Qed.
+ 
+  Fact mem_del_sig {x A} :
+    x el A -> Sigma A', A == x::A' /\ length A = S (length A').
+  Proof.
+    intros (A1&A2&->) %mem_sig.
+    exists (A1++A2). cbn. split.
+    - split; intros z; cbn; rewrite !in_app_iff; cbn; intuition.
+    (* Note the use of setoid rewriting *)
+    - rewrite !app_length. cbn. lia.
+  Qed.
+
+  (*** Non-Repeating Lists *)
+  
+  Fixpoint rep A : Prop :=
+    match A with
+    | [] => False
+    | x::A => x el A \/ rep A
+    end.
+  
+  Fixpoint nrep A : Prop :=
+    match A with
+    | [] => True
+    | x::A => x nel A /\ nrep A
+    end.
+  
+  Fact rep_nrep_False A :
+    rep A -> nrep A -> False.
+  Proof.
+    induction A as [|x A IH]; cbn; tauto.
+  Qed.
+
+  Fact rep_plus_nrep A :
+    rep A + nrep A.
+  Proof.
+    induction A as [|x A IH]; cbn.
+    - auto.
+    - destruct (mem_dec x A) as [H|H].
+      + auto.
+      + destruct IH as [IH|IH]; auto.
+  Qed.
+
+  Goal forall A, dec (rep A).
+  Proof.
+    intros A.
+    generalize (rep_plus_nrep A), (rep_nrep_False A).
+    unfold dec. tauto.
+  Qed.
+
+  Fact nrep_not_rep A :
+    nrep A <-> ~rep A.
+  Proof.
+    generalize (rep_plus_nrep A), (rep_nrep_False A).
+    tauto.
+  Qed.
+
+  Fact rep_not_nrep A :
+    rep A <-> ~nrep A.
+  Proof.
+    generalize (rep_plus_nrep A), (rep_nrep_False A).
+    tauto.
+  Qed.
+
+  Fact rep_sig A :
+    rep A -> Sigma A1 x A2, A=A1++x::A2 /\ x el A2.
+  Proof.
+    induction A as [|x A IH].
+    - intros [].
+    - destruct (mem_dec x A) as [H|H].
+      + intros _. exists [], x, A. easy.
+      + intros H1.
+        destruct IH as (A1&y&A2&IH1&IH2).
+        * revert H H1. cbn. tauto.
+        * subst A. exists (x::A1), y, A2. cbn. easy.
+  Qed.
+
+  Fact nrep_equiv :
+    forall A, Sigma B, B == A /\ nrep B.
+  Proof.
+    induction A as [|x A (B&IH1&IH2)].
+    - exists nil. cbn. auto using equi_refl.
+    - destruct (mem_dec x A) as [H3|H3].
+      + exists B. split. 2:exact IH2.
+        split; intros z H.
+        * cbn. right. apply IH1, H.
+        * specialize H as [->|H]; apply IH1; assumption.
+      + exists (x::B); cbn. split.
+        * split; intros z [->|H]; cbn; auto; right; apply IH1, H.
+        * split. 2: exact IH2. contradict H3. apply IH1, H3.
+  Qed.
+ 
+  Fact nrep_discriminate {A B} :
+    nrep A -> length B < length A -> Sigma x, x el A /\ x nel B.
+  Proof.
+    induction A as [|a A IH] in B |-*; cbn.
+    - lia.  (* computational falsity elimination *)
+    - intros [H1 H2] H3.
+      destruct (mem_dec a B) as [H|H].
+      2: {exists a. auto. }
+      destruct (mem_del_sig H) as (B'&H4&H5).
+      destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
+      exists x. split.
+      + auto.
+      + contradict H7. apply H4 in H7 as [->|H7]; easy.
+  Qed.
+ 
+  Fact nrep_le A B :
+    nrep A -> A <<= B -> length A <= length B.
+  Proof.
+    intros H1 H2.
+    enough (length B < length A -> False) by lia.
+    intros H3.
+    destruct (nrep_discriminate H1 H3) as (x&H4&H5).
+    auto.
+   Qed.
+
+  Fact nrep_length A B :
+    nrep A -> nrep B -> A == B -> length A = length B.
+  Proof.
+    intros H1 H2 [H3 H4].
+    enough (length A <= length B <= length A) by lia.
+    split; eapply nrep_le; eassumption.
+  Qed.
+
+  Fact rep_length_lt A B :
+    A <<= B -> length B < length A -> rep A.
+  Proof.
+    intros H1 H2. apply rep_not_nrep. intros H3.
+    enough (length A <= length B) by lia.
+    apply nrep_le; assumption.
+  Qed.
+
+  Fact nrep_nrep A B :
+    nrep A -> A <<= B -> length B <= length A -> nrep B.
+  Proof.
+    intros H1 H2 H3.
+    apply nrep_not_rep.
+    intros (B1&x&B2&->&H5)%rep_sig.
+    assert (H6: length A <= length (B1 ++ B2)).
+    {  apply nrep_le. exact H1.
+       intros z [H6|[<-|H6]] %H2 %in_app_iff; apply in_app_iff; auto. }
+     revert H3 H6. rewrite !app_length. cbn. lia.
+  Qed.
+
+  Fact nrep_incl A B :
+    nrep A -> A <<= B -> length B <= length A -> B <<= A.
+  Proof.
+    intros H1 H2 H3 x H4.
+    destruct (mem_dec x A) as [H5|H5]. exact H5. exfalso.
+    destruct (@nrep_discriminate (x::A) B) as (z&H6&H7).
+    - easy.
+    - cbn; lia.
+    - destruct H6 as [->|H6]; auto.
+  Qed.
+
+  (*** Constructive Discrimination *)
+    
+  Fact nrep_discriminate_ex {A B} :
+    XM -> nrep A -> length B < length A -> exists x, x el A /\ x nel B.
+  Proof.
+    intros xm.
+    induction A as [|a A IH] in B |-*; cbn.
+    - lia.
+    - intros [H1 H2] H3.
+      destruct (xm (a el B)) as [H|H].
+      2: {exists a. auto. }
+      destruct (mem_del_ex H) as (B'&H4&H5).
+      destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
+      exists x. split.
+      + auto.
+      + contradict H7. apply H4 in H7 as [->|H7]; easy.
+  Qed.
+    
+  Fact nrep_discriminate_DN_ex {A B} :
+    nrep A -> length B < length A -> ~ ~exists x, x el A /\ x nel B.
+  Proof.
+    induction A as [|a A IH] in B |-*; cbn.
+    - lia.
+    - intros [H1 H2] H3.
+      apply (neg_xm (a el B)); intros H.
+      2:{ apply neg_skip. exists a. auto. }
+      destruct (mem_del_ex H) as (B'&H4&H5).
+      specialize (IH B' H2 ltac:(lia)).
+      revert IH. apply neg_skip'. intros (x&H6&H7).
+      apply neg_skip. exists x. split.
+      + auto.
+      + contradict H7. apply H4 in H7 as [->|H7]; easy.
+  Qed.
+
+  (*** Coverings and Listings *)
+
+  Definition covering A : Prop := forall x, x el A.
+  Definition listing A : Prop := nrep A /\ covering A.
+
+  Fact covering_listing A :
+    covering A -> Sigma B: list X, listing B.
+  Proof.
+    intros H.
+    destruct (nrep_equiv A) as (B&H1&H2).
+    exists B. split. exact H2.
+    intros x. apply H1, H.
+  Qed.
+  
+  Fact listing_nrep A B :
+    covering A -> nrep B -> length B <= length A.
+  Proof.
+    intros H1 H2. apply nrep_le. exact H2. intros x _. apply H1.
+  Qed.
+
+  Fact covering_nrep A B :
+    covering A -> nrep B -> length A <= length B -> listing B.
+  Proof.
+    intros H1 H2 H3. split. exact H2.
+    intros x. generalize (H1 x). revert x.
+    eapply nrep_incl. exact H2. 2:exact H3.
+    intros x _. apply H1.
+  Qed.
+
+  Fact listing_length_unique A B :
+    listing A -> listing B -> length A = length B.
+  Proof.
+    intros H1 H2.
+    apply nrep_length. {apply H1. } {apply H2. } split.
+    - intros x _. apply H2.
+    - intros x _. apply H1.
+  Qed.
+
+  (*** Cardinality *)
+
+  Fixpoint card A : nat :=
+    match A with
+      [] => 0
+    | x:: A' => if mem_dec x A' then card A' else S (card A')
+    end.
+
+  Fact card_sig :
+    forall A, Sigma B, B == A /\ nrep B /\ length B = card A.
+  Proof.
+    induction A as [|x A (B&IH1&IH2&IH3)]; cbn.
+    - exists []. cbv; auto.
+    - destruct mem_dec as [H|H].
+      + exists B.
+        enough (B == x :: A) by auto.
+        split; intros z H1.
+        * right. apply IH1, H1.
+        * apply IH1. destruct H1 as [->|H1]; assumption.
+      + exists (x::B). cbn. split. 2:split.
+        *  split; intros z [->|H1].
+           -- cbn. auto.
+           -- right. apply IH1, H1.
+           -- cbn; auto.
+           -- right. apply IH1, H1.
+        * split. 2: exact IH2. contradict H. apply IH1, H.
+        * lia.
+  Qed.
+
+  Fact  card_agree A n :
+    card A = n <-> exists B, B == A /\ nrep B /\ length B = n.
+  Proof.
+    split.
+    - intros <-.
+      destruct (card_sig A) as (B&H). exists B. exact H.
+    - intros (B&H1&H2&<-).
+      destruct (card_sig A) as (C&H4&H5&<-).
+      apply nrep_length. 1-2:assumption.
+      eapply equi_trans. exact H4. apply equi_symm, H1.
+  Qed.
+      
+
+  Fact card_length A :
+    card A <= length A.
+  Proof.
+    destruct (card_sig A) as (A'&H1&H2&<-).
+    apply nrep_le. exact H2. apply H1.
+  Qed.
+ 
+  Fact card_le A B :
+    A <<= B -> card A <= card B.
+  Proof.
+    destruct (card_sig A) as (A'&H1&H2&<-).
+    destruct (card_sig B) as (B'&H3&H4&<-).
+    intros H5. eapply nrep_le. exact H2.
+    intros z H6. apply H3, H5, H1, H6.
+  Qed.
+ 
+  Fact card_eq A B :
+    A == B -> card A = card B.
+  Proof.
+    intros H.
+    enough (card A <= card B /\ card B <= card A) by lia.
+    split; apply card_le, H.
+  Qed.
+ 
+  Fact rep_card_length A :
+    rep A <-> card A < length A.
+  Proof.
+    destruct (card_sig A) as (A'&H1&H2&<-).
+    split.
+    - intros H3.
+      enough (length A <= length A' -> False) by lia. intros H4.
+      eapply rep_not_nrep. exact H3.
+      eapply nrep_nrep. exact H2. apply H1. exact H4.
+    - apply rep_length_lt, H1.
+  Qed.
+ 
+  Fact nrep_card_length A :
+    nrep A <-> card A = length A.
+  Proof.
+    (* Note the use of setoid rewriting *)
+    rewrite nrep_not_rep, rep_card_length.
+    generalize (card_length A). lia. 
+  Qed.
+
+  Fixpoint Card A n : Prop :=
+    match A, n with
+    | nil, 0 => True
+    | nil, S n' => False
+    | x::A', 0 => False
+    | x::A', S n' => if mem_dec x A' then Card A' (S n') else Card A' n'
+    end.
+
+  Fact Card_card A :
+    Card A (card A).
+  Proof.
+    induction A as [|x A IH].
+    - exact I.
+    - cbn. destruct mem_dec as [H|H].
+      + destruct A as [|y A].
+        * destruct H.
+        * exact IH.
+      + exact IH.
+  Qed.
+
+  Fact Card_agree A n :
+    Card A n <-> card A = n.
+  Proof.
+    split.
+    - induction A as [|x A IH] in n |-*; destruct n; cbn.
+      + auto.
+      + intros [].
+      + intros [].
+      + destruct mem_dec as [H|H].
+        * apply IH.
+        * intros <-%IH. reflexivity.
+    - intros <-.
+      induction A as [|x A IH].
+      + exact I.
+      + cbn. destruct mem_dec as [H|H].
+        * destruct A as [|y A].
+          -- destruct H.
+          -- exact IH.
+        * exact IH.
+    Qed.
 
 
   (*** Element Removal *)
@@ -211,273 +605,6 @@ Section List.
     cbn. destruct (X_eqdec y x) as [<-|H]; tauto.
   Qed.
 
-  (*** Non-Repeating Lists *)
-  
-  Fixpoint rep A : Prop :=
-    match A with
-    | [] => False
-    | x::A => x el A \/ rep A
-    end.
-  
-  Fixpoint nrep A : Prop :=
-    match A with
-    | [] => True
-    | x::A => x nel A /\ nrep A
-    end.
-  
-  Fact rep_nrep_False A :
-    rep A -> nrep A -> False.
-  Proof.
-    induction A as [|x A IH]; cbn; tauto.
-  Qed.
-
-  Fact rep_plus_nrep A :
-    rep A + nrep A.
-  Proof.
-    induction A as [|x A IH]; cbn.
-    - auto.
-    - destruct (mem_dec x A) as [H|H].
-      + auto.
-      + destruct IH as [IH|IH]; auto.
-  Qed.
-
-  Goal forall A, dec (rep A).
-  Proof.
-    intros A.
-    generalize (rep_plus_nrep A), (rep_nrep_False A).
-    unfold dec. tauto.
-  Qed.
-
-  Fact nrep_not_rep A :
-    nrep A <-> ~rep A.
-  Proof.
-    generalize (rep_plus_nrep A), (rep_nrep_False A).
-    tauto.
-  Qed.
-
-  Fact rep_not_nrep A :
-    rep A <-> ~nrep A.
-  Proof.
-    generalize (rep_plus_nrep A), (rep_nrep_False A).
-    tauto.
-  Qed.
-
-  Fact rep_sigma A :
-    rep A -> Sigma A1 x A2, A=A1++x::A2 /\ x el A2.
-  Proof.
-    induction A as [|x A IH].
-    - intros [].
-    - destruct (mem_dec x A) as [H|H].
-      + intros _. exists [], x, A. easy.
-      + intros H1.
-        destruct IH as (A1&y&A2&IH1&IH2).
-        * revert H H1. cbn. tauto.
-        * subst A. exists (x::A1), y, A2. cbn. easy.
-  Qed.
-
-  Fact nrep_equiv :
-    forall A, Sigma B, B == A /\ nrep B.
-  Proof.
-    induction A as [|x A (B&IH1&IH2)].
-    - exists nil. cbn. auto using equi_refl.
-    - destruct (mem_dec x A) as [H3|H3].
-      + exists B. split. 2:exact IH2.
-        split; intros z H.
-        * cbn. right. apply IH1, H.
-        * specialize H as [->|H]; apply IH1; assumption.
-      + exists (x::B); cbn. split.
-        * split; intros z [->|H]; cbn; auto; right; apply IH1, H.
-        * split. 2: exact IH2. contradict H3. apply IH1, H3.
-  Qed.
- 
-  Fact nrep_discriminate {A B} :
-    nrep A -> length B < length A -> Sigma z, z nel B /\ z el A.
-  Proof.
-    induction A as [|x A IH] in B |-*; cbn.
-    - lia.
-    - destruct (mem_dec x B) as [H|H].
-      2:{ intros _ _. exists x. auto. }
-      intros [H1 H2] H3.
-      specialize (IH (rem B x) H2) as (z&H4&H5).
-      + apply rem_length_lt in H. lia.
-      + exists z. split. 2:{ auto. }
-        destruct (X_eqdec z x) as [->|H6]. 1:tauto.
-        contradict H4. apply rem_el. easy.
-  Qed.
- 
-  Fact nrep_le A B :
-    nrep A -> A <<= B -> length A <= length B.
-  Proof.
-    intros H1 H2.
-    enough (length B < length A -> False) by lia.
-    intros H3.
-    destruct (nrep_discriminate H1 H3) as (x&H4&H5).
-    apply H4, H2, H5.
-  Qed.
-
-  Fact nrep_length A B :
-    nrep A -> nrep B -> A == B -> length A = length B.
-  Proof.
-    intros H1 H2 [H3 H4].
-    enough (length A <= length B <= length A) by lia.
-    split; eapply nrep_le; eassumption.
-  Qed.
-
-  Fact rep_length_lt A B :
-    A <<= B -> length B < length A -> rep A.
-  Proof.
-    intros H1 H2. apply rep_not_nrep. intros H3.
-    enough (length A <= length B) by lia.
-    apply nrep_le; assumption.
-  Qed.
-
-  Fact nrep_incl A B :
-    nrep A -> A <<= B -> length B <= length A -> B <<= A.
-  Proof.
-    intros H1 H2 H3 x H4.
-    destruct (mem_dec x A) as [H5|H5]. exact H5. exfalso.
-    destruct (@nrep_discriminate (x::A) B) as (z&H6&H7); cbn.
-    - easy.
-    - lia.
-    - destruct H7 as [->|H7]; auto.
-  Qed.
-
-  Fact nrep_nrep A B :
-    nrep A -> A <<= B -> length B <= length A -> nrep B.
-  Proof.
-    intros H1 H2 H3.
-    apply nrep_not_rep.
-    intros (B1&x&B2&->&H5)%rep_sigma.
-    assert (H6: length A <= length (B1 ++ B2)).
-    {  apply nrep_le. exact H1.
-       intros z [H6|[<-|H6]] %H2 %in_app_iff; apply in_app_iff; auto. }
-     revert H3 H6. rewrite !app_length. cbn. lia.
-  Qed.
-
-  (*** Coverings and Listings *)
-
-  Definition covering A : Prop := forall x, x el A.
-  Definition listing A : Prop := nrep A /\ covering A.
-
-  Fact covering_listing A :
-    covering A -> Sigma B: list X, listing B.
-  Proof.
-    intros H.
-    destruct (nrep_equiv A) as (B&H1&H2).
-    exists B. split. exact H2.
-    intros x. apply H1, H.
-  Qed.
-  
-  Fact listing_nrep A B :
-    covering A -> nrep B -> length B <= length A.
-  Proof.
-    intros H1 H2. apply nrep_le. exact H2. intros x _. apply H1.
-  Qed.
-
-  Fact covering_nrep A B :
-    covering A -> nrep B -> length A <= length B -> listing B.
-  Proof.
-    intros H1 H2 H3. split. exact H2.
-    intros x. generalize (H1 x). revert x.
-    eapply nrep_incl. exact H2. 2:exact H3.
-    intros x _. apply H1.
-  Qed.
-
-  Fact listing_length_unique A B :
-    listing A -> listing B -> length A = length B.
-  Proof.
-    intros H1 H2.
-    apply nrep_length. {apply H1. } {apply H2. } split.
-    - intros x _. apply H2.
-    - intros x _. apply H1.
-  Qed.
-
-  (*** Cardinality *)
-
-  Fixpoint card A : nat :=
-    match A with
-      [] => 0
-    | x:: A' => if mem_dec x A' then card A' else S (card A')
-    end.
-
-  Fact card_sigma :
-    forall A, Sigma B, B == A /\ nrep B /\ length B = card A.
-  Proof.
-    induction A as [|x A (B&IH1&IH2&IH3)]; cbn.
-    - exists []. cbv; auto.
-    - destruct mem_dec as [H|H].
-      + exists B.
-        enough (B == x :: A) by auto.
-        split; intros z H1.
-        * right. apply IH1, H1.
-        * apply IH1. destruct H1 as [->|H1]; assumption.
-      + exists (x::B). cbn. split. 2:split.
-        *  split; intros z [->|H1].
-           -- cbn. auto.
-           -- right. apply IH1, H1.
-           -- cbn; auto.
-           -- right. apply IH1, H1.
-        * split. 2: exact IH2. contradict H. apply IH1, H.
-        * lia.
-  Qed.
-
-  Fact  card_agree A n :
-    card A = n <-> exists B, B == A /\ nrep B /\ length B = n.
-  Proof.
-    split.
-    - intros <-.
-      destruct (card_sigma A) as (B&H). exists B. exact H.
-    - intros (B&H1&H2&<-).
-      destruct (card_sigma A) as (C&H4&H5&<-).
-      apply nrep_length. 1-2:assumption.
-      eapply equi_trans. exact H4. apply equi_symm, H1.
-  Qed.
-      
-
-  Fact card_length A :
-    card A <= length A.
-  Proof.
-    destruct (card_sigma A) as (A'&H1&H2&<-).
-    apply nrep_le. exact H2. apply H1.
-  Qed.
- 
-  Fact card_le A B :
-    A <<= B -> card A <= card B.
-  Proof.
-    destruct (card_sigma A) as (A'&H1&H2&<-).
-    destruct (card_sigma B) as (B'&H3&H4&<-).
-    intros H5. eapply nrep_le. exact H2.
-    intros z H6. apply H3, H5, H1, H6.
-  Qed.
- 
-  Fact card_eq A B :
-    A == B -> card A = card B.
-  Proof.
-    intros H.
-    enough (card A <= card B /\ card B <= card A) by lia.
-    split; apply card_le, H.
-  Qed.
- 
-  Fact rep_card_length A :
-    rep A <-> card A < length A.
-  Proof.
-    destruct (card_sigma A) as (A'&H1&H2&<-).
-    split.
-    - intros H3.
-      enough (length A <= length A' -> False) by lia. intros H4.
-      eapply rep_not_nrep. exact H3.
-      eapply nrep_nrep. exact H2. apply H1. exact H4.
-    - apply rep_length_lt, H1.
-  Qed.
- 
-  Fact nrep_card_length A :
-    nrep A <-> card A = length A.
-  Proof.
-    (* Note the use of setoid rewriting *)
-    rewrite nrep_not_rep, rep_card_length.
-    generalize (card_length A). lia. 
-  Qed.
-
   Fact card_rem_eq A x :
     x el A -> card A = S (card (rem A x)).
   Proof.
@@ -493,46 +620,6 @@ Section List.
         * right. apply rem_el. auto.
   Qed.
 
-  Fixpoint Card A n : Prop :=
-    match A, n with
-    | nil, 0 => True
-    | nil, S n' => False
-    | x::A', 0 => False
-    | x::A', S n' => if mem_dec x A' then Card A' (S n') else Card A' n'
-    end.
-
-  Fact Card_card A :
-    Card A (card A).
-  Proof.
-    induction A as [|x A IH].
-    - exact I.
-    - cbn. destruct mem_dec as [H|H].
-      + destruct A as [|y A].
-        * destruct H.
-        * exact IH.
-      + exact IH.
-  Qed.
-
-  Fact Card_agree A n :
-    Card A n <-> card A = n.
-  Proof.
-    split.
-    - induction A as [|x A IH] in n |-*; destruct n; cbn.
-      + auto.
-      + intros [].
-      + intros [].
-      + destruct mem_dec as [H|H].
-        * apply IH.
-        * intros <-%IH. reflexivity.
-    - intros <-.
-      induction A as [|x A IH].
-      + exact I.
-      + cbn. destruct mem_dec as [H|H].
-        * destruct A as [|y A].
-          -- destruct H.
-          -- exact IH.
-        * exact IH.
-    Qed.
 
   (*** Sub and Pos *)
   
@@ -709,106 +796,6 @@ Proof.
   intros k H3. apply seq_in. apply H in H3. lia.
 Qed.
 
-
-(*** Constructive Discrimination Lemma *)
-
-Definition XM := forall P, P \/ ~P.
-
-Fact neg_xm (P: Prop) {Q} :
-  (P -> ~Q) -> (~P -> ~Q) -> ~Q.
-Proof.
-  tauto.
-Qed.
-
-Fact neg_skip (Q: Prop) :
-  Q -> ~ ~Q.
-Proof.
-  tauto.
-Qed.
-
-Fact neg_skip' (P: Prop) {Q} :
-  (P -> ~Q) -> ~ ~P -> ~Q.
-Proof.
-  tauto.
-Qed.
-  
-Section Discrimination.
-  Variable X: Type.
-  Implicit Types (x: X) (A B: list X).
-
-  Lemma shorten {x A} :
-    x el A -> exists B, A <<= x::B /\ length B < length A.
-  Proof.
-     induction A as [|a A' IH]; cbn.
-    - intros [].
-    - intros [->|H].
-      + exists A'. split. now intuition. lia.
-      + specialize (IH H) as (B&H1&H2).
-        exists (a::B). split. now firstorder. cbn; lia.
-  Qed.
-  
-  Fact discriminate A B :
-    XM -> length B < length A -> nrep A -> exists x, x el A /\ x nel B.
-  Proof.
-    intros xm.
-    induction A as [|a A' IH] in B |-*; cbn; intros H.
-    - exfalso. lia.
-    - intros [H1 H2].
-      destruct (xm (a el B)) as [H3|H3].
-      2:{ exists a. auto. }
-      destruct (shorten H3) as (B'&H4&H5).
-      specialize (IH B') as (x&H6&H7). lia. exact H2.
-      exists x. split. 1:{ auto. }
-      intros H8. apply H4 in H8 as [<-|H8]; easy.
-  Qed.
-
-  Fact discriminate_DN A B :
-    length B < length A -> nrep A -> ~ ~exists x, x el A /\ x nel B.
-  Proof.
-    induction A as [|a A' IH] in B |-*; cbn; intros H.
-    - exfalso. lia.
-    - intros [H1 H2].
-      apply (neg_xm (a el B)); intros H3.
-       2:{ apply neg_skip. exists a. auto. }
-       destruct (shorten H3) as (B'&H4&H5).
-       specialize (IH B').
-       assert (H6: length B' < length A') by lia.
-       specialize (IH H6 H2). revert IH.
-       apply neg_skip'. intros (x&H7&H8). apply neg_skip.
-       exists x. split. 1:{ auto. } 
-       intros H9. apply H4 in H9 as [<-|H9]; easy.
-  Qed.
-
-  (** Computational versions *)
-
-  Variables X_eqdec: eqdec X.
- 
-  Lemma shorten' {x A} :
-    x el A -> Sigma B, A <<= x::B /\ length B < length A.
-  Proof.
-     induction A as [|a A' IH]; cbn.
-    - intros [].  (* computational exfalso *)
-    - intros [->|H] % (mem_sum X_eqdec).
-      + exists A'. split. now intuition. lia.
-      + specialize (IH H) as (B&H1&H2).
-        exists (a::B). split. now firstorder. cbn; lia.
-  Defined.
-  
-  Fact discriminate' A B :
-    length B < length A -> nrep A -> Sigma x, x el A /\ x nel B.
-  Proof.
-    induction A as [|a A' IH] in B |-*; cbn; intros H.
-    - exfalso. lia.  (* computational exfalso *)
-    - intros [H1 H2].
-      destruct (mem_dec X_eqdec a B) as [H3|H3].
-      2:{ exists a. auto. }
-      destruct (shorten' H3) as (B'&H4&H5).
-      specialize (IH B') as (x&H6&H7). lia. exact H2.
-      exists x. split. 1:{ auto. }
-      intros H8. apply H4 in H8 as [<-|H8]; easy.
-  Qed.
-End Discrimination.
-
 (*** Exercises: List Reversal *)
 
 Section Reversal.
@@ -881,4 +868,3 @@ Section Reversal.
   Qed.
   
 End Reversal.
-
