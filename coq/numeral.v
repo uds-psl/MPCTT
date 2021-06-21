@@ -2,7 +2,7 @@ From Coq Require Import Arith Lia List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
-Ltac refl := reflexivity.
+
 Definition dec (P: Prop) : Type := P + ~P.
 Notation sig := sigT.
 Notation Sig := existT.
@@ -73,14 +73,14 @@ Compute num_listing 2.
 Goal forall n (a: num n), a el num_listing n.
 Proof.
   induction a as [n|n a IH]; cbn.
-  - left. refl.
+  - left. reflexivity.
   - right. apply in_map, IH.
 Qed.
  
 Goal forall n, length (num_listing n) = n.
 Proof.
   induction n as [|n IH]; cbn.
-  - refl.
+  - reflexivity.
   - f_equal. rewrite map_length. exact IH.
 Qed.
 
@@ -126,8 +126,8 @@ Definition num_inv
     end a.
 Proof.
   destruct a as [n|n a].
-  - left. refl.
-  - right. exists a. refl.
+  - left. reflexivity.
+  - right. exists a. reflexivity.
 Defined.
 
 Goal num 0 -> False.
@@ -140,7 +140,7 @@ Goal forall a: num 1,  a = Zero 0.
 Proof.
   intros a.
   destruct (num_inv a) as [->|[a' ->]].
-  - refl.
+  - reflexivity.
   - contradict (num_inv a').
 Qed.
 
@@ -170,11 +170,11 @@ Definition num_eqdec :
 Proof.
   induction a1 as [n|n a1 IH]; intros a2.
   all: destruct (num_inv a2) as [->|[a2' ->]].
-  - left. refl.
+  - left. reflexivity.
   - right. intros [] % num_disjoint.
   - right. intros H. symmetry in H. eapply num_disjoint, H.
   - specialize (IH a2') as [[]|H].
-    + left. refl.
+    + left. reflexivity.
     + right. contradict H. apply Next_injective, H.
 Defined.
 
@@ -212,7 +212,7 @@ Defined.
 Goal forall n (a: num (S n)),
     pre (Next a) = a.
 Proof.
-  refl.
+  reflexivity.
 Qed.
     
 (** Embedding into numbers *)
@@ -264,9 +264,9 @@ Proof.
   induction n as [|n IH];
     destruct (num_inv a) as [->|[a' ->]];
     cbn.
-  - refl.
+  - reflexivity.
   - exfalso. contradict (num_inv a').
-  - refl.
+  - reflexivity.
   - f_equal. apply IH.
 Qed.
 
@@ -293,13 +293,53 @@ Proof.
   - intros [= H]. f_equal. apply IH, H.
 Qed.
 
-(** Recursive numeral types *)
+(*** Recursive numeral types *)
 
 Fixpoint fin (n: nat) : Type :=
   match n with
   | 0 => False
   | S n' => option (fin n')
   end.
+
+Definition fin_num_elim (p: forall n, fin n -> Type)
+  : (forall n, p (S n) None) ->
+    (forall n a, p n a -> p (S n) (Some a)) -> 
+    forall n a, p n a
+  := fun e1 e2 => fix f n a :=
+       match n return forall a, p n a with
+       | 0 => fun a => match a with end
+       | S n' => fun a => match a with
+                      | None => e1 n'
+                      | Some a' => e2 n' a' (f n' a')
+                      end
+       end a.
+   
+Definition fin_num_inv 
+  : forall {n} (a: fin n),
+    match n return fin n -> Type with
+    | 0 => fun a =>  False
+    | S n' => fun a => sum (a = None) (Sigma a', a = Some a')
+    end a.
+Proof.
+  intros n a.
+  destruct n as [|n].
+  - exact a.
+  - destruct a as [a|].
+    + right. exists a. reflexivity.
+    + left. reflexivity.
+Defined.
+
+Goal fin 0 -> False.
+Proof.
+  easy.
+Qed.
+
+Goal forall a: fin 1,  a = None.
+Proof.
+  intros [a|].
+  - exfalso. exact a.
+  - reflexivity.
+Qed.
 
 Fixpoint num_fin {n} (a: num n) : fin n :=
   match a with
@@ -318,7 +358,7 @@ Goal forall n (a: num n),
     fin_num (num_fin a) = a.
 Proof.
   induction a as [n|n a IH]; cbn.
-  - refl.
+  - reflexivity.
   - f_equal. exact IH.
 Qed.
 
@@ -329,7 +369,7 @@ Proof.
   - intros [].
   - intros [c|]; cbn.
     + f_equal. apply IH.
-    + refl.
+    + reflexivity.
 Qed.
  
 Compute num_fin (Next (Next (Zero 5))).
@@ -384,9 +424,10 @@ Proof.
   induction n as [|n IH].
   - destruct c as [c|]; cbn.
     + contradict c.
-    + refl.
+    + reflexivity.
   - destruct c as [c|].
     + cbn . f_equal. apply IH.
-    + refl.
+    + reflexivity.
 Qed.
 End Embedding.
+
