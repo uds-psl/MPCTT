@@ -345,6 +345,20 @@ Section List.
     - destruct H6 as [->|H6]; auto.
   Qed.
 
+  (* Proof not using discreteness *)
+  Fact nrep_le_con A B : 
+    nrep A -> A <<= B -> length A <= length B.
+  Proof.
+    (* Variant not using discreteness *)
+    induction A as [|a A IH] in B |-*; cbn.
+    - lia.
+    - intros [H1 H2] H3.
+      assert (a el B) as H by intuition.
+      destruct (mem_del_ex H) as (B'&H4&H5).
+      enough (length A <= length B') by lia.
+      apply IH. exact H2. firstorder congruence.
+   Qed.
+
   (*** Constructive Discrimination *)
     
   Fact nrep_discriminate_ex {A B} :

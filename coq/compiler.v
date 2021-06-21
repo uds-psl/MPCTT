@@ -1,6 +1,7 @@
 ﻿From Coq Require Import List.
 Import ListNotations.
 
+(* First time we use Coq's BNF format for an inductive type *)
 Inductive exp :=
   con (x: nat)
 | add (e: exp) (e: exp)
