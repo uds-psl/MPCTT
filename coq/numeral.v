@@ -1,8 +1,4 @@
 From Coq Require Import Arith Lia List.
-Import ListNotations.
-Notation "x 'el' A" := (In x A) (at level 70).
-Notation "x 'nel' A" := (~ In x A) (at level 70).
-
 Definition dec (P: Prop) : Type := P + ~P.
 Notation sig := sigT.
 Notation Sig := existT.
@@ -14,47 +10,71 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
+Import ListNotations.
+Notation "x 'el' A" := (In x A) (at level 70).
+Notation "x 'nel' A" := (~ In x A) (at level 70).
+Fixpoint nrep {X} (A: list X) : Prop :=
+  match A with
+  | [] => True
+  | x::A => x nel A /\ nrep A
+  end.
+Definition injective {X Y} (f: X -> Y) :=
+  forall x x', f x = f x' -> x = x'.
+Fact nrep_map X Y (f: X -> Y) A :
+  injective f -> nrep A -> nrep (map f A).
+Proof.
+  intros H1.
+  induction A as [|x A IH]; cbn.
+  - auto.
+  - intros [H2 H3].
+    split. 2:{ apply IH, H3. }
+    intros (x'&H4&H5)%in_map_iff.
+    apply H1 in H4 as ->.
+    auto.
+Qed.
+
+(** Inductive definition *)
+
 Inductive num : nat -> Type :=
 | Zero: forall n, num (S n)
-| Next: forall {n}, num n -> num (S n).
+| Up: forall {n}, num n -> num (S n).
 
 Check Zero 5.
-Check Next (Zero 4).
-Check Next (Next (Zero 3)).
+Check Up (Zero 4).
+Check Up (Up (Zero 3)).
+
+(** Eliminator *)
 
 Definition num_elim (p: forall n, num n -> Type)
   : (forall n, p (S n) (Zero n)) ->
-    (forall n a, p n a -> p (S n) (Next a)) -> 
+    (forall n a, p n a -> p (S n) (Up a)) -> 
     forall n a, p n a
   := fun e1 e2 => fix f n a :=
        match a with
        | Zero n => e1 n
-       | @Next n a => e2 n a (f n a)
+       | @Up n a => e2 n a (f n a)
        end.
 
 (** Constructor laws *)
 
-Definition f_disjoint n (c: num n) : Prop :=
-  match c with Zero _ => False | Next _ => True end.
+Definition f_disjoint {n} (c: num n) : bool :=
+  match c with Zero _ => true | Up _ => false end.
 
 Fact num_disjoint n a :
-  Zero n = Next a -> False.
+  Zero n = Up a -> False.
 Proof.
   intros H.
-  discriminate (f_equal (fun c => match c with
-                             | Zero _ => true
-                             | Next _ => false
-                             end) H).
+  discriminate (f_equal f_disjoint H).
 Qed.
 
-Definition f_Next_inj n (c: num n)
+Definition f_Up_inj {n} (c: num n)
   : match n return Type with 0 => False | S n' => option (num n') end
-  := match c with Zero _ => None | Next c' => Some c' end.
+  := match c with Zero _ => None | Up c' => Some c' end.
 
-Fact Next_injective n (a b: num n) :
-  Next a = Next b -> a = b.
+Fact Up_injective n (a b: num n) :
+  Up a = Up b -> a = b.
 Proof.
-  intros H % (f_equal (f_Next_inj (S n))).
+  intros H % (f_equal f_Up_inj).
   revert H. cbn. intros [= H]. exact H.
 Qed.
 
@@ -63,7 +83,7 @@ Qed.
 Fixpoint num_listing n : list (num n) :=
   match n with
   | 0 => []
-  | S n' => Zero n' :: map Next (num_listing n')
+  | S n' => Zero n' :: map Up (num_listing n')
   end.
 
 Compute num_listing 0.
@@ -84,28 +104,6 @@ Proof.
   - f_equal. rewrite map_length. exact IH.
 Qed.
 
-Fixpoint nrep {X} (A: list X) : Prop :=
-  match A with
-  | [] => True
-  | x::A => x nel A /\ nrep A
-  end.
-
-Definition injective {X Y} (f: X -> Y) :=
-  forall x x', f x = f x' -> x = x'.
-
-Fact nrep_map X Y (f: X -> Y) A :
-  injective f -> nrep A -> nrep (map f A).
-Proof.
-  intros H1.
-  induction A as [|x A IH]; cbn.
-  - auto.
-  - intros [H2 H3].
-    split. 2:{ apply IH, H3. }
-    intros (x'&H4&H5)%in_map_iff.
-    apply H1 in H4 as ->.
-    auto.
-Qed.
-
 Goal forall n, nrep (num_listing n).
 Proof.
   induction n as [|n IH]; cbn.
@@ -113,7 +111,7 @@ Proof.
   - split.
     + intros (a&H&_) % in_map_iff.
       symmetry in H. apply num_disjoint in H. easy.
-    + apply nrep_map. 2:exact IH. exact (Next_injective n).
+    + apply nrep_map. 2:exact IH. exact (Up_injective n).
 Qed.
 
 (** Inversion *)
@@ -122,7 +120,7 @@ Definition num_inv
   : forall {n} (a: num n),
     match n return num n -> Type with
     | 0 => fun a =>  False
-    | S n' => fun a => sum (a = Zero n') (Sigma a', a = Next a')
+    | S n' => fun a => sum (a = Zero n') (Sigma a', a = Up a')
     end a.
 Proof.
   destruct a as [n|n a].
@@ -144,24 +142,20 @@ Proof.
   - contradict (num_inv a').
 Qed.
 
-(** Smart matches are compiled to plain matches
-    but introduce new problems. *)
+(** Predecessor *)
 
-Goal num 0 -> False.
+Definition pre n (a: num (S (S n))) : num (S n).
 Proof.
-  exact (fun a => match a with end).
-Qed.
+  destruct (num_inv a) as [H|[a' H]].
+  - exact (Zero n).
+  - exact a'.
+Defined.
 
-Goal forall a: num 1, a = Zero 0.
+Goal forall n a,
+    pre n (Up a) = a.
 Proof.
-  refine (fun a => match a with
-                | Zero n => _
-                | Next a => _
-                end).
-  - destruct n; easy.
-  - destruct n; easy.
+  reflexivity.
 Qed.
-
 
 (** Equality decider *)
 
@@ -175,56 +169,19 @@ Proof.
   - right. intros H. symmetry in H. eapply num_disjoint, H.
   - specialize (IH a2') as [[]|H].
     + left. reflexivity.
-    + right. contradict H. apply Next_injective, H.
+    + right. contradict H. apply Up_injective, H.
 Defined.
-
-(** Lift *)
-
-Fixpoint lift {n} (a: num n) : num (S n) :=
-  match a with
-  | Zero n => Zero (S n)
-  | Next a => Next (lift a)
-  end.
-
-Fact lift_injective n (a b: num n) :
-  lift a = lift b -> a = b.
-Proof.
-  revert n a b.
-  induction a as [|n a IH];
-    intros b;
-    destruct (num_inv b) as [->|[a' ->]];
-    cbn.
-  - easy.
-  - intros [] % num_disjoint.
-  - intros H. exfalso. symmetry in H. eapply num_disjoint, H.
-  - intros H % Next_injective. f_equal. apply IH, H.
-Qed.
-
-(** Predecessor *)
-
-Definition pre {n} (a: num (S (S n))) : num (S n).
-Proof.
-  destruct (num_inv a) as [H|[a' H]].
-  - exact (Zero n).
-  - exact a'.
-Defined.
-
-Goal forall n (a: num (S n)),
-    pre (Next a) = a.
-Proof.
-  reflexivity.
-Qed.
     
 (** Embedding into numbers *)
 
 Fixpoint N {n} (a: num n) : nat :=
   match a with
   | Zero n => 0
-  | Next a => S (N a)
+  | Up a => S (N a)
   end.
 
 Compute N (Zero 3).
-Compute N (Next (Next (Zero 3))).
+Compute N (Up (Up (Zero 3))).
 
 Fact N_lt {n} (a: num n) :
   N a < n.
@@ -234,11 +191,50 @@ Proof.
   - lia.
 Qed.
 
+Fact N_injective n (a b: num n) :
+  N a = N b -> a = b.
+Proof.
+  revert n a b.
+  induction a as [|n a IH];
+    intros b;
+    destruct (num_inv b) as [->|[a' ->]];
+    cbn.
+  - easy.
+  - intros [=].
+  - intros [=].
+  - intros [= H]. f_equal. apply IH, H.
+Qed.
+
+(** Lift *)
+
+Fixpoint lift {n} (a: num n) : num (S n) :=
+  match a with
+  | Zero n => Zero (S n)
+  | Up a => Up (lift a)
+  end.
+
+Fact N_lift n (a: num n) :
+  N (lift a) = N a.
+Proof.
+  induction a as [n|n a IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+Fact lift_injective n (a b: num n) :
+  lift a = lift b -> a = b.
+Proof.
+  intros H % (f_equal N). revert H.
+  rewrite !N_lift. apply N_injective.
+Qed.
+
+(** Mapping numbers into numerals *)
+
 Fixpoint B k n : num (S n) :=
   match k, n with
   | 0, n => Zero n
   | S k, 0 => Zero 0
-  | S k, S n => Next (B k n)
+  | S k, S n => Up (B k n)
   end.
 
 Compute B 3 3.
@@ -268,29 +264,6 @@ Proof.
   - exfalso. contradict (num_inv a').
   - reflexivity.
   - f_equal. apply IH.
-Qed.
-
-Fact N_injective n (a b: num n) :
-  N a = N b -> a = b.
-Proof.
-  destruct n as [|n].
-  - contradict (num_inv a).
-  - intros H % (f_equal (fun k => B k n)).
-    revert H. rewrite !BN_eq. easy.
-Qed.
-
-Fact N_injective' n (a b: num n) :
-  N a = N b -> a = b.
-Proof.
-  revert n a b.
-  induction a as [|n a IH];
-    intros b;
-    destruct (num_inv b) as [->|[a' ->]];
-    cbn.
-  - easy.
-  - intros [=].
-  - intros [=].
-  - intros [= H]. f_equal. apply IH, H.
 Qed.
 
 (*** Recursive numeral types *)
@@ -334,7 +307,7 @@ Proof.
   easy.
 Qed.
 
-Goal forall a: fin 1,  a = None.
+Goal forall a: fin 1, a = None.
 Proof.
   intros [a|].
   - exfalso. exact a.
@@ -344,14 +317,14 @@ Qed.
 Fixpoint num_fin {n} (a: num n) : fin n :=
   match a with
   | Zero _ => None
-  | Next a => Some (num_fin a)
+  | Up a => Some (num_fin a)
   end.
 
 Fixpoint fin_num {n} (c: fin n) : num n :=
   match n, c with
   | 0, c => match c with end
   | S n', None => Zero n'
-  | S n', Some c => Next (fin_num c)
+  | S n', Some c => Up (fin_num c)
   end.
 
 Goal forall n (a: num n),
@@ -372,8 +345,8 @@ Proof.
     + reflexivity.
 Qed.
  
-Compute num_fin (Next (Next (Zero 5))).
-Compute fin_num (num_fin (Next (Next (Zero 5)))).
+Compute num_fin (Up (Up (Zero 5))).
+Compute fin_num (num_fin (Up (Up (Zero 5)))).
 
 Module Embedding.
 Fixpoint N n (c: fin n): nat :=
@@ -430,4 +403,3 @@ Proof.
     + reflexivity.
 Qed.
 End Embedding.
-
