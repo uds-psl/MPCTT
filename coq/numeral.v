@@ -278,14 +278,14 @@ Definition fin_num_elim (p: forall n, fin n -> Type)
   : (forall n, p (S n) None) ->
     (forall n a, p n a -> p (S n) (Some a)) -> 
     forall n a, p n a
-  := fun e1 e2 => fix f n a :=
-       match n return forall a, p n a with
+  := fun e1 e2 => fix f n :=
+       match n with
        | 0 => fun a => match a with end
        | S n' => fun a => match a with
                       | None => e1 n'
                       | Some a' => e2 n' a' (f n' a')
                       end
-       end a.
+       end.
    
 Definition fin_num_inv 
   : forall {n} (a: fin n),
@@ -294,9 +294,9 @@ Definition fin_num_inv
     | S n' => fun a => sum (a = None) (Sigma a', a = Some a')
     end a.
 Proof.
-  intros n a.
+  intros n.
   destruct n as [|n].
-  - exact a.
+  - intros a. exact a.
   - destruct a as [a|].
     + right. exists a. reflexivity.
     + left. reflexivity.
