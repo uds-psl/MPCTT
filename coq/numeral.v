@@ -1,5 +1,5 @@
 From Coq Require Import Arith Lia List.
-Definition dec (P: Prop) : Type := P + ~P.
+Definition dec (X: Type) := sum X (X -> False).
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
@@ -55,27 +55,59 @@ Definition num_elim (p: forall n, num n -> Type)
        | @Up n a => e2 n a (f n a)
        end.
 
-(** Constructor laws *)
+(** Predecessor and constructor laws *)
 
-Definition f_disjoint {n} (c: num n) : bool :=
-  match c with Zero _ => true | Up _ => false end.
+Definition pre'
+  : forall n, num n ->
+         match n return Type with
+         | 0 => False
+         | S n' => option (num n')
+         end
+  := fun n a => match a with
+             | Zero _ => None
+             | Up a' => Some a'
+             end.
+
+Definition pre
+  : forall n, num (S n) -> option (num n)
+  := fun n => pre' (S n).
+
+Goal forall n a, pre n (Up a) = Some a.
+  reflexivity.
+Qed.
+Goal forall n, pre n (Zero n) = None.
+  reflexivity.
+Qed.
 
 Fact num_disjoint n a :
   Zero n = Up a -> False.
 Proof.
-  intros H.
-  discriminate (f_equal f_disjoint H).
+  intros H % (f_equal (pre _)). cbn in H.
+  change (match Some a with Some _ => False | None => True end).
+  rewrite <- H. exact I.
 Qed.
-
-Definition f_Up_inj {n} (c: num n)
-  : match n return Type with 0 => False | S n' => option (num n') end
-  := match c with Zero _ => None | Up c' => Some c' end.
 
 Fact Up_injective n (a b: num n) :
   Up a = Up b -> a = b.
 Proof.
-  intros H % (f_equal f_Up_inj).
-  revert H. cbn. intros [= H]. exact H.
+  intros H % (f_equal (pre _)). cbn in H.
+  change (match Some a with Some a' => a' | None => a end = b).
+  rewrite H. reflexivity.
+Qed.
+
+Definition pre_hat
+  : forall n, num (S (S n)) -> num (S n)
+  := fun n a => match pre' _ a with
+             | None => Zero _
+             | Some a => a
+             end.
+Goal forall n a, pre_hat n (Up a) = a.
+Proof.
+  reflexivity.
+Qed.
+Goal forall n, pre_hat n (Zero (S n)) = Zero n.
+Proof.
+  reflexivity.
 Qed.
 
 (** Listing *)
@@ -114,7 +146,7 @@ Proof.
     + apply nrep_map. 2:exact IH. exact (Up_injective n).
 Qed.
 
-(** Inversion *)
+(*** Inversion operator *)
    
 Definition num_inv 
   : forall {n} (a: num n),
@@ -128,34 +160,8 @@ Proof.
   - right. exists a. reflexivity.
 Defined.
 
-Goal num 0 -> False.
-Proof.
-  intros a.
-  contradict (num_inv a).
-Qed.
-
-Goal forall a: num 1,  a = Zero 0.
-Proof.
-  intros a.
-  destruct (num_inv a) as [->|[a' ->]].
-  - reflexivity.
-  - contradict (num_inv a').
-Qed.
-
-(** Predecessor *)
-
-Definition pre n (a: num (S (S n))) : num (S n).
-Proof.
-  destruct (num_inv a) as [H|[a' H]].
-  - exact (Zero n).
-  - exact a'.
-Defined.
-
-Goal forall n a,
-    pre n (Up a) = a.
-Proof.
-  reflexivity.
-Qed.
+Eval cbn in fun n => num_inv (Zero n).
+Eval cbn in fun n (a: num n) => num_inv (Up a).
 
 (** Equality decider *)
 
@@ -171,7 +177,54 @@ Proof.
     + left. reflexivity.
     + right. contradict H. apply Up_injective, H.
 Defined.
-    
+
+(** Enumerations *)
+
+Fact num0 :
+  num 0 -> False.
+Proof.
+  exact num_inv.
+Qed.
+Fact num_sum {n} :
+  forall a: num (S n), (a = Zero n) + Sigma a', a = Up a'.
+Proof.
+  exact num_inv.
+Qed.
+Fact num1 :
+  forall a: num 1,  a = Zero 0.
+Proof.
+  intros a.
+  destruct (num_sum a) as [->|[a' ->]].
+  - reflexivity.
+  - exfalso. apply num0, a'.
+Qed.
+Fact num2 :
+  forall a: num 2, sum (a = Zero 1) (a = Up (Zero 0)).
+Proof.
+  intros a.
+  destruct (num_sum a) as [->|[a' ->]].
+  - left. reflexivity.
+  - right. f_equal.  apply num1. 
+Qed.
+
+(** Predecessor *)
+
+Definition P
+  : forall n, num (S n) -> option (num n)
+  := fun n a => match num_inv a with
+             | inl _ => None
+             | inr (Sig _ a' _) => Some a'
+             end.
+
+Goal forall n, P n (Zero n) = None.
+Proof.
+  reflexivity.
+Qed.
+Goal forall n a, P n (Up a) = Some a.
+Proof.
+  reflexivity.
+Qed.
+   
 (** Embedding into numbers *)
 
 Fixpoint N {n} (a: num n) : nat :=
@@ -189,6 +242,12 @@ Proof.
   induction a as [n|n a IH]; cbn.
   - lia.
   - lia.
+Qed.
+
+Fact N_Up n (a: num n) :
+  N (Up a) = S (N a).
+Proof.
+  destruct a as [n| n a]; reflexivity.
 Qed.
 
 Fact N_injective n (a b: num n) :
@@ -266,7 +325,7 @@ Proof.
   - f_equal. apply IH.
 Qed.
 
-(*** Recursive numeral types *)
+(*** Recursive numerals *)
 
 Fixpoint fin (n: nat) : Type :=
   match n with
@@ -274,45 +333,7 @@ Fixpoint fin (n: nat) : Type :=
   | S n' => option (fin n')
   end.
 
-Definition fin_num_elim (p: forall n, fin n -> Type)
-  : (forall n, p (S n) None) ->
-    (forall n a, p n a -> p (S n) (Some a)) -> 
-    forall n a, p n a
-  := fun e1 e2 => fix f n :=
-       match n with
-       | 0 => fun a => match a with end
-       | S n' => fun a => match a with
-                      | None => e1 n'
-                      | Some a' => e2 n' a' (f n' a')
-                      end
-       end.
-   
-Definition fin_num_inv 
-  : forall {n} (a: fin n),
-    match n return fin n -> Type with
-    | 0 => fun a =>  False
-    | S n' => fun a => sum (a = None) (Sigma a', a = Some a')
-    end a.
-Proof.
-  intros n.
-  destruct n as [|n].
-  - intros a. exact a.
-  - destruct a as [a|].
-    + right. exists a. reflexivity.
-    + left. reflexivity.
-Defined.
-
-Goal fin 0 -> False.
-Proof.
-  easy.
-Qed.
-
-Goal forall a: fin 1, a = None.
-Proof.
-  intros [a|].
-  - exfalso. exact a.
-  - reflexivity.
-Qed.
+(** Bijection *)
 
 Fixpoint num_fin {n} (a: num n) : fin n :=
   match a with
@@ -348,6 +369,49 @@ Qed.
 Compute num_fin (Up (Up (Zero 5))).
 Compute fin_num (num_fin (Up (Up (Zero 5)))).
 
+(** Direct proofs of transported theorems *)
+
+Goal fin 0 -> False.
+Proof.
+  easy.
+Qed.
+Goal forall a: fin 1, a = None.
+Proof.
+  intros [a|].
+  - exfalso. exact a.
+  - reflexivity.
+Qed.
+
+Definition fin_num_elim (p: forall n, fin n -> Type)
+  : (forall n, p (S n) None) ->
+    (forall n a, p n a -> p (S n) (Some a)) -> 
+    forall n a, p n a
+  := fun e1 e2 => fix f n :=
+       match n with
+       | 0 => fun a => match a with end
+       | S n' => fun a => match a with
+                      | None => e1 n'
+                      | Some a' => e2 n' a' (f n' a')
+                      end
+       end.
+   
+Definition fin_num_inv 
+  : forall {n} (a: fin n),
+    match n return fin n -> Type with
+    | 0 => fun a =>  False
+    | S n' => fun a => sum (a = None) (Sigma a', a = Some a')
+    end a.
+Proof.
+  intros n.
+  destruct n as [|n].
+  - intros a. exact a.
+  - destruct a as [a|].
+    + right. exists a. reflexivity.
+    + left. reflexivity.
+Defined.
+
+(** Embedding recursive numerals int numbers *)
+
 Module Embedding.
 Fixpoint N n (c: fin n): nat :=
   match n, c with
@@ -381,16 +445,6 @@ Compute N 4 (B 2 3).
 Compute B (N 6 None) 5.
 Compute B (N 6 (B 3 5)) 5.
 
-Fact NB_eq k n :
-  k <= n -> N (S n) (B k n) = k.
-Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - easy.
-  - destruct n as [|n]; cbn.
-    + intros H. exfalso. lia.
-    + intros H. f_equal. apply IH. lia.
-Qed.
-
 Fact BN_eq n (c: fin (S n)) :
   B (N (S n) c) n = c.
 Proof.
@@ -401,5 +455,15 @@ Proof.
   - destruct c as [c|].
     + cbn . f_equal. apply IH.
     + reflexivity.
+Qed.
+
+Fact NB_eq k n :
+  k <= n -> N (S n) (B k n) = k.
+Proof.
+  induction k as [|k IH] in n |-*; cbn.
+  - easy.
+  - destruct n as [|n]; cbn.
+    + intros H. exfalso. lia.
+    + intros H. f_equal. apply IH. lia.
 Qed.
 End Embedding.
