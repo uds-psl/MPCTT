@@ -21,7 +21,7 @@
 -  Existential Witness Operators [ewo.v](ewo.v)
 -  Well-Founded Recursion [wfrec.v](wfrec.v)
 -  Numeral Types as Indexed Inductive Types [numeral.v](numeral.v)
--  Inductive Derivation Systems [ids_less.v](ids_less.v), [ids_gcd.v](ids_gcd.v), [regexp.v](regexp.v), [post.v](post.v)
+-  Inductive Derivation Systems [ids_less_binary.v](ids_less_binary.v), [ids_less.v](ids_less.v), [ids_gcd.v](ids_gcd.v), [regexp.v](regexp.v), [post.v](post.v)
 -  Inductive Equality [indeq.v](indeq.v)
 -  Case Study: GCDs  [gcd.v](gcd.v)
 -  Semi-Decidability and Markov's Principle [sdec.v](sdec.v)
