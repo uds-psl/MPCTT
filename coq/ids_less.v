@@ -1,5 +1,6 @@
+Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
+Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 From Coq Require Import Arith Lia Eqdep_dec.
-Ltac refl := reflexivity.
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
@@ -9,12 +10,6 @@ Notation "'Sigma' x .. y , p" :=
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-
-Definition cast {X} {x y: X} {p: X -> Type}
-  : x = y -> p x -> p y
-  := fun e a => match e with eq_refl => a end.
 
 Fact inr_injective X Y (y y': Y) :
   inr X y = inr y' -> y = y'.
@@ -25,6 +20,11 @@ Proof.
                                     end)).
   exact H.
 Qed.
+
+Definition cast {X} {x y: X} {p: X -> Type}
+  : x = y -> p x -> p y
+  := fun e a => match e with eq_refl => a end.
+
 Fact  UIP_nat :
   forall {x: nat} (e: x = x), e = eq_refl.
 Proof.
@@ -33,7 +33,7 @@ Qed.
 Fact cast_nat {p: nat -> Type} {x: nat} {y: p x} :
   forall e: x = x, cast (p:= p) e y = y.
 Proof.
-  intros e. rewrite (UIP_nat e). refl.
+  intros e. rewrite (UIP_nat e). reflexivity.
 Qed.
 Fact DPI_nat :
   forall (p: nat -> Type) n a b, Sig p n a = Sig p n b -> a = b.
@@ -45,7 +45,7 @@ Proof.
 Qed.
 
 (*** Binary Variant *)
-Module Version1.
+Module Binary.
 Inductive L (x: nat) : nat -> Type :=
 | L1: L x (S x)
 | L2: forall y z, L x y -> L y z -> L x z.
@@ -96,14 +96,14 @@ Definition L_inv {x y} :
   L x y -> sum (y = S x) (Sigma z, prod (L x z) (L z y)).
 Proof.
   destruct 1 as [|z y a b].
-  - left; refl.
+  - left; reflexivity.
   - right. exists z. easy.
 Defined.
 
 (* Cannot write a function L x y -> Sigma z, prod (L x z) (L z y) *)
 
 Fact L2_injective x y z a b a' b':
- L2 x z y a b = L2 x z y a' b' -> (a,b) = (a',b').
+  L2 x z y a b = L2 x z y a' b' -> (a,b) = (a',b').
 Proof.
   intros H.
   apply (f_equal L_inv) in H. cbn in H.
@@ -111,8 +111,7 @@ Proof.
   apply DPI_nat in H. 
   exact H.
 Qed.
-
-
+  
 Fact L_inv_full {x y} :
   forall a: L x y,
     match y return L x y -> Type with
@@ -123,16 +122,16 @@ Fact L_inv_full {x y} :
     end a.
 Proof.
   destruct a as [|y z a1 a2].
-  - left. exists eq_refl. refl.
+  - left. exists eq_refl. reflexivity.
   - destruct z.
     + generalize (L_sound a2). lia.
-    + right. exists y, a1, a2. refl.
+    + right. exists y, a1, a2. reflexivity.
 Qed.
 
-End Version1.
+End Binary.
 
 (*** Linear Indexed-Determined Variant *)
-Module Version2.
+Module Linear.
 Inductive L : nat -> nat -> Type :=
 | L1 : forall y, L 0 (S y)
 | L2 : forall x y, L x y -> L (S x) (S y).
@@ -165,8 +164,8 @@ Definition L_inv {x y} (a: L x y) :
   end a.
 Proof.
   destruct a as [y|x y a].
-  - refl.
-  - exists a. refl.
+  - reflexivity.
+  - exists a. reflexivity.
 Defined.
 
 Fact L_unique x y :
@@ -186,14 +185,14 @@ Qed.
 Goal forall x, L x x -> False.
 Proof.
   induction x as [|x IH].
-  - intros a. contradiction (L_inv a).
+  - intros a. contradict (L_inv a).
   - intros a. destruct (L_inv a) as [a' ->]. easy.
 Qed.
 
-End Version2.
+End Linear.
 
 (*** Linear Left-Anchored Variant *)
-Module Version3.
+Module Linear_Anchored.
 Inductive L (x: nat) : nat -> Type :=
 | L1 : L x (S x)
 | L2 : forall y, L x y -> L x (S y).
@@ -214,7 +213,7 @@ Definition L_inv {x y} :
   L x y -> sum (y = S x) (Sigma y', prod (y = S y') (L x y')).
 Proof.
   destruct 1 as [|y a].
-  - left. refl.
+  - left. reflexivity.
   - right. exists y. easy.
 Defined.
 
@@ -238,8 +237,8 @@ Fact L_inv_full {x y} :
     end a.
 Proof.
   destruct a as [|y a].
-  - left. exists eq_refl. refl.
-  - right. exists a. refl.
+  - left. exists eq_refl. reflexivity.
+  - right. exists a. reflexivity.
 Defined.
 
 Fact L_lt {x y} :
@@ -258,4 +257,4 @@ Proof.
   - exfalso.  specialize (L_lt a). lia.
   - rewrite H. f_equal. apply IH.
 Qed.
-End Version3.
+End Linear_Anchored.
