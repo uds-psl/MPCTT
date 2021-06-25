@@ -70,10 +70,18 @@ Qed.
 Definition L_inv {x y} :
   L x y -> sum (y = S x) (Sigma z, prod (L x z) (L z y)).
 Proof.
+  (* refine (fun a => match a with
+                      | L1 _ => inl _
+                      | L2 _ z y a b => inr _
+                      end).  *)
   destruct 1 as [|z y a b].
-  - left; reflexivity.
+  - left. reflexivity.
   - right. exists z. easy.
 Defined.
+
+Compute fun x => L_inv (L1 x).
+Compute fun x y z a b => L_inv (L2 x y z a b).
+
 
 (** Injectivity of L2 *)
 
