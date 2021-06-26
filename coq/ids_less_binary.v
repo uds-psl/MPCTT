@@ -11,16 +11,6 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
-Fact inr_injective X Y (y y': Y) :
-  inr X y = inr y' -> y = y'.
-Proof.
-  intros H % (f_equal (fun a: X + Y => match a with
-                                    | inl x => y
-                                    | inr y => y
-                                    end)).
-  exact H.
-Qed.
-
 Inductive L (x: nat) : nat -> Type :=
 | L1: L x (S x)
 | L2: forall y z, L x y -> L y z -> L x z.
@@ -66,26 +56,43 @@ Proof.
   intros [=] % (f_equal depth_left).
 Qed.
   
-
-Definition L_inv {x y} :
-  L x y -> sum (y = S x) (Sigma z, prod (L x z) (L z y)).
-Proof.
-  (* refine (fun a => match a with
-                      | L1 _ => inl _
-                      | L2 _ z y a b => inr _
-                      end).  *)
-  destruct 1 as [|z y a b].
-  - left. reflexivity.
-  - right. exists z. easy.
-Defined.
+Definition L_inv {x y}
+  : L x y -> sum (y = S x) (Sigma z, prod (L x z) (L z y))
+  := fun a => match a with
+           | L1 _ => inl eq_refl
+           | L2 _ z y a b => inr (Sig _ z (a,b))
+           end.
 
 Compute fun x => L_inv (L1 x).
 Compute fun x y z a b => L_inv (L2 x y z a b).
 
+Fact inl_inr_disjoint X Y x y :
+  inl Y x = inr X y -> False.
+Proof.
+  intros H % (f_equal (fun a: X + Y => match a with
+                                    | inl _ => False
+                                    | inr _ => True
+                                    end)).
+  rewrite H. exact I.
+Qed.
+
+Goal forall x y a b, L1 x <> L2 x y (S x) a b.
+Proof.
+  intros * H %(f_equal L_inv). cbn in H.
+  eapply inl_inr_disjoint, H.
+Qed.
 
 (** Injectivity of L2 *)
 
-(* Cannot write a function L x y -> Sigma z, prod (L x z) (L z y) *)
+Fact inr_injective X Y (y y': Y) :
+  inr X y = inr y' -> y = y'.
+Proof.
+  intros H % (f_equal (fun a: X + Y => match a with
+                                    | inl x => y
+                                    | inr y => y
+                                    end)).
+  exact H.
+Qed.
 
 Section L2_injective.
   Variable DPI_nat: forall (p: nat -> Type) n a b, Sig p n a = Sig p n b -> a = b.
