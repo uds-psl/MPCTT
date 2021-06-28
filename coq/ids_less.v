@@ -100,7 +100,8 @@ Proof.
   - right. exists z. easy.
 Defined.
 
-(* Cannot write a function L x y -> Sigma z, prod (L x z) (L z y) *)
+Compute fun x => L_inv (L1 x).
+Compute fun x y z a b => L_inv (L2 x y z a b).
 
 Fact L2_injective x y z a b a' b':
   L2 x z y a b = L2 x z y a' b' -> (a,b) = (a',b').
@@ -127,7 +128,6 @@ Proof.
     + generalize (L_sound a2). lia.
     + right. exists y, a1, a2. reflexivity.
 Qed.
-
 End Binary.
 
 (*** Linear Indexed-Determined Variant *)
@@ -167,6 +167,9 @@ Proof.
   - reflexivity.
   - exists a. reflexivity.
 Defined.
+
+Compute fun x => L_inv (L1 x).
+Compute fun x y a => L_inv (L2 x y a).
 
 Fact L_unique x y :
   forall a b: L x y, a = b.
@@ -216,6 +219,9 @@ Proof.
   - left. reflexivity.
   - right. exists y. easy.
 Defined.
+
+Compute fun x => L_inv (L1 x).
+Compute fun x y a => L_inv (L2 x y a).
 
 Fact L2_injective x y a b :
   L2 x y a = L2 x y b -> a = b.

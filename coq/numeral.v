@@ -467,3 +467,19 @@ Proof.
     + intros H. f_equal. apply IH. lia.
 Qed.
 End Embedding.
+
+(** Automation sometimes scales to indexed inductive types *)
+
+Print num_rect.
+
+Goal forall n a, Zero n = Up a -> False.
+Proof.
+  Fail intros n [=].
+  congruence.
+Qed.
+
+Goal forall n (a b: num n),  Up a = Up b -> a = b.
+Proof.
+  Fail intros n [= H].
+  Fail congruence.
+Abort.
