@@ -114,13 +114,11 @@ Defined.
 Fact G'_com x y z :
   G' x y z -> G' y x z.
 Proof.
-  induction 1 as [y|x|x y z H _ IH|x y z H _ IH].
+  induction 1 as [y|x|x y z H H1 IH|x y z H _ IH].
   - destruct y; constructor.
   - apply G'1.
-  - destruct (Nat.eq_dec x y) as [<-|H1].
-    + apply G'3. exact H. revert IH.
-      replace (x-x) with 0 by lia.
-      intros -> % G'_inv. apply G'2.
+  - destruct (Nat.eq_dec x y) as [<-|H2].
+    + apply G'3. exact H. exact H1.
     + apply G'4. lia. exact IH.
   - apply G'3. lia. exact IH. 
 Qed.
