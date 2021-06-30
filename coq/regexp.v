@@ -1,6 +1,5 @@
 From Coq Require Import Arith Lia List.
 Import ListNotations.
-Ltac refl := reflexivity.
 Definition dec X := sum X (X -> False).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
@@ -47,12 +46,12 @@ Definition sat_inv
 Proof.
   intros A s a.
   destruct a as [x| |A s t H |A s t H |A B s t Hs Ht|s|A B s Hs Ht].
-  - refl.
-  - refl.
+  - reflexivity.
+  - reflexivity.
   - left. exact H.
   - right. exact H.
   - exists A, B. easy.
-  - left. refl.
+  - left. reflexivity.
   - right. exists A, B. easy.
 Defined.
 

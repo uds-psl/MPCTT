@@ -608,9 +608,59 @@ Section Sandwich.
   Theorem E2BE A s :
     A ||- s -> A |= s.
   Proof.
-    intros H. apply ben_revert, E2BE'.
+     intros H. apply ben_revert, E2BE'.
     apply ereversion with (A:= A), H.
   Qed.
    
 End Sandwich.
   
+(*** Hilbert System *)
+
+Inductive hil A : form -> Prop :=
+| hilA s:      s el A -> hil A s
+| hilMP s t:   hil A (s ~> t) -> hil A s -> hil A t
+| hilE s:      hil A (bot ~> s)
+| hilK s t:    hil A (s ~> t ~> s)
+| hilS s t u:  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u).
+
+Fact hilAE A s :
+  hil A bot -> hil A s.
+Proof.
+  apply hilMP, hilE.
+Qed.
+Fact hilAK A s t :
+  hil A s -> hil A (t ~> s).
+Proof.
+  apply hilMP. apply hilK.
+Qed.
+
+Fact hilAS A s t u :
+  hil A (s ~> t ~> u) -> hil A (s ~> t) -> hil A (s ~> u).
+Proof.
+  intros H. apply hilMP. revert H. apply hilMP. apply hilS.
+Qed.
+
+Fact hilI A s :
+  hil A (s ~> s).
+Proof.
+  eapply hilMP.
+  - eapply hilMP.
+    + eapply hilS.
+    + eapply hilK.
+  - eapply hilK.
+    Unshelve. exact s.
+    Show Proof.
+Qed.
+
+Fact hilD s A t :
+  hil (s::A) t -> hil A (s ~> t).
+Proof.
+  induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' |s' t' |s' t' u].
+  - destruct H as [->|H].
+    + apply hilI.
+    + apply hilAK. apply hilA, H.
+  - eapply hilAS; eassumption.
+  - apply hilAK, hilE.
+  - apply hilAK, hilK.
+  - apply hilAK, hilS.
+Qed.
