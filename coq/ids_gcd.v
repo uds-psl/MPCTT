@@ -111,7 +111,7 @@ Proof.
   - destruct le_lt_dec as [H|H]. exfalso. lia. easy.
 Defined.
 
-Fact G'_com x y z :
+Fact G'_sym x y z :
   G' x y z -> G' y x z.
 Proof.
   induction 1 as [y|x|x y z H H1 IH|x y z H _ IH].
@@ -127,7 +127,7 @@ Fact G'_gcd_rel :
   gcd_rel G'.
 Proof.
   split. constructor.
-  split. exact G'_com.
+  split. exact G'_sym.
   intros x y z H.
   destruct x.
   - replace (y-0) with y by lia. easy.
