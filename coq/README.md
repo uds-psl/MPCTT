@@ -29,7 +29,6 @@
 -  Boolean Satisfiability [bsat.v](bsat.v)
 -  Semi-Decidability and Markov's Principle [sdec.v](sdec.v) 
 -  Abstract Reduction Systems [ars.v](ars.v)
--  Case Study: GCDs  [gcd.v](gcd.v)
 -  Data Types [dat.v](dat.v)
 -  Finite Types [fin.v](fin.v)
 - [List of tactics used](Tactics.md)
