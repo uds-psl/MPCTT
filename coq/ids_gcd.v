@@ -94,23 +94,6 @@ Inductive G': nat -> nat -> nat -> Prop :=
 | G'3: forall x y z, x <= y -> G' (S x) (y - x) z -> G' (S x) (S y) z
 | G'4: forall x y z, y < x -> G' (x - y) (S y) z -> G' (S x) (S y) z.
 
-Fact G'_inv :
-  forall x y z, G' x y z ->
-           match x, y return Prop with
-           | 0, y => z = y
-           | S x, 0 => z = S x
-           | S x, S y => if le_lt_dec x y
-                        then G' (S x) (y - x) z
-                        else G' (x - y) (S y) z
-           end.
-Proof.
-  destruct 1 as [y|x|x y z H1 H2|x y z H1 H2].
-  - reflexivity.
-  - reflexivity.
-  - destruct le_lt_dec as [H|H]. easy. exfalso. lia.
-  - destruct le_lt_dec as [H|H]. exfalso. lia. easy.
-Defined.
-
 Fact G'_sym x y z :
   G' x y z -> G' y x z.
 Proof.
@@ -135,6 +118,23 @@ Proof.
     + lia.
     + cbn. apply G'3. lia.
 Qed.
+
+Fact G'_inv :
+  forall x y z, G' x y z ->
+           match x, y return Prop with
+           | 0, y => z = y
+           | S x, 0 => z = S x
+           | S x, S y => if le_lt_dec x y
+                        then G' (S x) (y - x) z
+                        else G' (x - y) (S y) z
+           end.
+Proof.
+  destruct 1 as [y|x|x y z H1 H2|x y z H1 H2].
+  - reflexivity.
+  - reflexivity.
+  - destruct le_lt_dec as [H|H]. easy. exfalso. lia.
+  - destruct le_lt_dec as [H|H]. exfalso. lia. easy.
+Defined.
 
 Fact G'_fun :
   functional G'.

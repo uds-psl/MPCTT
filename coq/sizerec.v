@@ -293,12 +293,42 @@ Proof.
   exists 0. reflexivity.
 Qed.
 
+Fact divides_self x :
+  (x | x).
+Proof.
+  exists 1. lia.
+Qed.
+
 Fact divides_minus x y n :
   x <= y -> (n | x) -> (n | y) <->  (n | y - x).
 Proof.
   intros H [k ->]. split.
   - intros [l ->]. exists (l-k). nia.
   - intros [l H1]. exists (k + l). nia.
+Qed.
+
+Fact divides_bnd n x :
+  x > 0 -> (n | x) -> n <= x.
+Proof.
+  intros H [k ->]. destruct k; lia.
+Qed.
+
+Fact divides_bnd' n x :
+  n > x -> (n | x) -> x = 0.
+Proof.
+  intros H [k ->]. destruct k; lia.
+Qed.
+ 
+Fact divides_le x y :
+  (forall n, (n | x) <-> (n | y)) -> x <= y.
+Proof.
+  intros H.
+  destruct y.
+  - enough (x = 0) by lia.
+    apply divides_bnd' with (n:= S x). lia.
+    apply H, divides_zero.
+  - apply divides_bnd. lia.
+    apply H, divides_self.
 Qed.
 
 Fact gamma1 y :
@@ -322,45 +352,20 @@ Proof.
   tauto.
 Qed.
 
-Fact divides_bnd n x :
-  x > 0 -> (n | x) -> n <= x.
+Fact gamma_agree x y z z' n :
+  gamma x y z -> gamma x y z' -> (n | z) <-> (n | z').
 Proof.
-  intros H [k ->]. destruct k.
-  - exfalso. lia.
-  - nia.
-Qed.
- 
-Fact divides_eq' x y :
-  x > 0 -> y > 0 -> (x | y) -> (y | x) -> x = y.
-Proof.
-  intros H1 H2 H3%divides_bnd H4%divides_bnd; lia.
-Qed.
-
-Fact divides_eq x y :
-  (forall n, (n | x) <-> (n | y)) -> x = y.
-Proof.
-  destruct x, y; intros H.
-  - reflexivity.
-  - exfalso.
-    enough (S(S y) <= S y) by lia.
-    apply divides_bnd. lia.
-    apply H, divides_zero.
-  - exfalso.
-    enough (S(S x) <= S x) by lia.
-    apply divides_bnd. lia.
-    apply H, divides_zero.
-  - apply divides_eq'. lia. lia.
-    + apply H. exists 1. lia.
-    + apply H. exists 1. lia.
+  intros H H'. specialize (H n). specialize (H' n). tauto.
 Qed.
 
 Fact gamma_fun :
   functional gamma.
 Proof.
   hnf. intros * H H'.
-  apply divides_eq. intros n. split.
-  - intros H1. apply H',H,H1.
-  - intros H1. apply H,H',H1.
+  enough (z <= z' /\ z' <= z) by lia.
+  split;
+    apply divides_le; intros n;
+    eapply gamma_agree; eassumption.
 Qed.
 
 Fact Gamma_concrete_gamma g :
