@@ -175,6 +175,28 @@ Qed.
    where it does the final verification steps in more than 20 cases.       
    We say that congruence does linear equational resoning. *)
 
+(** Iterative definition *)
+
+Fixpoint iter {X: Type} (f: X -> X) (n:nat) (x:X) : X :=
+  match n with
+  | 0 => x
+  | S n' => f (iter f n' x)
+  end.
+
+Notation fin' n := (iter option n False).
+
+Goal fin 3 = fin' 3.
+Proof.
+  cbn. reflexivity.
+Qed.
+
+Goal forall n, fin n = fin' n.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
 (** Embedding recursive numerals into numbers *)
 
 From Coq Require Import Arith Lia List.
