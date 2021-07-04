@@ -410,64 +410,6 @@ Proof.
     + left. reflexivity.
 Defined.
 
-(** Embedding recursive numerals int numbers *)
-
-Module Embedding.
-Fixpoint N n (c: fin n): nat :=
-  match n, c with
-  | 0, c => match c with end
-  | S n, None => 0
-  | S n, Some c => S (N n c)
-  end.
-
-Fixpoint B k n : fin (S n) :=
-  match k, n with
-  | 0, _ => None
-  | S _, 0 => None
-  | S k, S n => Some (B k n)
-  end.
-
-Fact N_lt n (c: fin n) :
-  N n c < n.
-Proof.
-  induction n as [|n IH].
-  - destruct c.
-  - destruct c as [c|]; cbn.
-    + specialize (IH c). lia.
-    + lia.
-Qed.
-
-Compute N 4 None.
-Compute N 6 (Some (Some None)).
-Compute B 3 3.
-Compute B 2 3.
-Compute N 4 (B 2 3).
-Compute B (N 6 None) 5.
-Compute B (N 6 (B 3 5)) 5.
-
-Fact BN_eq n (c: fin (S n)) :
-  B (N (S n) c) n = c.
-Proof.
-  induction n as [|n IH].
-  - destruct c as [c|]; cbn.
-    + contradict c.
-    + reflexivity.
-  - destruct c as [c|].
-    + cbn . f_equal. apply IH.
-    + reflexivity.
-Qed.
-
-Fact NB_eq k n :
-  k <= n -> N (S n) (B k n) = k.
-Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - easy.
-  - destruct n as [|n]; cbn.
-    + intros H. exfalso. lia.
-    + intros H. f_equal. apply IH. lia.
-Qed.
-End Embedding.
-
 (** Automation sometimes scales to indexed inductive types *)
 
 Print num_rect.

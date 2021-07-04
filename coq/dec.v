@@ -113,6 +113,127 @@ Proof.
   exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
 Qed.
 
+(*** Numeral Types *)
+
+Fixpoint fin (n: nat) : Type :=
+  match n with 0 => False | S n' => option (fin n') end.
+
+Definition L {X Y} (f: option X -> option Y) y0 x :=
+  match f (Some x) with Some y => y | None => y0 end.
+
+Goal forall n f g, @inv (fin n) (fin n) g f -> inv f g.
+Proof.
+  induction n as [|n IH]; cbn.
+  { intros f g _ []. }
+  destruct n; cbn.
+  { intros f g H [[]|]. destruct f as [[]|]. reflexivity. }
+  (* we now have default values for a default reduction *)
+  intros f g H.
+  destruct (g None) as [a0|] eqn:E1.
+  - destruct (f (Some a0)) as [b0|] eqn:E2.
+    + exfalso. (* show (f (Some a0) = None) *)
+      assert (H1: inv (L g None) (L f None)). (* default reduction *)
+      { intros a. unfold L.
+        destruct (f (Some a)) as [b|] eqn:E4.
+        - destruct (g (Some b)) as [a'|] eqn:E5; congruence.
+        - destruct (g (Some None)) as [a'|] eqn:E5; congruence. }
+      assert (E3: g (Some b0) = Some a0) by congruence.
+      destruct (f None) as [b|] eqn:E4. 2:congruence.
+      assert (E5: g (Some b) = None) by congruence.
+      specialize (IH _ _ H1 b). clear H1. revert IH. unfold L. rewrite E5.
+      destruct (f (Some None)) as [b'|] eqn:E6; congruence.
+    + destruct (f None) as [b0|] eqn:E3. 2:congruence.
+      assert (E4: g (Some b0) = None) by congruence.
+      assert (H1: inv (L g a0) (L f b0)). (* swap reduction *)
+      { intros a. unfold L.
+        destruct (f (Some a)) as [b|] eqn:E5.
+        - destruct (g (Some b)) as [a'|] eqn:E6; congruence.
+        - destruct (g (Some b0)) as [a'|] eqn:E6; congruence. }
+      intros [b|]. 2:congruence.
+      specialize (IH _ _ H1 b). clear H H1. revert IH. unfold L.
+      destruct (g (Some b)) as [a|] eqn:E5.
+      * destruct (f (Some a)) as [b'|]; congruence.
+      * rewrite E2. congruence.
+  -  assert (H1: inv (L g None) (L f None)). (* default reduction *)
+     { intros a. unfold L.
+       destruct (f (Some a)) as [b|] eqn:E5.
+       - destruct (g (Some b)) as [a'|] eqn:E6; congruence.
+       - destruct (g (Some None)) as [a'|] eqn:E6; congruence. }       
+     destruct (f None) as [b|] eqn:E2.
+    + exfalso. (* show (f None = None) *)
+      assert (E3: g (Some b) = None) by congruence.
+      specialize (IH _ _ H1 b). clear H1. revert IH. unfold L. rewrite E3.
+      destruct (f (Some None)) as [b'|] eqn:E4; congruence.
+    + intros [b|]. 2:congruence.
+      specialize (IH _ _ H1 b). clear H1. revert IH. unfold L.
+      destruct (g (Some b)) as [a|] eqn:E3.
+      * destruct (f (Some a)) as [b'|] eqn:E4; congruence.
+      * destruct (f (Some None)) as [b'|] eqn:E4; congruence.
+Qed.
+
+(* Note that the congruence tactic is essential in the above proof,
+   where it does the final verification steps in more than 20 cases.       
+   We say that congruence does linear equational resoning. *)
+
+(** Embedding recursive numerals into numbers *)
+
+From Coq Require Import Arith Lia List.
+
+Fixpoint E n (a: fin n) : nat :=
+  match n, a with
+  | 0, a => match a with end
+  | S n, None => 0
+  | S n, Some a => S (E n a)
+  end.
+
+Compute E 4 None.
+Compute E 6 (Some (Some None)).
+
+Fact E_lt n (a: fin n) :
+  E n a < n.
+Proof.
+  induction n as [|n IH].
+  - destruct a.
+  - destruct a as [a|]; cbn.
+    + specialize (IH a). lia.
+    + lia.
+Qed.
+
+Fixpoint D k n : fin (S n) :=
+  match k, n with
+  | 0, _ => None
+  | S _, 0 => None
+  | S k, S n => Some (D k n)
+  end.
+
+Compute D 3 3.
+Compute D 2 3.
+Compute E 4 (D 2 3).
+Compute D (E 6 None) 5.
+Compute D (E 6 (D 3 5)) 5.
+
+Fact DE_eq n (a: fin (S n)) :
+  D (E (S n) a) n = a.
+Proof.
+  induction n as [|n IH].
+  - destruct a as [a|]; cbn.
+    + contradict a.
+    + reflexivity.
+  - destruct a as [a|].
+    + cbn . f_equal. apply IH.
+    + reflexivity.
+Qed.
+
+Fact ED_eq k n :
+  k <= n -> E (S n) (D k n) = k.
+Proof.
+  induction k as [|k IH] in n |-*; cbn.
+  - easy.
+  - destruct n as [|n]; cbn.
+    + intros H. exfalso. lia.
+    + intros H. f_equal. apply IH. lia.
+Qed.
+
 (*** Coq's Decision Format *)
 
 (** Coq offers support for equality decisions 
