@@ -175,6 +175,50 @@ Qed.
    where it does the final verification steps in more than 20 cases.       
    We say that congruence does linear equational resoning. *)
 
+(** Proof with more automation *)
+
+Ltac verify f x g :=
+  (unfold L
+   ; destruct (f (Some x)) as [y|] eqn:?
+   ; [ destruct (g (Some y)) eqn:?
+     | destruct (g (Some None)) eqn:? ]
+   ; congruence).
+
+Goal forall n f g, @inv (fin n) (fin n) g f -> inv f g.
+Proof.
+  induction n as [|n IH]; cbn.
+  { intros f g _ []. }
+  destruct n; cbn.
+  { intros f g H [[]|]. destruct f as [[]|]. reflexivity. }
+  (* we now have default values for a default reduction *)
+  intros f g H.
+  destruct (g None) as [a0|] eqn:?.
+  - destruct (f (Some a0)) as [b0|] eqn:E.
+    + exfalso.
+      assert (H1: inv (L g None) (L f None)).
+      { intros a. verify f a g. }
+      destruct (f None) as [b|] eqn:?. 2:congruence.
+      generalize (IH _ _ H1 b). verify g b f.
+    + destruct (f None) as [b0|] eqn:?. 2:congruence.
+      assert (H1: inv (L g a0) (L f b0)).
+      { intros a. unfold L.
+        destruct (f (Some a)) as [b|] eqn:?.
+        - destruct (g (Some b)) eqn:?; congruence.
+        - destruct (g (Some b0)) eqn:?; congruence. }
+      intros [b|]. 2:congruence.
+      generalize (IH _ _ H1 b). unfold L.
+      destruct (g (Some b)) as [a|] eqn:?.
+      * destruct (f (Some a)); congruence.
+      * rewrite E. congruence.
+  - assert (H1: inv (L g None) (L f None)).
+    { intros a. verify f a g. }
+    destruct (f None) as [b|] eqn:?.
+    + exfalso.
+      generalize (IH _ _ H1 b). verify g b f.
+    + intros [b|]. 2:congruence.
+      generalize (IH _ _ H1 b). verify g b f.
+Qed.
+
 (** Iterative definition *)
 
 Fixpoint iter {X: Type} (f: X -> X) (n:nat) (x:X) : X :=
