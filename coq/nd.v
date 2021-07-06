@@ -1,12 +1,11 @@
 From Coq Require Import List.
+Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
+Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Definition dec (X: Type) := sum X (X -> False).
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
 Ltac list := cbn; auto; firstorder.
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-Definition dec P := { P } + { ~P }.
-Definition decT (X: Type) : Type :=  X + (X -> False).
 
 (*** Intuitionistic ND *)
 
@@ -472,7 +471,7 @@ Section CBS.
   Qed.
 
   Fact ndc_dec A s :
-    decT (A |-c s).
+    dec (A |-c s).
   Proof.
     destruct (CBS (-s::A)) as [[alpha H1]|H1].
     - right. intros H %ben_sound %ben_refute.
@@ -616,18 +615,27 @@ End Sandwich.
   
 (*** Hilbert System *)
 
-Inductive hil A : form -> Prop :=
+Inductive hil A : form -> Type :=
 | hilA s:      s el A -> hil A s
 | hilMP s t:   hil A (s ~> t) -> hil A s -> hil A t
-| hilE s:      hil A (bot ~> s)
 | hilK s t:    hil A (s ~> t ~> s)
-| hilS s t u:  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u).
+| hilS s t u:  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
+| hilF s:      hil A (bot ~> s).
 
-Fact hilAE A s :
-  hil A bot -> hil A s.
+Fact hil_nd A s :
+  hil A s -> nd A s.
 Proof.
-  apply hilMP, hilE.
+  induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' t' |s' t' u |s'].
+  - apply ndA, H.
+  - eapply ndIE; eassumption.
+  - apply ndII, ndII. ndA.
+  - apply ndII, ndII, ndII.
+    apply ndIE with (s:= t');
+      apply ndIE with (s:= s');
+      ndA.
+  - apply ndII, ndE. ndA.
 Qed.
+
 Fact hilAK A s t :
   hil A s -> hil A (t ~> s).
 Proof.
@@ -643,24 +651,45 @@ Qed.
 Fact hilI A s :
   hil A (s ~> s).
 Proof.
-  eapply hilMP.
-  - eapply hilMP.
-    + eapply hilS.
-    + eapply hilK.
-  - eapply hilK.
-    Unshelve. exact s.
-    Show Proof.
+  apply hilAS with (t:= s~> s); apply hilK.
+Qed.
+
+Fact hilAF A s :
+  hil A bot -> hil A s.
+Proof.
+  apply hilMP, hilF.
+Qed.
+
+Fact mem_sum s t A :
+  s el t::A -> (s = t) + (s el A).
+Proof.
+  enough (forall s t, {s = t} + {s <> t}) as d.
+  { destruct (d s t) as [<-|H1].
+    - auto.
+    - intros H2. right. destruct H2 as [<-|H2]; easy. }
+  do 2 decide equality.
 Qed.
 
 Fact hilD s A t :
   hil (s::A) t -> hil A (s ~> t).
 Proof.
-  induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' |s' t' |s' t' u].
-  - destruct H as [->|H].
+  induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
+  - apply mem_sum in H as [->|H].
     + apply hilI.
     + apply hilAK. apply hilA, H.
-  - eapply hilAS; eassumption.
-  - apply hilAK, hilE.
+  - eapply hilAS. exact IH1. exact IH2.
   - apply hilAK, hilK.
   - apply hilAK, hilS.
+  - apply hilAK, hilF.
 Qed.
+
+Fact nd_hil A s :
+  nd A s -> hil A s.
+Proof.
+  induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
+  - apply hilA, H.
+  - apply hilAF, IH. 
+  - apply hilD, IH.
+  - eapply hilMP. exact IH1. exact IH2.
+Qed.
+  
