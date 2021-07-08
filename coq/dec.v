@@ -160,7 +160,7 @@ Proof.
     destruct (f None) as [b'|] eqn:?.
     + generalize (IH b'). clear IH. unfold L.
       destruct  (g (Some b')) eqn:?. 1:congruence.
-      destruct (g None) as [a|] eqn:?.
+      destruct (g None) eqn:?.
       * rewrite E1. congruence.
       * destruct (f (Some None)) eqn:?; congruence.
     + congruence.      
