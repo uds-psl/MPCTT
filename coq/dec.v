@@ -118,7 +118,7 @@ Qed.
 Fixpoint fin (n: nat) : Type :=
   match n with 0 => False | S n' => option (fin n') end.
 
-Theorem fin_bijection m n :
+Theorem fin_cardinality m n :
   bijection (fin m) (fin n) -> m = n.
 Proof.
   induction m as [|m IH] in n |-*; destruct n.
@@ -135,8 +135,10 @@ Definition L {X Y}
              | None => match f None with Some a => a | None => None end
              end.
 
-Goal forall n f g, @inv (fin n) (fin n) g f -> inv f g.
+Fact fin_bijection n f g :
+  @inv (fin n) (fin n) g f -> inv f g.
 Proof.
+  revert f g.
   induction n as [|n IH]; cbn.
   { intros f g _ []. }
   destruct n; cbn.
@@ -155,15 +157,13 @@ Proof.
   specialize (IH _ _ H1). clear H1.
   destruct (f (g None)) as [b|] eqn:E1.
   - exfalso.
-    destruct (g None) as [a|] eqn:E2.
-    + destruct (f None) as [b'|] eqn:?. 2:congruence.
-      generalize (IH b'). clear IH. unfold L.
+    destruct (f None) as [b'|] eqn:?.
+    + generalize (IH b'). clear IH. unfold L.
       destruct  (g (Some b')) eqn:?. 1:congruence.
-      rewrite E2, E1. congruence.
-    + generalize (IH b). clear IH. unfold L.
-      destruct (g (Some b)) eqn:?. 1:congruence.
-      rewrite E2, E1.
-      destruct (f (Some None)) eqn:?; congruence.
+      destruct (g None) as [a|] eqn:?.
+      * rewrite E1. congruence.
+      * destruct (f (Some None)) eqn:?; congruence.
+    + congruence.      
   - intros [b|]. 2:exact E1.
     generalize (IH b). clear IH. unfold L.
     destruct (g (Some b)) as [a|] eqn:?.
