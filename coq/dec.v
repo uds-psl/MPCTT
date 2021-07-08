@@ -118,8 +118,22 @@ Qed.
 Fixpoint fin (n: nat) : Type :=
   match n with 0 => False | S n' => option (fin n') end.
 
-Definition L {X Y} (f: option X -> option Y) y0 x :=
-  match f (Some x) with Some y => y | None => y0 end.
+Theorem fin_bijection m n :
+  bijection (fin m) (fin n) -> m = n.
+Proof.
+  induction m as [|m IH] in n |-*; destruct n.
+  - easy.
+  - intros [f g _ H]. exfalso. exact (g None).
+  - intros [f g _ H]. exfalso. exact (f None).
+  - intros H. f_equal. apply IH, bijection_option, H.
+Qed.
+
+Definition L {X Y}
+  : (option X -> option (option Y)) -> X -> option Y
+  := fun f x => match f (Some x) with
+             | Some a => a
+             | None => match f None with Some a => a | None => None end
+             end.
 
 Goal forall n f g, @inv (fin n) (fin n) g f -> inv f g.
 Proof.
@@ -127,97 +141,43 @@ Proof.
   { intros f g _ []. }
   destruct n; cbn.
   { intros f g H [[]|]. destruct f as [[]|]. reflexivity. }
-  (* we now have default values for a default reduction *)
   intros f g H.
-  destruct (g None) as [a0|] eqn:E1.
-  - destruct (f (Some a0)) as [b0|] eqn:E2.
-    + exfalso. (* show (f (Some a0) = None) *)
-      assert (H1: inv (L g None) (L f None)). (* default reduction *)
-      { intros a. unfold L.
-        destruct (f (Some a)) as [b|] eqn:E4.
-        - destruct (g (Some b)) as [a'|] eqn:E5; congruence.
-        - destruct (g (Some None)) as [a'|] eqn:E5; congruence. }
-      assert (E3: g (Some b0) = Some a0) by congruence.
-      destruct (f None) as [b|] eqn:E4. 2:congruence.
-      assert (E5: g (Some b) = None) by congruence.
-      specialize (IH _ _ H1 b). clear H1. revert IH. unfold L. rewrite E5.
-      destruct (f (Some None)) as [b'|] eqn:E6; congruence.
-    + destruct (f None) as [b0|] eqn:E3. 2:congruence.
-      assert (E4: g (Some b0) = None) by congruence.
-      assert (H1: inv (L g a0) (L f b0)). (* swap reduction *)
-      { intros a. unfold L.
-        destruct (f (Some a)) as [b|] eqn:E5.
-        - destruct (g (Some b)) as [a'|] eqn:E6; congruence.
-        - destruct (g (Some b0)) as [a'|] eqn:E6; congruence. }
-      intros [b|]. 2:congruence.
-      specialize (IH _ _ H1 b). clear H H1. revert IH. unfold L.
-      destruct (g (Some b)) as [a|] eqn:E5.
-      * destruct (f (Some a)) as [b'|]; congruence.
-      * rewrite E2. congruence.
-  -  assert (H1: inv (L g None) (L f None)). (* default reduction *)
-     { intros a. unfold L.
-       destruct (f (Some a)) as [b|] eqn:E5.
-       - destruct (g (Some b)) as [a'|] eqn:E6; congruence.
-       - destruct (g (Some None)) as [a'|] eqn:E6; congruence. }       
-     destruct (f None) as [b|] eqn:E2.
-    + exfalso. (* show (f None = None) *)
-      assert (E3: g (Some b) = None) by congruence.
-      specialize (IH _ _ H1 b). clear H1. revert IH. unfold L. rewrite E3.
-      destruct (f (Some None)) as [b'|] eqn:E4; congruence.
-    + intros [b|]. 2:congruence.
-      specialize (IH _ _ H1 b). clear H1. revert IH. unfold L.
-      destruct (g (Some b)) as [a|] eqn:E3.
-      * destruct (f (Some a)) as [b'|] eqn:E4; congruence.
-      * destruct (f (Some None)) as [b'|] eqn:E4; congruence.
+  assert (H1: inv (L g) (L f)).
+  { intros a. unfold L.
+    destruct (f (Some a)) as [b|] eqn:?.
+    - destruct (g (Some b)) eqn:?; congruence.
+    - destruct (f None)  as [b|] eqn:?.
+      + destruct (g (Some b)) eqn:?. 1:congruence.
+        destruct (g None) eqn:?; congruence.
+      + destruct (g (Some None)) eqn:?.
+        * congruence.
+        * destruct (g None) eqn:?; congruence. }
+  specialize (IH _ _ H1). clear H1.
+  destruct (f (g None)) as [b|] eqn:E1.
+  - exfalso.
+    destruct (g None) as [a|] eqn:E2.
+    + destruct (f None) as [b'|] eqn:?. 2:congruence.
+      generalize (IH b'). clear IH. unfold L.
+      destruct  (g (Some b')) eqn:?. 1:congruence.
+      rewrite E2, E1. congruence.
+    + generalize (IH b). clear IH. unfold L.
+      destruct (g (Some b)) eqn:?. 1:congruence.
+      rewrite E2, E1.
+      destruct (f (Some None)) eqn:?; congruence.
+  - intros [b|]. 2:exact E1.
+    generalize (IH b). clear IH. unfold L.
+    destruct (g (Some b)) as [a|] eqn:?.
+    + destruct (f (Some a)) eqn:?.
+      * congruence.
+      * destruct (f None) eqn:?; congruence.
+    + destruct (g None) as [a|] eqn:?.
+      * rewrite E1. destruct (f None) eqn:?; congruence.
+      * destruct (f (Some None)) eqn:?; congruence.
 Qed.
 
 (* Note that the congruence tactic is essential in the above proof,
    where it does the final verification steps in more than 20 cases.       
    We say that congruence does linear equational resoning. *)
-
-(** Proof with more automation *)
-
-Ltac verify f x g :=
-  (unfold L
-   ; destruct (f (Some x)) as [y|] eqn:?
-   ; [ destruct (g (Some y)) eqn:?
-     | destruct (g (Some None)) eqn:? ]
-   ; congruence).
-
-Goal forall n f g, @inv (fin n) (fin n) g f -> inv f g.
-Proof.
-  induction n as [|n IH]; cbn.
-  { intros f g _ []. }
-  destruct n; cbn.
-  { intros f g H [[]|]. destruct f as [[]|]. reflexivity. }
-  (* we now have default values for a default reduction *)
-  intros f g H.
-  destruct (g None) as [a0|] eqn:?.
-  - destruct (f (Some a0)) as [b0|] eqn:E.
-    + exfalso.
-      assert (H1: inv (L g None) (L f None)).
-      { intros a. verify f a g. }
-      destruct (f None) as [b|] eqn:?. 2:congruence.
-      generalize (IH _ _ H1 b). verify g b f.
-    + destruct (f None) as [b0|] eqn:?. 2:congruence.
-      assert (H1: inv (L g a0) (L f b0)).
-      { intros a. unfold L.
-        destruct (f (Some a)) as [b|] eqn:?.
-        - destruct (g (Some b)) eqn:?; congruence.
-        - destruct (g (Some b0)) eqn:?; congruence. }
-      intros [b|]. 2:congruence.
-      generalize (IH _ _ H1 b). unfold L.
-      destruct (g (Some b)) as [a|] eqn:?.
-      * destruct (f (Some a)); congruence.
-      * rewrite E. congruence.
-  - assert (H1: inv (L g None) (L f None)).
-    { intros a. verify f a g. }
-    destruct (f None) as [b|] eqn:?.
-    + exfalso.
-      generalize (IH _ _ H1 b). verify g b f.
-    + intros [b|]. 2:congruence.
-      generalize (IH _ _ H1 b). verify g b f.
-Qed.
 
 (** Iterative definition *)
 
