@@ -25,7 +25,7 @@
 -  Existential Witness Operators [ewo.v](ewo.v)
 -  Well-Founded Recursion [wfrec.v](wfrec.v)
 -  Aczel Trees and Hierarchy Theorems [aczel.v](aczel.v) 
--  Natural Deduction [nd.v](nd.v)
+-  Propositional Deduction Systems [pds.v](pds.v)
 -  Boolean Satisfiability [bsat.v](bsat.v)
 -  Semi-Decidability and Markov's Principle [sdec.v](sdec.v) 
 -  Abstract Reduction Systems [ars.v](ars.v)

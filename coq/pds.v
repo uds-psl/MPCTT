@@ -45,6 +45,10 @@ Definition  elim_nd
 
 Ltac ndA := apply ndA; list.
 
+(** Constructing derivations using the tactiv interpreter is fun.
+    One simulates a meta proof using the ND rules.
+    Here are interesting examples. *)                          
+
 Fact D1 A s:
   A |- s ~> s.
 Proof.
@@ -54,15 +58,66 @@ Qed.
 Fact D2 s A:
   s::A |- --s.
 Proof.
-  apply ndII. eapply ndIE. all:ndA.
+  apply ndII.
+  apply ndIE with s.
+  all:ndA.
 Qed.
 
 Fact D3 A :
   --bot::A |- bot.
 Proof.
-  eapply ndIE. ndA. apply ndII. ndA.
+  apply ndIE with (-bot). 1:ndA.
+  apply ndII. ndA.
 Qed.
 
+Lemma Gliv0 A s :
+  A |- (-s ~> --bot) ~> --s.
+Proof.
+  apply ndII, ndII.
+  apply ndIE with (-bot).
+  - apply ndIE with (-s); ndA.
+  - apply ndII; ndA.
+Qed.
+
+Lemma Gliv1 A s t :
+  A |- (s ~> - - t) ~> - - (s ~> t).
+Proof.
+  apply ndII, ndII.
+  apply ndIE with (s~>t). 1:ndA.
+  apply ndII, ndE.
+  apply ndIE with (-t).
+  - apply ndIE with s; ndA.
+  - apply ndII.
+    apply ndIE with (s~>t). 1:ndA.
+    apply ndII. ndA.
+Qed.
+
+Lemma Gliv2 A s t :
+  A |- --(s ~> t) ~> --s ~> --t.
+Proof.
+  apply ndII, ndII, ndII.
+  apply ndIE with (-s). 1:ndA.
+  apply ndII.
+  apply ndIE with (-(s~>t)). 1:ndA.
+  apply ndII.
+  apply ndIE with t. 1:ndA.
+  apply ndIE with s; ndA.
+Qed.
+
+Goal forall A s t, A |- (-t ~> -s) ~> --(s ~> t).
+Proof.
+  intros *.
+  apply ndII, ndII.
+  apply ndIE with (s ~> t). 1:ndA.
+  apply ndII.
+  apply ndE.
+  apply ndIE with (s). 2:ndA.
+  apply ndIE with (-t). 1:ndA.
+  apply ndII.
+  apply ndIE with (s ~> t). 1:ndA.
+  apply ndII. ndA.
+Qed.
+  
 Fact Cut A s t :
   A |- s -> s::A |- t -> A |- t.
 Proof.
@@ -135,90 +190,6 @@ Proof.
     + left. apply ndII, ndE, Imp, H1.
 Qed.
 
-
-(*** Heyting Entailment *)
-           
-Module Heyting.
-  Inductive tval := ff | nn | tt.
-  Implicit Types a b: tval.
-  Implicit Type alpha: nat -> tval.
-
-  Definition le a b : bool :=
-    match a, b with
-    | ff , _ => true
-    | _, tt => true
-    | nn, nn => true
-    | _, _ => false
-    end.
-
-  Notation "a <= b" := (le a b).
-
-  Definition impl a b : tval :=
-    if a <= b then tt else b.
-
-  Fact impl_tt a :
-    impl a tt = tt.
-  Proof.
-    destruct a; reflexivity.
-  Qed.
-  
-  Fixpoint eva alpha s : tval :=
-    match s with
-    | var x => alpha x
-    | bot => ff
-    | s1~>s2 => impl (eva alpha s1) (eva alpha s2)
-    end.
-
-  Compute eva (fun _ => nn) bot.
-  Compute eva (fun _ => nn) (var 7).
-  Compute eva (fun _ => nn) (-var 7).
-  Compute eva (fun _ => nn) (--var 7).
-  Compute eva (fun _ => nn) (--var 7 ~> var 7).
-  
-  Fixpoint evac alpha A : tval :=
-    match A with
-    | nil => tt
-    | s::A' => if eva alpha s <= evac alpha A' then eva alpha s else evac alpha A'
-    end.
-
-  Definition heyting A s : Prop :=
-    forall alpha, (evac alpha A <= eva alpha s) = true.
-          
-  Notation "A |= s" := (heyting A s) (at level 70).
-  
-  Lemma evac_in A s :
-    s el A -> A |= s.
-  Proof.
-    induction A as [|u A IH]; cbn.
-    + intros [].
-    + intros [<-|H] alpha; cbn.
-      * destruct eva, evac; cbn; reflexivity.
-      * generalize (IH H alpha). destruct evac, eva, eva; cbn; auto.
-  Qed.
-
-  Fact soundness A s :
-    A |- s -> A |= s.
-  Proof.
-    induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
-    - apply evac_in, H.
-    - intros alpha. generalize (IH alpha). cbn. destruct evac, eva; auto.
-    - intros alpha. generalize (IH alpha). cbn. destruct evac, eva, eva; auto.
-    - intros alpha. generalize (IH1 alpha) (IH2 alpha). cbn. destruct evac, eva, eva; cbn; auto.
-  Qed.
-
-  Corollary double_negation x :
-    (nil |- --var x ~> var x) -> False.
-  Proof.
-    intros H%soundness. generalize (H (fun _ => nn)). cbn. discriminate.
-  Qed.
-
-  Corollary consistency :
-    (nil |- bot) -> False.
-  Proof.
-    intros H%soundness. generalize (H (fun _ => nn)). cbn. discriminate.
-  Qed.
-End Heyting.
-
 (*** Classical ND *)
 
 Reserved Notation "A |-c s" (at level 70).
@@ -288,40 +259,6 @@ Qed.
 
 (*** Glivenko *)
 
-Lemma Gliv0 A s :
-  A |- (-s ~> --bot) ~> --s.
-Proof.
-  apply ndII, ndII.
-  apply ndIE with (-bot).
-  - apply ndIE with (-s); ndA.
-  - apply ndII; ndA.
-Qed.
-
-Lemma Gliv1 A s t :
-  A |- (s ~> - - t) ~> - - (s ~> t).
-Proof.
-  apply ndII, ndII.
-  apply ndIE with (s~>t). 1:ndA.
-  apply ndII, ndE.
-  apply ndIE with (-t).
-  - apply ndIE with s; ndA.
-  - apply ndII.
-    apply ndIE with (s~>t). 1:ndA.
-    apply ndII. ndA.
-Qed.
-
-Lemma Gliv2 A s t :
-  A |- --(s ~> t) ~> --s ~> --t.
-Proof.
-  apply ndII, ndII, ndII.
-  apply ndIE with (-s). 1:ndA.
-  apply ndII.
-  apply ndIE with (-(s~>t)). 1:ndA.
-  apply ndII.
-  apply ndIE with t. 1:ndA.
-  apply ndIE with s; ndA.
-Qed.
-
 Lemma Glivenko' A s :
   A |-c s -> A |- --s.
 Proof.
@@ -351,11 +288,116 @@ Proof.
   - intros H%Glivenko. apply bottom, H.
 Qed.
 
-Fact classical_consistency :
-  ([] |-c bot) -> False.
+Fact equiconsistency :
+  (([] |- bot) -> False) <-> (([] |-c bot) -> False).
 Proof.
-  intros H % Glivenko % bottom. apply Heyting.consistency, H.
+  split; intros H; contradict H; apply refutation_agreement; assumption.
 Qed.
+  
+(*** Heyting Interpretation *)
+           
+Module Heyting.
+  Inductive tval := ff | nn | tt.
+  Implicit Types a b: tval.
+  Implicit Type alpha: nat -> tval.
+
+  Definition le a b : bool :=
+    match a, b with
+    | ff , _ => true
+    | _, tt => true
+    | nn, nn => true
+    | _, _ => false
+    end.
+
+  Notation "a <= b" := (le a b).
+
+  Definition impl a b : tval :=
+    if a <= b then tt else b.
+
+  Fact impl_tt a :
+    impl a tt = tt.
+  Proof.
+    destruct a; reflexivity.
+  Qed.
+  
+  Fixpoint eva alpha s : tval :=
+    match s with
+    | var x => alpha x
+    | bot => ff
+    | s1~>s2 => impl (eva alpha s1) (eva alpha s2)
+    end.
+
+  Compute eva (fun _ => nn) bot.
+  Compute eva (fun _ => nn) (var 7).
+  Compute eva (fun _ => nn) (-var 7).
+  Compute eva (fun _ => nn) (--var 7).
+  Compute eva (fun _ => nn) (--var 7 ~> var 7).
+  
+  Fixpoint evac alpha A : tval :=
+    match A with
+    | nil => tt
+    | s::A' => if eva alpha s <= evac alpha A' then eva alpha s else evac alpha A'
+    end.
+
+  Notation leb alpha A s := (evac alpha A <= eva alpha s).
+  Notation lep alpha A s := (leb alpha A s = true).
+
+  Fact lep_el alpha A s :
+    s el A -> lep alpha A s.
+  Proof.
+    induction A as [|u A IH].
+    + intros [].
+    + intros [<-|H]; cbn.
+      * destruct eva, evac; reflexivity.
+      * generalize (IH H). destruct evac, eva, eva; easy.
+  Qed.
+  
+  Fact lep_bot  alpha A s :
+    lep alpha A bot -> lep alpha A s.
+  Proof.
+    cbn. destruct evac, eva; easy.
+  Qed.
+  
+  Fact leb_II alpha s t A :
+    leb alpha (s::A) t = leb alpha A (s ~> t).
+  Proof.
+    cbn. destruct eva, eva, evac; reflexivity.
+  Qed.
+
+  Fact lep_IE alpha A s t :
+    lep alpha A (s ~> t) -> lep alpha A s -> lep alpha A t.
+  Proof.
+    cbn. destruct evac, eva, eva; easy.
+  Qed.
+  
+  Fact soundness alpha A s :
+    A |- s -> lep alpha A s.
+  Proof.
+    induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
+    - apply lep_el, H.
+    - apply lep_bot, IH.
+    - rewrite <-leb_II. apply IH.
+    - eapply lep_IE; eassumption.
+  Qed.
+
+  Corollary double_negation x :
+    (nil |- --var x ~> var x) -> False.
+  Proof.
+    intros [=] %(soundness (fun _ => nn)).
+  Qed.
+
+  Corollary nd_consistency :
+    (nil |- bot) -> False.
+  Proof.
+    intros [=] %(soundness (fun _ => nn)).
+  Qed.
+  
+  Fact ndc_consistency :
+    ([] |-c bot) -> False.
+  Proof.
+    apply equiconsistency, nd_consistency.
+  Qed.
+End Heyting.
 
 (*** Boolean Entailment *)
 
