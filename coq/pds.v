@@ -293,7 +293,87 @@ Fact equiconsistency :
 Proof.
   split; intros H; contradict H; apply refutation_agreement; assumption.
 Qed.
-  
+   
+(*** Hilbert System *)
+
+Inductive hil A : form -> Type :=
+| hilA s:      s el A -> hil A s
+| hilMP s t:   hil A (s ~> t) -> hil A s -> hil A t
+| hilK s t:    hil A (s ~> t ~> s)
+| hilS s t u:  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
+| hilF s:      hil A (bot ~> s).
+
+Fact hil_nd A s :
+  hil A s -> nd A s.
+Proof.
+  induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' t' |s' t' u |s'].
+  - apply ndA, H.
+  - eapply ndIE; eassumption.
+  - apply ndII, ndII. ndA.
+  - apply ndII, ndII, ndII.
+    apply ndIE with (s:= t');
+      apply ndIE with (s:= s');
+      ndA.
+  - apply ndII, ndE. ndA.
+Qed.
+
+Fact hilAK A s t :
+  hil A s -> hil A (t ~> s).
+Proof.
+  apply hilMP. apply hilK.
+Qed.
+
+Fact hilAS A s t u :
+  hil A (s ~> t ~> u) -> hil A (s ~> t) -> hil A (s ~> u).
+Proof.
+  intros H. apply hilMP. revert H. apply hilMP. apply hilS.
+Qed.
+
+Fact hilI A s :
+  hil A (s ~> s).
+Proof.
+  apply hilAS with (t:= s~> s); apply hilK.
+Qed.
+
+Fact hilAF A s :
+  hil A bot -> hil A s.
+Proof.
+  apply hilMP, hilF.
+Qed.
+
+Fact mem_sum s t A :
+  s el t::A -> (s = t) + (s el A).
+Proof.
+  enough (forall s t, {s = t} + {s <> t}) as d.
+  { destruct (d s t) as [<-|H1].
+    - auto.
+    - intros H2. right. destruct H2 as [<-|H2]; easy. }
+  do 2 decide equality.
+Qed.
+
+Fact hilD s A t :
+  hil (s::A) t -> hil A (s ~> t).
+Proof.
+  induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
+  - apply mem_sum in H as [->|H].
+    + apply hilI.
+    + apply hilAK. apply hilA, H.
+  - eapply hilAS. exact IH1. exact IH2.
+  - apply hilAK, hilK.
+  - apply hilAK, hilS.
+  - apply hilAK, hilF.
+Qed.
+
+Fact nd_hil A s :
+  nd A s -> hil A s.
+Proof.
+  induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
+  - apply hilA, H.
+  - apply hilAF, IH. 
+  - apply hilD, IH.
+  - eapply hilMP. exact IH1. exact IH2.
+Qed.
+
 (*** Heyting Interpretation *)
            
 Module Heyting.
@@ -301,24 +381,19 @@ Module Heyting.
   Implicit Types a b: tval.
   Implicit Type alpha: nat -> tval.
 
-  Definition le a b : bool :=
+  Definition leq a b : bool :=
     match a, b with
     | ff , _ => true
-    | _, tt => true
     | nn, nn => true
+    | nn, tt => true
+    | tt, tt => true
     | _, _ => false
     end.
 
-  Notation "a <= b" := (le a b).
+  Notation "a <= b" := (leq a b).
 
   Definition impl a b : tval :=
     if a <= b then tt else b.
-
-  Fact impl_tt a :
-    impl a tt = tt.
-  Proof.
-    destruct a; reflexivity.
-  Qed.
   
   Fixpoint eva alpha s : tval :=
     match s with
@@ -326,12 +401,47 @@ Module Heyting.
     | bot => ff
     | s1~>s2 => impl (eva alpha s1) (eva alpha s2)
     end.
+  
+  Compute impl (impl (impl nn ff) ff) nn.
 
-  Compute eva (fun _ => nn) bot.
-  Compute eva (fun _ => nn) (var 7).
-  Compute eva (fun _ => nn) (-var 7).
-  Compute eva (fun _ => nn) (--var 7).
-  Compute eva (fun _ => nn) (--var 7 ~> var 7).
+  (** Soundness for Hilbert system *)
+
+  Fact hil_sound alpha s :
+    hil [] s -> eva alpha s = tt.
+  Proof.
+    induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
+    - exfalso. apply H.
+    - cbn in IH1. destruct eva, eva; easy.
+    - cbn. destruct eva, eva; easy.
+    - cbn. destruct eva, eva, eva; easy.
+    - cbn. reflexivity.
+  Qed.
+  
+  Fact hil_DN x :
+    hil [] (--var x ~> var x) -> False.
+  Proof.
+    intros [=]%(hil_sound (fun _ => nn)).
+  Qed.
+
+  Fact nd_DN x :
+    nd [] (--var x ~> var x) -> False.
+  Proof.
+    intros H %nd_hil %hil_DN. exact H.
+  Qed.
+
+  Corollary nd_consistent :
+    (nil |- bot) -> False.
+  Proof.
+    intros H. apply nd_DN with 0. apply ndE, H.
+  Qed.
+  
+  Fact ndc_consistent :
+    ([] |-c bot) -> False.
+  Proof.
+    apply equiconsistency, nd_consistent.
+  Qed.
+  
+  (** Soundness for intuitionistic ND *)
   
   Fixpoint evac alpha A : tval :=
     match A with
@@ -370,7 +480,7 @@ Module Heyting.
     cbn. destruct evac, eva, eva; easy.
   Qed.
   
-  Fact soundness alpha A s :
+  Fact nd_sound alpha A s :
     A |- s -> lep alpha A s.
   Proof.
     induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
@@ -380,22 +490,10 @@ Module Heyting.
     - eapply lep_IE; eassumption.
   Qed.
 
-  Corollary double_negation x :
+  Corollary nd_DN' x :
     (nil |- --var x ~> var x) -> False.
   Proof.
-    intros [=] %(soundness (fun _ => nn)).
-  Qed.
-
-  Corollary nd_consistency :
-    (nil |- bot) -> False.
-  Proof.
-    intros [=] %(soundness (fun _ => nn)).
-  Qed.
-  
-  Fact ndc_consistency :
-    ([] |-c bot) -> False.
-  Proof.
-    apply equiconsistency, nd_consistency.
+    intros [=] %(nd_sound (fun _ => nn)).
   Qed.
 End Heyting.
 
@@ -654,84 +752,4 @@ Section Sandwich.
   Qed.
    
 End Sandwich.
-  
-(*** Hilbert System *)
-
-Inductive hil A : form -> Type :=
-| hilA s:      s el A -> hil A s
-| hilMP s t:   hil A (s ~> t) -> hil A s -> hil A t
-| hilK s t:    hil A (s ~> t ~> s)
-| hilS s t u:  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
-| hilF s:      hil A (bot ~> s).
-
-Fact hil_nd A s :
-  hil A s -> nd A s.
-Proof.
-  induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' t' |s' t' u |s'].
-  - apply ndA, H.
-  - eapply ndIE; eassumption.
-  - apply ndII, ndII. ndA.
-  - apply ndII, ndII, ndII.
-    apply ndIE with (s:= t');
-      apply ndIE with (s:= s');
-      ndA.
-  - apply ndII, ndE. ndA.
-Qed.
-
-Fact hilAK A s t :
-  hil A s -> hil A (t ~> s).
-Proof.
-  apply hilMP. apply hilK.
-Qed.
-
-Fact hilAS A s t u :
-  hil A (s ~> t ~> u) -> hil A (s ~> t) -> hil A (s ~> u).
-Proof.
-  intros H. apply hilMP. revert H. apply hilMP. apply hilS.
-Qed.
-
-Fact hilI A s :
-  hil A (s ~> s).
-Proof.
-  apply hilAS with (t:= s~> s); apply hilK.
-Qed.
-
-Fact hilAF A s :
-  hil A bot -> hil A s.
-Proof.
-  apply hilMP, hilF.
-Qed.
-
-Fact mem_sum s t A :
-  s el t::A -> (s = t) + (s el A).
-Proof.
-  enough (forall s t, {s = t} + {s <> t}) as d.
-  { destruct (d s t) as [<-|H1].
-    - auto.
-    - intros H2. right. destruct H2 as [<-|H2]; easy. }
-  do 2 decide equality.
-Qed.
-
-Fact hilD s A t :
-  hil (s::A) t -> hil A (s ~> t).
-Proof.
-  induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
-  - apply mem_sum in H as [->|H].
-    + apply hilI.
-    + apply hilAK. apply hilA, H.
-  - eapply hilAS. exact IH1. exact IH2.
-  - apply hilAK, hilK.
-  - apply hilAK, hilS.
-  - apply hilAK, hilF.
-Qed.
-
-Fact nd_hil A s :
-  nd A s -> hil A s.
-Proof.
-  induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
-  - apply hilA, H.
-  - apply hilAF, IH. 
-  - apply hilD, IH.
-  - eapply hilMP. exact IH1. exact IH2.
-Qed.
   
