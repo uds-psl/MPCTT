@@ -565,7 +565,7 @@ Fact evac_true alpha A :
   evac alpha A = true <-> forall s, s el A -> eva alpha s = true.
 Proof.
   induction A as [|u A IH]; cbn.
-  - intuition.
+   - intuition.
   - destruct (eva alpha u) eqn:H; split.
     + intros H1 s [->|H2]. exact H. apply IH; assumption.
     + intros H1. apply IH. intros s H2. apply H1. auto.
