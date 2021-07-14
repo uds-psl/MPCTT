@@ -28,6 +28,8 @@ Inductive nd A : form -> Type :=
 | ndIE s t:  A |- s ~> t  ->  A |- s  ->  A |- t
 where "A |- s" := (nd A s).
 
+Ltac ndA := apply ndA; list.
+
 Definition  elim_nd
   : forall p: list form -> form -> Type,
     (forall A s, s el A -> p A s) ->
@@ -35,18 +37,16 @@ Definition  elim_nd
     (forall A s t, p (s::A) t -> p A (s ~> t)) ->
     (forall A s t, p A (s ~> t) -> p A s -> p A t) ->
     (forall A s, A |- s -> p A s)
-  := fun p f1 f2 f3 f4 => fix F A _ d :=
+  := fun p e1 e2 e3 e4 => fix f A _ d :=
        match d with
-       | ndA _ s h => f1 A s h
-       | ndE _ s d' => f2 A s (F A bot d')
-       | ndII _ s t d' => f3 A s t (F (s::A) t d')
-       | ndIE _ s t d1 d2 => f4 A s t (F A (s ~> t) d1) (F A s d2)
+       | ndA _ s h => e1 A s h
+       | ndE _ s d' => e2 A s (f A bot d')
+       | ndII _ s t d' => e3 A s t (f (s::A) t d')
+       | ndIE _ s t d1 d2 => e4 A s t (f A (s ~> t) d1) (f A s d2)
        end.
 
-Ltac ndA := apply ndA; list.
-
-(** Constructing derivations using the tactiv interpreter is fun.
-    One simulates a meta proof using the ND rules.
+(** Constructing derivations using the tactic interpreter is fun.
+    One emulates a meta proof (diagram) using the ND rules.
     Here are interesting examples. *)                          
 
 Fact D1 A s:
@@ -223,13 +223,13 @@ Proof.
   - apply ndcC. apply IH. list.
   - apply ndcII. apply IH. list.
   - eapply ndcIE. apply IH1, H. apply IH2, H.
-Qed.
+Defined.
 
 Lemma Explosion A s :
   A |-c bot -> A |-c s.
 Proof.
   intros H. apply ndcC. eapply Weakc. exact H. list.
-Qed.
+Defined.
 
 Lemma Translation A s :
   A |- s -> A |-c s.
@@ -239,7 +239,7 @@ Proof.
   - apply Explosion, IH.
   - apply ndcII, IH.
   - eapply ndcIE. 1,2:eassumption.
-Qed.
+Defined.
 
 Fact Impc A s t :
   A |-c s~>t <=> s::A |-c t.
@@ -297,11 +297,11 @@ Qed.
 (*** Hilbert System *)
 
 Inductive hil A : form -> Type :=
-| hilA s:      s el A -> hil A s
-| hilMP s t:   hil A (s ~> t) -> hil A s -> hil A t
-| hilK s t:    hil A (s ~> t ~> s)
-| hilS s t u:  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
-| hilF s:      hil A (bot ~> s).
+| hilA s :      s el A -> hil A s
+| hilMP s t :   hil A (s ~> t) -> hil A s -> hil A t
+| hilK s t :    hil A (s ~> t ~> s)
+| hilS s t u :  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
+| hilF s :      hil A (bot ~> s).
 
 Fact hil_nd A s :
   hil A s -> nd A s.
@@ -321,25 +321,25 @@ Fact hilAK A s t :
   hil A s -> hil A (t ~> s).
 Proof.
   apply hilMP. apply hilK.
-Qed.
+Defined.
 
 Fact hilAS A s t u :
   hil A (s ~> t ~> u) -> hil A (s ~> t) -> hil A (s ~> u).
 Proof.
   intros H. apply hilMP. revert H. apply hilMP. apply hilS.
-Qed.
+Defined.
 
 Fact hilI A s :
   hil A (s ~> s).
 Proof.
   apply hilAS with (t:= s~> s); apply hilK.
-Qed.
+Defined.
 
 Fact hilAF A s :
   hil A bot -> hil A s.
 Proof.
   apply hilMP, hilF.
-Qed.
+Defined.
 
 Fact mem_sum s t A :
   s el t::A -> (s = t) + (s el A).
@@ -349,7 +349,7 @@ Proof.
     - auto.
     - intros H2. right. destruct H2 as [<-|H2]; easy. }
   do 2 decide equality.
-Qed.
+Defined.
 
 Fact hilD s A t :
   hil (s::A) t -> hil A (s ~> t).
@@ -362,9 +362,9 @@ Proof.
   - apply hilAK, hilK.
   - apply hilAK, hilS.
   - apply hilAK, hilF.
-Qed.
+Defined.
 
-Fact nd_hil A s :
+Fact nd_hil {A s} :
   nd A s -> hil A s.
 Proof.
   induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
@@ -372,7 +372,36 @@ Proof.
   - apply hilAF, IH. 
   - apply hilD, IH.
   - eapply hilMP. exact IH1. exact IH2.
-Qed.
+Defined.
+
+(** Translating concrete ND derivations in concrete Hilbert derivations *)
+
+Module Test.
+  Arguments hilMP {A s t}.
+  Arguments hilK {A s t}.
+  Arguments hilS {A s t u}.
+  Arguments hilF {A s}.
+  Definition x := var 0.
+  Definition y := var 1.
+  Definition d : nd nil (x ~> x).
+  Proof.
+    apply ndII. ndA.
+  Defined.
+    
+  Compute nd_hil d.
+  
+  Definition d1 : nd nil (x ~> y ~> x).
+  Proof.
+    apply ndII, ndII. ndA.
+  Defined.
+   
+  Definition d2 : nd nil (x ~> -x ~> y).
+  Proof.
+    apply ndII, ndII, ndE. apply ndIE with x; ndA.
+  Defined.
+    
+  Compute nd_hil d2.
+End Test.
 
 (*** Heyting Interpretation *)
            
@@ -395,16 +424,16 @@ Module Heyting.
   Definition impl a b : tval :=
     if a <= b then tt else b.
   
+  Compute impl (impl (impl nn ff) ff) nn.
+  
   Fixpoint eva alpha s : tval :=
     match s with
     | var x => alpha x
     | bot => ff
     | s1~>s2 => impl (eva alpha s1) (eva alpha s2)
     end.
-  
-  Compute impl (impl (impl nn ff) ff) nn.
 
-  (** Soundness for Hilbert system *)
+  (** Soundness for intuitionistic Hilbert system *)
 
   Fact hil_sound alpha s :
     hil [] s -> eva alpha s = tt.
@@ -441,7 +470,15 @@ Module Heyting.
     apply equiconsistency, nd_consistent.
   Qed.
   
-  (** Soundness for intuitionistic ND *)
+  (** Soundness for intuitionistic ND via equivalence *)
+  
+  Fact nd_sound_pure alpha s :
+    [] |- s -> eva alpha s = tt.
+  Proof.
+    intros H %nd_hil. apply hil_sound, H.
+  Qed.
+   
+  (** Soundness for intuitionistic ND directly *)
   
   Fixpoint evac alpha A : tval :=
     match A with
