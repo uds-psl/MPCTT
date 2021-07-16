@@ -134,9 +134,8 @@ Lemma Hedberg' X :
 Proof.
   intros [f H] x y.
   enough (forall e: x = y,  tau (f x y e) (sigma (f y y eq_refl)) = e) as H1.
-  { intros e e'. specialize (H _ _ e e').
-    generalize (H1 e), (H1 e'). congruence. }
-  destruct e. apply tau_sigma.
+  - intros e e'. specialize (H _ _ e e'). congruence. 
+  - destruct e. apply tau_sigma.
 Qed.
 
 Theorem Hedberg X :
