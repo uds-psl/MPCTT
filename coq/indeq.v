@@ -1,5 +1,4 @@
 From Coq Require Import Arith Bool.
-Ltac refl := reflexivity.
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
@@ -16,21 +15,24 @@ Definition J {X} {x: X} (p: forall y, x = y -> Type)
   : p x eq_refl -> forall y e, p y e
   := fun a y e => match e with eq_refl => a end.
 
-Definition cast {X} {p: X -> Type} {x: X}
+Definition cast {X} [p: X -> Type] {x: X}
   : forall {y}, x = y -> p x -> p y
   := fun y e a => match e with eq_refl => a end.
 
 Goal forall X (x y: X) p (e: x = y) a,
     cast e a = J (fun y e => p y) a y e.
 Proof.
-  refl.
+  reflexivity.
 Qed.
 
 Goal forall X (x y: X) p (a: p x),
     cast eq_refl a = a.
 Proof.
-  refl.
+  reflexivity.
 Qed.
+
+Definition id {X} (x: X) := x.
+Arguments id {X} x /.
 
 Section SigmaTau.
   Variable X: Type.
@@ -40,7 +42,7 @@ Section SigmaTau.
     := fun e => cast (p:= fun y => y = x) e eq_refl.
   Definition tau {x y z}
     : x = y -> y = z -> x = z
-    := fun e => cast (p:= fun y => y = z -> x = z) e (fun a => a).
+    := fun e => cast (p:= fun y => y = z -> x = z) e id.
   Definition phi {A} (f: X -> A) {x y}
     : x = y -> f x = f y
     := fun e => cast (p:= fun y => f x = f y) e eq_refl.
@@ -48,17 +50,17 @@ Section SigmaTau.
   Fact sigma_involutive x y (e: x = y) :
     sigma (sigma e) = e.
   Proof.
-    destruct e. refl.
+    unfold sigma. destruct e. reflexivity.
   Qed.
   Fact tau_trans x y z z' (e1: x = y) (e2: y = z) (e3: z = z') :
     tau e1 (tau e2 e3) = tau (tau e1 e2) e3.
   Proof.
-    destruct e1, e2, e3. refl.
+    unfold tau. destruct e1; cbn. destruct e2; cbn. reflexivity.
   Qed.
   Fact tau_sigma x y (e: x = y) :
     tau e (sigma e) = eq_refl.
   Proof.
-    destruct e. refl.
+    unfold sigma, tau. destruct e; cbn. reflexivity.
   Qed.
 End SigmaTau.
 Arguments sigma {X x y}.
@@ -89,13 +91,13 @@ Section UIP.
 
   Goal K_Streicher -> CD.
   Proof.
-    intros H p x a. apply H. refl.
+    intros H p x a. apply H. reflexivity.
   Qed.
   
   Goal CD -> DPI.
   Proof.
     intros H p x.
-    enough (forall a b: sigT p, a = b -> forall e: pi1 a = pi1 b, cast e (pi2 a) = pi2 b) as H'.
+    enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, cast e (pi2 a) = pi2 b) as H'.
     - intros u v e'. apply (H' _ _ e' eq_refl).
     - intros a b []. apply H.
   Qed.
@@ -106,13 +108,13 @@ Section UIP.
     apply (H (eq x)). revert e.
     enough (forall y (e: x = y), Sig (eq x) y e = Sig (eq x) x eq_refl) as H'.
     - apply H'. 
-    - intros y []. refl.
+    - intros y []. reflexivity.
   Qed.
   
   Lemma cast_eq {x y: X} :
     forall e: x = y, cast e (eq_refl x) = e.
   Proof.
-    destruct e. refl.
+    destruct e. reflexivity.
   Qed.
 
   Goal CD -> UIP'.
@@ -120,7 +122,7 @@ Section UIP.
     intros H x.
     enough (forall y (e: x = y), e = cast e (eq_refl x)) as H1.
     - intros e. rewrite (H1 x e). apply H.
-    - destruct e. refl.
+    - destruct e. reflexivity.
   Qed.
 End UIP.
 
@@ -131,11 +133,10 @@ Lemma Hedberg' X :
   ex (HF X) -> UIP X.
 Proof.
   intros [f H] x y.
-  assert (H1: forall e: x = y,  tau (f x y e) (sigma (f y y eq_refl)) = e).
-  { destruct e. apply tau_sigma. }
-  intros e e'.
-  rewrite <-(H1 e), <-(H1 e').
-  f_equal. apply H.
+  enough (forall e: x = y,  tau (f x y e) (sigma (f y y eq_refl)) = e) as H1.
+  { intros e e'. specialize (H _ _ e e').
+    generalize (H1 e), (H1 e'). congruence. }
+  destruct e. apply tau_sigma.
 Qed.
 
 Theorem Hedberg X :
@@ -144,7 +145,9 @@ Proof.
   intros d. apply Hedberg'.
   exists (fun x y e => if d x y is or_introl e' then e' else e).
   intros x y e e'.
-  destruct d as [e''|h]. refl. destruct (h e).
+  destruct d as [e''|h].
+  - reflexivity.
+  - exfalso. exact (h e).
 Qed.
 
 (* Contributed by Dominik Kirst, 18 Feb. 2021 *)
@@ -174,8 +177,8 @@ Module UIP_nat.
   Lemma nat_eqdec_eq x :
     Nat.eq_dec x x = left eq_refl.
   Proof.
-    induction x. refl. 
-    simpl. rewrite IHx. refl.
+    induction x. reflexivity. 
+    simpl. rewrite IHx. reflexivity.
   Qed.
   Lemma UIP_nat' (x y: nat) :
   forall e: x = y,
@@ -184,61 +187,61 @@ Module UIP_nat.
     | _ => True
     end.
   Proof.
-    destruct e. rewrite nat_eqdec_eq. refl.
+    destruct e. rewrite nat_eqdec_eq. reflexivity.
   Qed.
   Fact UIP_refl_nat (x: nat) :
     forall e: x = x, e = eq_refl.
   Proof.
     intros e.
     generalize (UIP_nat' x x e).
-    rewrite nat_eqdec_eq. intros []. refl.
+    rewrite nat_eqdec_eq. intros []. reflexivity.
   Qed.
 End UIP_nat.
   
 (*** UIP propagates to identity at Type *)
 
-Inductive id X (x: X) : X -> Set := Q : id X x x.
+Inductive Eq X (x: X) : X -> Set := Q : Eq X x x.
 (* Must write Set, Type will be downgraded to Prop *)
-Arguments id {X}.
+Arguments Eq {X}.
 Arguments Q {X}.
 
-Check id nat.
-Check id Type.
+Check Eq nat.
+Check Eq Type.
 
 Definition D {X} {x y: X}
-  : id x y -> x = y
+  : Eq x y -> x = y
   := fun a => match a with Q _ => eq_refl x end.
 Definition U {X} {x y: X}
-  : x = y -> id x y
+  : x = y -> Eq x y
   := fun e => match e with eq_refl _ => Q x end.
-Fact UD_eq {X} {x y: X} (a: id x y) :
+Fact UD_eq {X} {x y: X} (a: Eq x y) :
   U (D a) = a.
 Proof.
-  destruct a. refl.
+  destruct a. reflexivity.
 Qed.
 Fact DU_eq {X} {x y: X} (e: x = y) :
   D (U e) = e.
 Proof.
-  destruct e. refl.
+  destruct e. reflexivity.
 Qed.
 
-Fact id_fun X Y (f: X -> Y) (x x': X) :
-  id x x' -> id (f x) (f x').
+Fact Eq_fun X Y (f: X -> Y) (x x': X) :
+  Eq x x' -> Eq (f x) (f x').
 Proof.
   destruct 1. apply Q.
 Qed.
 
-Definition UIP_id X := forall (x y: X) (a b: id x y), id a b.
+Definition UIP_Eq X := forall (x y: X) (a b: Eq x y), Eq a b.
 Fact UIP_up X :
-  UIP X -> UIP_id X.
+  UIP X -> UIP_Eq X.
 Proof.
   intros H x y a b.
   rewrite <-(UD_eq a), <-(UD_eq b).
-  apply id_fun.
+  apply Eq_fun.
   apply U. apply H.
 Qed.
 Fact UIP_down X :
-  UIP_id X -> UIP X.
+  UIP_Eq X -> UIP X.
 Proof.
   intros H x y e e'.
   rewrite <-(DU_eq e), <-(DU_eq e').
