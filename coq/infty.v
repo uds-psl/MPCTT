@@ -49,27 +49,29 @@ Module Definitions.
     := fun a => match a with E x c => c end.
 
   Definition skolem X Y (p: X -> Y -> Type) :
-    sig (fun f => forall x, p x (f x)) <=> forall x, sig (p x).
+    (forall x, sig (p x)) <=> sig (fun f => forall x, p x (f x)).
   Proof.
     split.
+    - intros F.
+      exists (fun x => pi1 (F x)).
+      intros x. exact (pi2 (F x)).
     - intros a.
-      apply (match_sig a). intros f H x.
+      apply (match_sig a).
+      intros f H x.
       exists (f x). apply H.
-    - intros F. exists (fun x => pi1 (F x)). intros x.
-      exact (pi2 (F x)).
   Defined.
 
-  (* Can be done at term level *)
+  (* Construction done at term level *)
   Definition skolem' X Y (p: X -> Y -> Type) :
-    sig (fun f => forall x, p x (f x)) <=> forall x, sig (p x).
+    (forall x, sig (p x)) <=> sig (fun f => forall x, p x (f x)).
   Proof.
     refine (_,_).
-    - refine (fun a => (match_sig a (fun f h x => _))).
-      cbn in h.
-      exact (E (f x) (h x)).
     - unshelve refine (fun F => E _ _).
       + exact (fun x => pi1 (F x)).
       + exact (fun x => pi2 (F x)).
+    - refine (fun a => (match_sig a (fun f h x => _))).
+      cbn in h.
+      exact (E (f x) (h x)).
   Defined.
 
   Goal forall X (p: X -> Type),
@@ -194,7 +196,7 @@ Section M.
 End M.
 End SumAsSigma.
 
-(*** Projections *)
+(*** Skolem *)
 
 Definition skolem X Y (p: X -> Y -> Type) :
   (forall x, Sigma y, p x y) <=> (Sigma f, forall x, p x (f x)).
@@ -211,6 +213,28 @@ Fact sig_eta X (p: X -> Type) :
   forall a, a = Sig p (pi1 a) (pi2 a).
 Proof.
   intros [x H]. cbn. reflexivity.
+Qed.
+
+Fact skolem_prop_bool Y (p: bool -> Y -> Prop) :
+  (forall x, exists y, p x y) <=> (exists f, forall x, p x (f x)).
+Proof.
+  split.
+  - intros F.
+    destruct (F true) as [y1 H1].
+    destruct (F false) as [y2 H2].
+    exists (fun x: bool => if x then y1 else y2).
+    destruct x; assumption.
+  - intros [f H] x. exists (f x). apply H.
+Qed.
+
+Fact skolem_prop_prop X (Y: Prop) (p: X -> Y -> Prop) :
+  (forall x, exists y, p x y) <=> (exists f, forall x, p x (f x)).
+Proof.
+  split.
+  - intros F.
+    exists (fun x => let (y,_) := F x in y).
+    intros x. destruct (F x) as [y H]. exact H.
+  - intros [f H] x. exists (f x). apply H.
 Qed.
 
 Module Ex_eta.
