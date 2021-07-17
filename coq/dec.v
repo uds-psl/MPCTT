@@ -135,6 +135,24 @@ Definition L {X Y}
              | None => match f None with Some a => a | None => None end
              end.
 
+Fact L_inv {X Y} {f: option (option X) -> option (option Y)} {g} :
+  inv g f -> inv (L g) (L f).
+Proof.
+  intros H a. unfold L.
+  destruct (f (Some a)) as [b|] eqn:?.
+  - destruct (g (Some b)) eqn:?; congruence.
+  - destruct (f None)  as [b|] eqn:?.
+    + destruct (g (Some b)) eqn:?. 1:congruence.
+      destruct (g None) eqn:?; congruence.
+    + destruct (g (Some None)) eqn:?.
+      * congruence.
+      * destruct (g None) eqn:?; congruence.
+Qed.
+
+(* Note that the congruence tactic is essential in the above proof,
+   where it does the final verification steps in 8 cases.       
+   We say that congruence does linear equational resoning. *)
+
 Fact fin_bijection n f g :
   @inv (fin n) (fin n) g f -> inv f g.
 Proof.
@@ -144,40 +162,54 @@ Proof.
   destruct n; cbn.
   { intros f g H [[]|]. destruct f as [[]|]. reflexivity. }
   intros f g H.
-  assert (H1: inv (L g) (L f)).
-  { intros a. unfold L.
-    destruct (f (Some a)) as [b|] eqn:?.
-    - destruct (g (Some b)) eqn:?; congruence.
-    - destruct (f None)  as [b|] eqn:?.
-      + destruct (g (Some b)) eqn:?. 1:congruence.
-        destruct (g None) eqn:?; congruence.
-      + destruct (g (Some None)) eqn:?.
-        * congruence.
-        * destruct (g None) eqn:?; congruence. }
-  specialize (IH _ _ H1). clear H1.
-  destruct (f (g None)) as [b|] eqn:E1.
+  specialize (IH _ _ (L_inv H)).
+  destruct (f (g None)) as [b|] eqn:E.
   - exfalso.
-    destruct (f None) as [b'|] eqn:?.
-    + generalize (IH b'). clear IH. unfold L.
-      destruct  (g (Some b')) eqn:?. 1:congruence.
-      destruct (g None) eqn:?.
-      * rewrite E1. congruence.
-      * destruct (f (Some None)) eqn:?; congruence.
-    + congruence.      
-  - intros [b|]. 2:exact E1.
-    generalize (IH b). clear IH. unfold L.
+    destruct (f None) as [b'|] eqn:?. 2:congruence.
+    specialize (IH b'). revert IH. unfold L.
+    destruct  (g (Some b')) eqn:?. 1:congruence.
+    destruct (g None) eqn:?.
+    + rewrite E. congruence.
+    + destruct (f (Some None)) eqn:?; congruence.
+  - intros [b|]. 2:exact E.
+    specialize (IH b). revert IH. unfold L.
     destruct (g (Some b)) as [a|] eqn:?.
     + destruct (f (Some a)) eqn:?.
       * congruence.
       * destruct (f None) eqn:?; congruence.
     + destruct (g None) as [a|] eqn:?.
-      * rewrite E1. destruct (f None) eqn:?; congruence.
+      * rewrite E. destruct (f None) eqn:?; congruence.
       * destruct (f (Some None)) eqn:?; congruence.
 Qed.
 
-(* Note that the congruence tactic is essential in the above proof,
-   where it does the final verification steps in more than 20 cases.       
-   We say that congruence does linear equational resoning. *)
+From Coq Require Import Lia.
+
+Fact fin_inj_card m n f g :
+  @inv (fin m) (fin n) g f -> m <= n.
+Proof.
+  destruct m.
+  { lia. }
+  destruct n.
+  { exfalso. apply (f None). }
+  revert n f g.
+  induction m as[|m IH]; intros n f g H.
+  - lia.
+  - destruct n.
+    + exfalso.
+      enough (f None = f (Some None)) as E.
+      { apply (f_equal g) in E. congruence. }
+      destruct (f None) as [[]|].
+      destruct (f (Some None)) as [[]|].
+      reflexivity.
+    + enough (S m <= S n) by lia.
+      eapply IH, L_inv, H.
+Qed.
+
+Fact fin_card m n :
+  bijection (fin m) (fin n)  -> m = n.
+Proof.
+  intros [f g H1%fin_inj_card H2%fin_inj_card]. lia.
+Qed.
 
 (** Iterative definition *)
 
