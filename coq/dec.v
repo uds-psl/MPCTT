@@ -127,7 +127,7 @@ Proof.
   - intros [f g _ H]. exfalso. exact (f None).
   - intros H. f_equal. apply IH, bijection_option, H.
 Qed.
-
+ 
 Definition L {X Y}
   : (option X -> option (option Y)) -> X -> option Y
   := fun f x => match f (Some x) with
@@ -290,6 +290,48 @@ Proof.
   - destruct n as [|n]; cbn.
     + intros H. exfalso. lia.
     + intros H. f_equal. apply IH. lia.
+Qed.
+
+(** Finite choice *)
+
+Definition choice X Y :=
+  forall p: X -> Y -> Prop, (forall x, ex (p x)) -> exists f, forall x, p x (f x).
+
+Fact void_choice X  :
+  choice False X.
+Proof.
+  intros p H. 
+  exists (fun a: False => match a with end). intros [].
+Qed.
+
+Fact option_choice X Y :
+  choice X Y -> choice (option X) Y.
+Proof.
+  intros H p H1.
+  destruct (H (fun x => p (Some x))) as [f H2].
+  - intros x. specialize (H1 (Some x)) as [y H1].
+    exists y. exact H1.
+  - specialize (H1 None) as [y H1].
+    exists (fun a => match a with Some a => f a | None => y end).
+    intros [x|]. apply H2. exact H1.
+Qed.
+
+Fact fin_choice n Y :
+  choice (fin n) Y.
+Proof.
+  induction n as [|n IH]; cbn.
+  - apply void_choice.
+  - apply option_choice, IH.
+Qed.
+
+Fact finite_choice X Y n :
+  bijection X (fin n) -> choice X Y.
+Proof.
+  intros [f g E _] p F. (* injection is enough *)
+  destruct (fin_choice n Y (fun a => p (g a))) as [h H].
+  { intros a. destruct (F (g a)) as [y H]. exists y. exact H. }
+  exists (fun x => h (f x)).
+  intros x. generalize (H (f x)). congruence. 
 Qed.
 
 (*** Coq's Decision Format *)
