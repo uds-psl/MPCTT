@@ -438,7 +438,8 @@ Module Exercise.
   Definition wo X :=
     forall p: X -> Prop, ex p -> sig p.
 
-  Goal inhabited (forall X, wo X) -> forall X Y, choice X Y.
+  Fact wo2choice :
+    inhabited (forall X, wo X) -> forall X Y, choice X Y.
   Proof.
     intros [W] X Y p F.
     exists (fun x => pi1 (W Y (p x) (F x))).
@@ -446,7 +447,8 @@ Module Exercise.
     destruct W as [y H]. exact H.
   Qed.
 
-  Goal (forall X Y, choice X Y) -> inhabited (forall X, wo X).
+  Fact choice2wo :
+    (forall X Y, choice X Y) -> inhabited (forall X, wo X).
   Proof.
     intros C.
     destruct (C (Sigma P, ex (pi2 P))
@@ -459,6 +461,13 @@ Module Exercise.
       generalize (H (Sig (Sig X p) Hp)). cbn.
       destruct f as [P HP]. cbn. intros <-. exact HP.
   Qed.
+
+  Goal (forall X Y, choice X Y) <-> inhabited (forall X, wo X).
+  Proof.
+    split.
+    - apply choice2wo.
+    - Fail apply wo2choice.
+  Abort.
 End Exercise.
 
 (*** Bijections *)
