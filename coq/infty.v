@@ -387,7 +387,7 @@ Proof.
   reflexivity.
 Qed.
 
-(*** Truncation *)
+(*** Inhabitation *)
 
 Inductive trunc (X: Type) : Prop :=
 | T: X -> trunc X.
@@ -427,6 +427,39 @@ Proof.
   - intros H. contradict H. intros [a|a]; eauto.
   - intros H. contradict H. intros [a|a]; eauto.
 Qed.
+
+Module Exercise.
+  Arguments existT {A P}.
+  Implicit Types X Y: Type.
+  Implicit Type P: Sigma X, X -> Prop.
+
+  Definition choice X Y :=
+    forall p: X -> Y -> Prop, (forall x, ex (p x)) -> exists f, forall x, p x (f x).
+  Definition wo X :=
+    forall p: X -> Prop, ex p -> sig p.
+
+  Goal inhabited (forall X, wo X) -> forall X Y, choice X Y.
+  Proof.
+    intros [W] X Y p F.
+    exists (fun x => pi1 (W Y (p x) (F x))).
+    intros x.
+    destruct W as [y H]. exact H.
+  Qed.
+
+  Goal (forall X Y, choice X Y) -> inhabited (forall X, wo X).
+  Proof.
+    intros C.
+    destruct (C (Sigma P, ex (pi2 P))
+                (Sigma P, sig (pi2 P))
+                (fun a b => pi1 a = pi1 b))
+      as [f H].
+    - intros [[X p] [x H]]. cbn in *.
+      exists (Sig (Sig X p) (Sig x H)). reflexivity.
+    - constructor. intros X p Hp.
+      generalize (H (Sig (Sig X p) Hp)). cbn.
+      destruct f as [P HP]. cbn. intros <-. exact HP.
+  Qed.
+End Exercise.
 
 (*** Bijections *)
 
