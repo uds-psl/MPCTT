@@ -444,7 +444,8 @@ Module Exercise.
     intros [W] X Y p F.
     exists (fun x => pi1 (W Y (p x) (F x))).
     intros x.
-    destruct W as [y H]. exact H.
+    destruct (W Y (p x) (F x)) as [y pxy].
+    exact pxy.
   Qed.
 
   Fact choice2wo :
@@ -455,11 +456,11 @@ Module Exercise.
                 (Sigma P, sig (pi2 P))
                 (fun a b => pi1 a = pi1 b))
       as [f H].
-    - intros [[X p] [x H]]. cbn in *.
-      exists (Sig (Sig X p) (Sig x H)). reflexivity.
-    - constructor. intros X p Hp.
-      generalize (H (Sig (Sig X p) Hp)). cbn.
-      destruct f as [P HP]. cbn. intros <-. exact HP.
+    - intros [[X p] [x px]]. cbn in *.
+      exists (Sig (Sig X p) (Sig x px)). reflexivity.
+    - constructor. intros X p exp.
+      generalize (H (Sig (Sig X p) exp)). cbn.
+      destruct f as [P sigP]. cbn. intros <-. exact sigP.
   Qed.
 
   Goal (forall X Y, choice X Y) <-> inhabited (forall X, wo X).
@@ -467,6 +468,7 @@ Module Exercise.
     split.
     - apply choice2wo.
     - Fail apply wo2choice.
+      (* There is a universe conflict *)
   Abort.
 End Exercise.
 
