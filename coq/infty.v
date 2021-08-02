@@ -389,25 +389,24 @@ Qed.
 
 (*** Inhabitation *)
 
-Inductive trunc (X: Type) : Prop :=
-| T: X -> trunc X.
+Print inhabited.
 
-Goal forall P Q, P \/ Q <-> trunc (P + Q).
+Goal forall P Q, P \/ Q <-> inhabited (P + Q).
 Proof.
   split.
   - intros [a|b]; constructor; auto.
   - intros [[a|b]]; auto.
 Qed.
 
-Goal forall X (p: X -> Prop), ex p <-> trunc (sig p).
+Goal forall X (p: X -> Prop), ex p <-> inhabited (sig p).
 Proof.
   split.
   - intros [x H]. constructor. eauto.
   - intros [[x H]]. eauto.
 Qed.
 
-Fact trunc_equi X :
-  trunc X <=> exists x:X, True.
+Fact inhabited_equi X :
+  inhabited X <=> exists x:X, True.
 Proof.
   split.
   - intros [x]. exists x. exact I.
@@ -428,7 +427,7 @@ Proof.
   - intros H. contradict H. intros [a|a]; eauto.
 Qed.
 
-Module Exercise.
+Module Choice.
   Arguments existT {A P}.
   Implicit Types X Y: Type.
   Implicit Type P: Sigma X, X -> Prop.
@@ -470,7 +469,7 @@ Module Exercise.
     - Fail apply wo2choice.
       (* There is a universe conflict *)
   Abort.
-End Exercise.
+End Choice.
 
 (*** Bijections *)
 
