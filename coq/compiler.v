@@ -48,7 +48,7 @@ Proof.
   induction e as [x | e1 IH1 e2 IH2 | e1 IH1 e2 IH2 ];
     intros C A; cbn.
   - reflexivity.
-  - rewrite <-app_assoc, IH2. rewrite <-app_assoc, IH1.reflexivity.
+  - rewrite <-app_assoc, IH2. rewrite <-app_assoc, IH1. reflexivity.
   - rewrite <-app_assoc, IH2. rewrite <-app_assoc, IH1. reflexivity.
 Qed.
 
