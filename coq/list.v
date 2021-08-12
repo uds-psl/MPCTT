@@ -191,7 +191,23 @@ Section List.
       (* Note the use of setoid rewriting *)
     - rewrite !app_length. cbn. lia.
   Qed.
- 
+
+  (* Direct proof also possible *)
+  Fact mem_del_ex' {x A} :   
+    x el A -> exists A', A == x::A' /\ length A = S (length A').
+  Proof.     
+    induction A as [|a A IH].
+    - intros [].
+    - intros [->|H].
+      + exists A. split.
+        * firstorder.
+        * cbn. lia.
+      + specialize (IH H) as (A'&IH1&IH2).
+        exists (a::A'). split.
+        * firstorder.
+        * cbn. congruence.
+  Qed.
+
   Fact mem_del_sig {x A} :
     x el A -> Sigma A', A == x::A' /\ length A = S (length A').
   Proof.
@@ -200,6 +216,22 @@ Section List.
     - split; intros z; cbn; rewrite !in_app_iff; cbn; intuition.
     (* Note the use of setoid rewriting *)
     - rewrite !app_length. cbn. lia.
+  Qed.
+  
+  (* Direct proof also possible *)
+  Fact mem_del_sig' {x A} :
+    x el A -> Sigma A', A == x::A' /\ length A = S (length A').
+  Proof.
+    induction A as [|a A IH].
+    - intros [].
+    - intros [->|H] %mem_sum.
+      + exists A. split.
+        * firstorder.
+        * cbn. lia.
+      + specialize (IH H) as (A'&IH1&IH2).
+        exists (a::A'). split.
+        * firstorder.
+        * cbn. congruence.
   Qed.
 
   (*** Non-Repeating Lists *)
