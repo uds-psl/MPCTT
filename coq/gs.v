@@ -49,6 +49,11 @@ Module Definitions.
     | S x', O => x
     | S x', S y' => sub x' y'
     end.
+  
+  Definition test (X Y: Type) (a: prod X Y) : prod Y X := 
+    match a with
+    |  pair _ _ x y => pair _ _ y x
+    end.
 
   Check pair.
   Check pair nat.
@@ -192,6 +197,8 @@ Proof.
   - rewrite addS. cbn. exact IH.
 Qed.
 
+
+
 (** Quantified inductive hypothesis *)
 
 Fixpoint D (x y: nat) : nat :=
@@ -201,16 +208,26 @@ Fixpoint D (x y: nat) : nat :=
   | S x', S y' => D x' y'
   end.
 
-Fact D_eq x :
-  forall y, D x y = (x - y) + (y - x).
+Arguments D : simpl nomatch.
+
+Fact D_eq x y :
+  D x y = (x - y) + (y - x).
 Proof.
-  induction x as [|x IH].
-  - cbn. destruct y; reflexivity.
-  - intros y.
-    destruct y; cbn.
-    + rewrite add0. reflexivity.
-    + exact (IH y).
+  revert y.
+  induction x as [|x IH]; destruct y; cbn.
+  - reflexivity.
+  - reflexivity.
+  - rewrite add0. reflexivity.
+  - exact (IH y).
 Qed.
+
+(** Specifying equations **)
+
+Fixpoint even x :=
+  match x with
+  | 0 => true
+  | S x => negb (even x)
+  end.
 
 (** Fibonacci function *)
 
