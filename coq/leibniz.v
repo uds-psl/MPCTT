@@ -65,10 +65,18 @@ Qed.
 Fact eq_trans X (x y z: X) :
   x = y -> y = z -> x = z.
 Proof.
-  intros H.
-  change ((fun a => a = z -> x = z) y).
-  apply (R _ H).
-  exact (fun h => h).
+  intros e.
+  change ((fun y => y = z -> x = z) y).
+  apply (R _ e).
+  exact (fun e => e).
+  Show Proof.
+Qed.
+
+Fact eq_trans' X (x y z: X) :
+  x = y -> y = z -> x = z.
+Proof.
+  intros e1 e2.
+  exact (R _ e2 e1).
   Show Proof.
 Qed.
 

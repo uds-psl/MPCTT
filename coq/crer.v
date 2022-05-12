@@ -37,3 +37,6 @@ Fail
   Definition match_or (X Y: Prop) (Z: Type) (a: X \/ Y) (f: X -> Z) (g: Y -> Z) : Z :=
   match a with or_introl x => f x | or_intror y => g y end.
 
+(* Universe Inconsistency *)
+
+Check (fun X: Set => True) Set.
