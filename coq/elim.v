@@ -92,6 +92,14 @@ Proof.
   - cbv. reflexivity.
   - intros n IH y. cbn. rewrite IH. reflexivity.
 Qed.
+
+
+Goal forall x y, plus x y = elim_nat (fun _ => nat) y (fun _ => S) x.
+Proof.
+  intros x y. induction x; cbn.
+  - reflexivity.
+  - f_equal. exact IHx.
+Qed.
   
 
 (*** [nat <> bool] *)
