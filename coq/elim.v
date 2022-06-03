@@ -86,21 +86,20 @@ Proof.
   cbv. reflexivity.
 Qed.
 
-Goal forall x y, plus x y = x + y.
-Proof.
-  refine (elim_nat _ _ _).
-  - cbv. reflexivity.
-  - intros n IH y. cbn. rewrite IH. reflexivity.
-Qed.
-
-
 Goal forall x y, plus x y = elim_nat (fun _ => nat) y (fun _ => S) x.
 Proof.
   intros x y. induction x; cbn.
   - reflexivity.
   - f_equal. exact IHx.
 Qed.
-  
+
+Goal forall x y, plus x y = x + y.
+Proof.
+  refine (elim_nat _ _ _).
+  - cbv. reflexivity.
+  - intros n IH y. cbn. rewrite IH. reflexivity.
+Qed.
+ 
 
 (*** [nat <> bool] *)
 
@@ -228,4 +227,4 @@ Proof.
     + reflexivity.
     + cbn. apply IH.
 Qed.
-End Exerci
+End Exercises.

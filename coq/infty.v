@@ -204,7 +204,7 @@ Proof.
   split.
   - intros F.
     exists (fun x => pi1 (F x)).
-    intros x. exact (pi2 (F x)).
+    intros x.  exact (pi2 (F x)).
   - intros [f F] x.
     exists (f x). exact (F x).
 Defined. 

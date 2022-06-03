@@ -62,7 +62,7 @@ Proof.
   intros [P H].
   enough (H1: ~(P <-> P)).
   - tauto.
-  - pattern P at 2. rewrite <-H. tauto.
+  -  pattern P at 2. rewrite <-H. tauto.
 Qed.
 
 Definition surjective {X Y} (f: X -> Y) :=
@@ -72,10 +72,10 @@ Theorem Lawvere X Y (f: X -> X -> Y) (g: Y -> Y) :
   surjective f -> exists y, g y = y.
 Proof.
   intros H.
-  specialize (H (fun x => g (f x x))) as [a H].
-  exists (f a a).
-  pattern (f a) at 2. rewrite H.
-  reflexivity.
+  specialize (H (fun x => g (f x x))) as [x H].
+  apply (f_equal (fun f => f x)) in H.
+  exists (f x x).
+  easy.
 Qed.
 
 Corollary Lawvere_bool X :
