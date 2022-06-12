@@ -7,26 +7,7 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
-Goal forall x y, x <= y <-> x - y = 0.
-Proof.
-  split; lia.
-Qed.
-
-Goal forall x y, x <= y <-> exists k, x + k = y.
-Proof.
-  split.
-  - exists (y-x). lia.
-  - intros [k <-]. lia.
-Qed.
-
-Fact le_tricho x y :
-  x < y \/ x = y \/ y < x.
-Proof.
-  lia.
-Qed.
-
-(* lia cannot do sums *)
-Lemma le_lt_dec x y :
+Definition le_lt_dec x y :
   (x <= y) + (y < x).
 Proof.
   induction x as [|x IH] in y |-*.
@@ -36,7 +17,10 @@ Proof.
     + specialize (IH y) as [IH|IH].
       * left. lia.
       * right. lia.
-Qed.
+Defined.
+
+Definition tobool {X Y} (a: X + Y) : bool :=
+  if a then true else false.
 
 (*** Euclidean Division *)
 
@@ -69,10 +53,25 @@ Proof.
     + exists a, (S b). apply delta3; assumption.
 Defined.
 
+(* Lia doesn't need the derivation rules *)
+
+Goal forall x y, Sigma a b, delta x y a b.
+Proof.
+  intros x y. unfold delta.
+  induction x as [|x (a&b&IH)].
+  - exists 0, 0. lia. 
+  - destruct (Nat.eq_dec b y) as [H|H].
+    + exists (S a), 0. lia.
+    + exists a, (S b). lia.
+Qed.
+
 Definition D x y := pi1 (delta_total x y).
 Definition M x y := pi1 (pi2 (delta_total x y)).
 
+(* Computation is possible *)
+
 Compute D 100 3.
+Compute M 100 3.
 
 Fact delta_DM x y :
 delta x y (D x y) (M x y).
@@ -98,7 +97,20 @@ Proof.
     + apply delta3; assumption.
 Qed.
 
-Fact delta_unique' y a b a' b' :
+Fact delta_unique x y a b a' b' :
+  delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
+Proof.
+  assert (a < a' \/ a = a' \/ a' < a) as [H| [H|H]] by lia.
+  - unfold delta; nia.
+  - unfold delta; lia.
+  - unfold delta; nia.
+    (* nia is an extended version of lia that can handle multiplication *)
+Qed.
+
+(* An alternative proof of uniqueness of delta 
+   not relying as much on lia / nia *)  
+ 
+Fact delta_unique1 y a b a' b' :
   b <= y ->
   b' <= y ->
   a * S y + b = a' * S y + b' ->
@@ -112,11 +124,11 @@ Proof.
   - specialize (IH a'). lia.
 Qed.
 
-Fact delta_unique x y a b a' b' :
+Fact delta_unique2 x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
   intros [-> H1] [H3 H2].
-  eapply delta_unique'; eassumption.
+  eapply delta_unique1; eassumption.
 Qed.
 
 Fact delta4 x y:
@@ -148,8 +160,43 @@ Qed.
 
 Goal forall x y z, x * S (S z) + 1 <> y * S (S z) + 0.
 Proof.
-  intros x y z [H [=]] %delta_unique'; lia.
+  intros x y z [H [=]] %delta_unique1; lia.
 Qed.
+
+(** Euclidean Division with complete induction *)
+Module Complete_Ind.
+
+  Definition nat_compl_ind (p: nat -> Type) :
+    (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
+  Proof.
+    intros H x. apply H.
+    induction x as [|x IH]; intros y H1.
+    - exfalso. lia.
+    - apply H. intros z H2. apply IH. lia.
+  Defined.
+
+  Definition delta_tot :
+    forall x y, Sigma a b, delta x y a b.
+  Proof.
+    intros x y. revert x.
+    refine (nat_compl_ind _ _).
+    intros x IH.
+    destruct (le_lt_dec x y) as [H|H].
+    - exists 0, x. unfold delta; lia.
+    - specialize (IH (x - S y)) as (a&b&IH1&IH2). lia.
+      exists (S a), b. unfold delta; lia.
+  Defined.
+
+  Definition D x y := pi1 (delta_total x y).
+  Definition M x y := pi1 (pi2 (delta_total x y)).
+  
+  Compute D 1003 3.
+  Compute M 1003 3.
+
+End Complete_Ind.
+
+(* Computation is possible *)
+
 
 (*** Predefined div and mod *)
 

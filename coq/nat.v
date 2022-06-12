@@ -11,9 +11,11 @@ Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-  : type_scope.
+    : type_scope.
 
-Module M.
+(*** Numbers from first Principles *)
+
+Module Demo.
   Inductive nat: Type := O | S (n: nat).
 
   Implicit Types (n x y: nat).
@@ -45,11 +47,9 @@ Module M.
     - apply S_O.
     - intros n IH H. eapply IH, S_injective, H.
   Qed.
-End M.
+End Demo.
 
 (* From now on we use the predefined numbers from the library *)
-
-From Coq Require Import Nat.
 
 Implicit Types x y z n k : nat.
 
@@ -111,7 +111,7 @@ Qed.
 (*** Subtraction *)
 
 Locate "-".
-Arguments sub : simpl nomatch.
+Arguments Nat.sub : simpl nomatch.
 
 Fact sub_add_left x y :
   (x + y) - x = y.
@@ -138,9 +138,9 @@ Qed.
 Fact sub_xx x :
   x - x = 0.
 Proof.
-  replace (x - x) with (x - (x + 0)).
-  - apply sub_add_right.
-  - rewrite addO. reflexivity.
+  induction x as [|x IH].
+  - reflexivity.
+  - exact IH.
 Qed.
 
 (*** Order *)
@@ -366,7 +366,7 @@ Definition nat_compl_ind (p: nat -> Type) :
 Proof.
   intros H x. apply H.
   induction x as [|x IH]; intros y H1.
-  - exfalso. discriminate H1.
+  - exfalso. cbn in H1. discriminate H1.
   - apply H. intros z H2. apply IH.
     eapply le_trans_lt_le. exact H2. exact H1.
 Defined.
@@ -466,7 +466,7 @@ Qed.
 Fact delta5 x y a b:
   delta (x - S y) y a b -> x > y -> delta x y (S a) b.
 Proof.
-  unfold delta. cbn [mul]. rewrite add_assoc. intros [<- H1] H2.
+  unfold delta. cbn [Nat.mul]. rewrite add_assoc. intros [<- H1] H2.
   split. 2:exact H1.
   symmetry. apply (le_eq_sub (S y) x), H2.
 Qed.
@@ -485,4 +485,58 @@ Proof.
       * exact H.
 Qed.
 
+(*** Lia Demo *)
+
+(* The automation tactic lia provides an abstract treatment 
+   of numbers that frees  us from knowing the basic definitions 
+   and the basic lemmas. We shall use it from now on. *)
+
+From Coq Require Import Lia.
+
+Goal forall x y, x <= y -> y <= x -> x = y.
+Proof.
+  lia.
+Qed.
+
+Goal forall x y, ~ x < y -> ~ y < x -> x = y.
+Proof.
+  lia.
+Qed.
+
+Goal forall x y, x <= y -> x + (y -x) = y.
+Proof.
+  lia.
+Qed.
+
+Goal forall x y, x + y <= x -> y = 0.
+Proof.
+  lia.
+Qed.
+
+  Goal forall x y, x < y \/ x = y \/ y < x.
+Proof.
+  lia.
+Qed.
+
+(* lia cannot do sums *)
+Goal forall x y, (x <= y) + (y < x).
+Proof.
+  Fail lia.
+  induction x as [|x IH]; intros y.
+  - left. lia.
+  - destruct y as [|y].
+    + right. lia.
+    + specialize (IH y) as [IH|IH].
+      * left. lia.
+      * right. lia.
+Qed.
+
+Goal forall x y, x <= y <-> exists z, x + z = y.
+Proof.
+  split.
+  - intros H. exists (y-x). lia.
+  - intros [z H]. lia. 
+Qed.
+
+ 
 
