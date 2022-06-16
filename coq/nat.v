@@ -491,6 +491,9 @@ Qed.
    of numbers that frees  us from knowing the basic definitions 
    and the basic lemmas. We shall use it from now on. *)
 
+(* Note that our definition of order via subtraction is still active.
+   All examples with lia will also work with Coq's definition of order *)
+
 From Coq Require Import Lia.
 
 Goal forall x y, x <= y -> y <= x -> x = y.
@@ -503,7 +506,7 @@ Proof.
   lia.
 Qed.
 
-Goal forall x y, x <= y -> x + (y -x) = y.
+Goal forall x y, x <= y -> x + (y - x) = y.
 Proof.
   lia.
 Qed.
@@ -518,17 +521,16 @@ Proof.
   lia.
 Qed.
 
+Locate "<=".
+
 (* lia cannot do sums *)
 Goal forall x y, (x <= y) + (y < x).
 Proof.
+  intros x y.
   Fail lia.
-  induction x as [|x IH]; intros y.
+  destruct (x-y) as [|z] eqn:E.
   - left. lia.
-  - destruct y as [|y].
-    + right. lia.
-    + specialize (IH y) as [IH|IH].
-      * left. lia.
-      * right. lia.
+  - right. lia.
 Qed.
 
 Goal forall x y, x <= y <-> exists z, x + z = y.

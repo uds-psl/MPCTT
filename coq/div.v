@@ -19,14 +19,10 @@ Defined.
 Definition le_lt_dec x y :
   (x <= y) + (y < x).
 Proof.
-  induction x as [|x IH] in y |-*.
+  destruct (x-y) as [|z] eqn:E.
   - left. lia.
-  - destruct y as [|y].
-    + right. lia.
-    + specialize (IH y) as [IH|IH].
-      * left. lia.
-      * right. lia.
-Defined.
+  - right. lia.
+Qed.
 
 Definition tobool {X Y} (a: X + Y) : bool :=
   if a then true else false.
@@ -229,11 +225,11 @@ Proof.
   intros E x y. revert x.
   refine (nat_compl_ind _ _). intros x IH.
   rewrite E. unfold rep_sub.
+  specialize (IH (x - S y)).
+  destruct (f (x - S y) y) as [a b]; cbn in *.
   destruct (le_lt_dec x y) as [H|H]; cbn.
   - apply delta4, H.
-  - specialize (IH (x - S y)).
-      destruct (f (x - S y) y) as [a b]; cbn in *.
-      apply delta5. 2:exact H. apply IH. lia.
+  - apply delta5. 2:exact H. apply IH. lia.
 Qed.
     
 Lemma pair_eq X Y (a b: X * Y) :
@@ -248,11 +244,11 @@ Proof.
   intros H x y. apply pair_eq.
   apply (delta_unique x y). easy.
   unfold rep_sub.
+  specialize (H (x - S y) y).
+  destruct (f (x - S y) y) as [a b]; cbn in *.  
   destruct (le_lt_dec x y) as [H1|H1]; cbn.
   - apply delta4, H1.
-  - specialize (H (x - S y) y).
-    destruct (f (x - S y) y) as [a b]; cbn in *.
-    apply delta5; easy. 
+  - apply delta5; easy. 
 Qed.
 
 (*** Predefined div and mod *)
