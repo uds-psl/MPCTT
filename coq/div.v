@@ -7,6 +7,15 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
 
+Definition nat_compl_ind (p: nat -> Type) :
+  (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
+Proof.
+  intros H x. apply H.
+  induction x as [|x IH]; intros y H1.
+  - exfalso. lia.
+  - apply H. intros z H2. apply IH. lia.
+Defined.
+
 Definition le_lt_dec x y :
   (x <= y) + (y < x).
 Proof.
@@ -21,6 +30,9 @@ Defined.
 
 Definition tobool {X Y} (a: X + Y) : bool :=
   if a then true else false.
+
+Compute tobool (le_lt_dec 5 5).
+Compute tobool (le_lt_dec 5 4).
 
 (*** Euclidean Division *)
 
@@ -42,7 +54,7 @@ Proof.
   unfold delta. lia.
 Qed.
 
-Fact delta_total :
+Definition delta_total :
   forall x y, Sigma a b, delta x y a b.
 Proof.
   intros x y.
@@ -65,10 +77,10 @@ Proof.
     + exists a, (S b). lia.
 Qed.
 
+(* Computation is possible *)
+
 Definition D x y := pi1 (delta_total x y).
 Definition M x y := pi1 (pi2 (delta_total x y)).
-
-(* Computation is possible *)
 
 Compute D 100 3.
 Compute M 100 3.
@@ -97,18 +109,19 @@ Proof.
     + apply delta3; assumption.
 Qed.
 
+(*** Uniqueness of delta *)
+
 Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
   assert (a < a' \/ a = a' \/ a' < a) as [H| [H|H]] by lia.
-  - unfold delta; nia.
+  - unfold delta;  nia.
   - unfold delta; lia.
   - unfold delta; nia.
-    (* nia is an extended version of lia that can handle multiplication *)
+    (* nia is an extension of lia that can handle multiplication *)
 Qed.
 
-(* An alternative proof of uniqueness of delta 
-   not relying as much on lia / nia *)  
+(* Alternative inductive proof not relying on lia *)  
  
 Fact delta_unique1 y a b a' b' :
   b <= y ->
@@ -131,17 +144,25 @@ Proof.
   eapply delta_unique1; eassumption.
 Qed.
 
+(* Example *)
+
+Goal forall x y z, x * S (S z) + 1 <> y * S (S z) + 0.
+Proof.
+  intros x y z [H [=]] %delta_unique1; lia.
+Qed.
+
+(*** Repeated subtraction *)
+
 Fact delta4 x y:
   x <= y -> delta x y 0 x.
 Proof.
-  unfold delta. cbn. easy.
+  unfold delta; lia.
 Qed.
 
 Fact delta5 x y a b:
   delta (x - S y) y a b -> x > y -> delta x y (S a) b.
 Proof.
-  unfold delta. cbn. rewrite <- plus_assoc.
-  intros [<- H1] H2. lia.
+  unfold delta; lia.
 Qed.
 
 Goal forall x y,
@@ -158,22 +179,8 @@ Proof.
       * exact H.
 Qed.
 
-Goal forall x y z, x * S (S z) + 1 <> y * S (S z) + 0.
-Proof.
-  intros x y z [H [=]] %delta_unique1; lia.
-Qed.
-
-(** Euclidean Division with complete induction *)
-Module Complete_Ind.
-
-  Definition nat_compl_ind (p: nat -> Type) :
-    (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
-  Proof.
-    intros H x. apply H.
-    induction x as [|x IH]; intros y H1.
-    - exfalso. lia.
-    - apply H. intros z H2. apply IH. lia.
-  Defined.
+(* Euclidean Division with repeated subtraction *)
+Module Repeated_Subtraction.
 
   Definition delta_tot :
     forall x y, Sigma a b, delta x y a b.
@@ -193,10 +200,60 @@ Module Complete_Ind.
   Compute D 1003 3.
   Compute M 1003 3.
 
-End Complete_Ind.
+End Repeated_Subtraction.
 
-(* Computation is possible *)
+(* Equivalence relation spec and procedural spec *)
 
+Implicit Type f : nat -> nat -> nat * nat.
+
+Definition sat_delta f :=
+  forall x y, delta x y (fst (f x y)) (snd (f x y)).
+
+Fact cert_sat_delta :
+  forall F: (forall x y, Sigma a b, delta x y a b),
+    sat_delta (fun x y => (pi1 (F x y), pi1 (pi2 (F x y)))).
+Proof.
+  intros F x y. exact (pi2 (pi2 (F x y))).
+Qed.
+
+Definition rep_sub f x y :=
+  if le_lt_dec x y then (0,x)
+  else let (a,b) := f (x - S y) y in (S a, b).
+
+Definition sat_rep_sub f :=
+  forall x y, f x y = rep_sub f x y.
+
+Fact rep_sub_delta f :
+  sat_rep_sub f -> sat_delta f.
+Proof.
+  intros E x y. revert x.
+  refine (nat_compl_ind _ _). intros x IH.
+  rewrite E. unfold rep_sub.
+  destruct (le_lt_dec x y) as [H|H]; cbn.
+  - apply delta4, H.
+  - specialize (IH (x - S y)).
+      destruct (f (x - S y) y) as [a b]; cbn in *.
+      apply delta5. 2:exact H. apply IH. lia.
+Qed.
+    
+Lemma pair_eq X Y (a b: X * Y) :
+  fst a = fst b /\ snd a = snd b -> a = b.
+Proof.
+  destruct a; destruct b; cbn; intuition congruence.
+Qed.
+
+Fact delta_rep_sub f :
+  sat_delta f -> sat_rep_sub f.
+Proof.
+  intros H x y. apply pair_eq.
+  apply (delta_unique x y). easy.
+  unfold rep_sub.
+  destruct (le_lt_dec x y) as [H1|H1]; cbn.
+  - apply delta4, H1.
+  - specialize (H (x - S y) y).
+    destruct (f (x - S y) y) as [a b]; cbn in *.
+    apply delta5; easy. 
+Qed.
 
 (*** Predefined div and mod *)
 
