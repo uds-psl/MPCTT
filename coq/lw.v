@@ -3,16 +3,9 @@ Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.
 Notation Sig := existT.
-Notation pi1 := projT1.
-Notation pi2 := projT2.
-Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
-    (at level 200, x binder, right associativity,
-     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-  : type_scope.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Notation decidable p := (forall x, dec (p x)).
+Notation decider p := (forall x, dec (p x)).
 Notation unique p := (forall x y, p x -> p y -> x = y).
 
 Definition nat_eqdec : eqdec nat.
@@ -58,7 +51,7 @@ Qed.
 
 Section Step_indexed_linear_search.
   Variable p: nat -> Prop.
-  Variable p_dec: decidable p.
+  Variable p_dec: decider p.
   
   Fixpoint L n k : nat :=
     match n with
@@ -115,7 +108,7 @@ Section Direct_search.
 
   (** Certifying version *)
 
-  Variable p_dec: decidable p.
+  Variable p_dec: decider p.
   
   Lemma least_direct_sigma' :
     forall n, safe p n + sig (least p).
@@ -148,7 +141,7 @@ Section Direct_search.
   Qed.
 
   Fact least_dec :
-    decidable (least p).
+    decider (least p).
   Proof.
     intros n.
     destruct (p_dec n) as [H|H].
@@ -292,7 +285,3 @@ Proof.
       * left. exact H1. 
       * right. intros H3. specialize (H2 0). hnf in H2. apply H2 in H3. lia.
 Qed.
-
-    
-
-
