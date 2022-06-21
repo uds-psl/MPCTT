@@ -45,7 +45,6 @@ Proof.
   intros ->. easy.
 Qed.
 
-
 (*** Step-Indexed Linear Search *)
 
 
@@ -255,33 +254,47 @@ Section Direct_search.
 End Direct_search.
 
 (*** XM and Least Elements *)
- 
-Lemma least_ex_or (p: nat -> Prop):
-  (forall x, p x \/ ~p x) -> ex p -> ex (least p).
-Proof.
-  intros p_dec [k H].
-  enough (forall n, safe p n \/ ex (least p)) as H1.
-  { specialize (H1 k) as [H1|H1]. 2:exact H1. exists k. hnf. auto. }
-  induction n as [|n IH].
-  - left. apply safe_O.
-  - destruct IH as [IH|IH].
-      + destruct (p_dec n) as [H1|H1].
-        * right. exists n. easy.
-        * left. apply safe_S; assumption.
-      + right. exact IH.
-Qed.
- 
+
 Definition XM := forall P, P \/ ~P.
 
-Fact least_xm :
-  XM <->  (forall p, ex p -> ex (least p)).
+Fact xm_least_safe :
+  XM -> forall p n, ex (least p) \/ safe p n.
 Proof.
-  split.
-  - intros H p. apply least_ex_or. intros x. apply H.
-  - intros H P.
-    destruct (H (fun x => if x then P else True)) as (n&H1&H2).
-    + exists 1. exact I.
-    + destruct n.
+  intros H p.
+  induction n as [|n IH].
+  - right. apply safe_O.
+  - destruct IH as [IH|IH].
+    + left. exact IH.
+    + specialize (H (p n)) as [H|H].
+      * left. exists n. easy.
+      * right. apply safe_S; assumption.
+Qed.
+
+Fact least_safe_ex_least :
+  (forall p n, ex (least p) \/ safe p n) -> forall p, ex p -> ex (least p).
+Proof.
+  intros H p [n H1].
+  specialize (H p n) as [H|H].
+  * exact H.
+  * exists n. easy.
+Qed.
+
+Fact ex_least_XM :
+  (forall p, ex p -> ex (least p)) -> XM.
+Proof.
+  intros H P.
+  destruct (H (fun x => if x then P else True)) as (n&H1&H2).
+  + exists 1. exact I.
+  + destruct n.
       * left. exact H1. 
       * right. intros H3. specialize (H2 0). hnf in H2. apply H2 in H3. lia.
+Qed.
+
+
+Fact ex_least_XM_equiv :
+  (forall p, ex p -> ex (least p)) <-> XM.
+Proof.
+  split.
+  - apply ex_least_XM.
+  - intros H.  apply least_safe_ex_least, xm_least_safe, H.
 Qed.
