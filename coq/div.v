@@ -110,11 +110,10 @@ Qed.
 Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
-  assert (a < a' \/ a = a' \/ a' < a) as [H| [H|H]] by lia.
-  - unfold delta;  nia.
-  - unfold delta; lia.
-  - unfold delta; nia.
-    (* nia is an extension of lia that can handle multiplication *)
+  unfold delta.intros H1 H2.
+  enough (a = a') by lia.
+  nia.
+  (* nia is an extension of lia that can handle multiplication *)
 Qed.
 
 (* Alternative inductive proof not relying on lia *)  

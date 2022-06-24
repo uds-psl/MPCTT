@@ -16,10 +16,14 @@ Proof.
   - intros F.
     exists (fun x => if F x then true else false).
     intros x.
-    destruct (F x) as [H|H];
-      intuition congruence.
+    destruct (F x) as [H|H].
+    + tauto.
+    + intuition congruence.
   - intros [f H] x. specialize (H x). unfold dec.
-    destruct (f x);
+    destruct (f x).
+    + tauto.
+    + right.
+    
       intuition congruence.
 Qed.
 
