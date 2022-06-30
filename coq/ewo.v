@@ -1,11 +1,20 @@
 From Coq Require Import Lia.
-Definition dec P := { P } + { ~P }.
+Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
+Notation decidable p := (forall x, dec (p x)).
+Notation sig := sigT.
+Notation Sig := existT.
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+  : type_scope.
+
 Implicit Types n k: nat.
 
 Section WO.
   Variable p: nat -> Prop.
-  Variable p_dec: forall n, dec (p n).
+  Variable p_dec: decidable p.
 
   Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
 
@@ -43,18 +52,18 @@ Section WO.
   Qed.
   
   Lemma W' :
-    forall n, T n -> { k | p k }.
+    forall n, T n -> sig p.
   Proof.
     refine (fix F n a {struct a} := let (phi) := a in
                          match p_dec n with
-                           left H => _ | right H => _
+                           inl H => _ | inr H => _
                          end).
-    - exact (exist p n H).
+    - exact (Sig p n H).
     - exact (F (S n) (phi H)).
   Qed.
   
   Theorem W :
-    (exists n, p n) -> { n | p n }.
+    ex p -> sig p.
   Proof.
     intros H. apply (W' 0).
     destruct H as [n H].
@@ -73,7 +82,7 @@ Section WO.
 
   (** W' can be defined with the eliminator for T *)
   
-  Goal forall n, T n -> { k | p k }.
+  Goal forall n, T n -> sig p.
   Proof.
     refine (elim_T _ (fun n IH => _)). cbn in IH.
     destruct (p_dec n) as [H|H].
@@ -82,9 +91,9 @@ Section WO.
   Qed.
 
 
-  (** W' can also be defined  with eliminatpr Coq derives for T *)
+  (** W' can also be defined  with eliminator Coq derives for T *)
   
-  Goal forall n, T n -> { k | p k }.
+  Goal forall n, T n -> sig p.
   Proof.
     induction 1 as [n phi IH].
     destruct (p_dec n) as [H|H].
@@ -138,7 +147,7 @@ Section W2.
   Variable p_dec: forall x y, dec (p x y).
 
   Theorem W2:
-    (exists x y, p x y) -> { x & { y | p x y }}.
+    (exists x y, p x y) -> Sigma x y, p x y.
   Proof.
     intros H.
     pose (q n := p (pi1 n) (pi2 n)).
@@ -157,12 +166,12 @@ End W2.
 
 Section W_or.
   Variable p: nat -> Prop.
-  Variable p_dec: forall n, dec (p n).
+  Variable p_dec: decidable p.
   Variable q: nat -> Prop.
-  Variable q_dec: forall n, dec (q n).
+  Variable q_dec: decidable q.
 
   Theorem W_or:
-    (exists n, p n) \/ (exists n, q n) -> { n | p n} + { n | q n}.
+    ex p \/ ex q -> sig p + sig q.
   Proof.
     intros H0.
     destruct (W (fun n => p n \/ q n)) as [n H].
@@ -188,7 +197,7 @@ Section Step_indexed_eqdec.
   Goal eqdec X.
   Proof.
     intros x y.
-    enough ({ n | f x x n = true }) as [n H].
+    enough (Sigma n, f x x n = true) as [n H].
     { destruct (f x y n) eqn:H1.
       - left. apply f_prop. exists n. exact H1.
       - right. intros <-. congruence. }
