@@ -5,7 +5,7 @@ Definition dec (X: Type) := sum X (X -> False).
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
-Ltac list := cbn; auto; firstorder.
+Ltac list := cbn; auto; firstorder; fail.
 
 (*** Intuitionistic ND *)
 
