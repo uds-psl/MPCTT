@@ -11,8 +11,8 @@ Module Definitions.
   | O : nat
   | S : nat -> nat.
 
-  Inductive prod (X Y: Type) : Type :=
-  | pair : X -> Y -> prod X Y.
+  Inductive Pair (X Y: Type) : Type :=
+  | pair : X -> Y -> Pair X Y.
 
   Definition negb (x: bool) : bool :=
     match x with
@@ -50,7 +50,7 @@ Module Definitions.
     | S x', S y' => sub x' y'
     end.
   
-  Definition test (X Y: Type) (a: prod X Y) : prod Y X := 
+  Definition test (X Y: Type) (a: Pair X Y) : Pair Y X := 
     match a with
     |  pair _ _ x y => pair _ _ y x
     end.
@@ -70,17 +70,17 @@ Module Definitions.
   Check @pair nat bool.
   Check @pair nat bool (S O).
   
-  Definition swap {X Y: Type} (a: prod X Y) : prod Y X := 
+  Definition swap {X Y: Type} (a: Pair X Y) : Pair Y X := 
     match a with
     |  pair x y => pair y x
     end.
 
-  Definition fst {X Y: Type} (a: prod X Y) : X :=
+  Definition fst {X Y: Type} (a: Pair X Y) : X :=
     match a with
     |  pair x _ => x
     end.
 
-  Definition snd {X Y: Type} (a: prod X Y) : Y :=
+  Definition snd {X Y: Type} (a: Pair X Y) : Y :=
     match a with
     |  pair _ y => y
     end.
@@ -250,7 +250,7 @@ Qed.
 (** We now use the predefined pairs. *)
 
 Locate "*".
-Print prod.
+Print pair.
 
 (** We define a polymorphic swap function with
     implicit arguments. *)
@@ -335,6 +335,14 @@ Qed.
 
 Fact iter_shift X (f: X -> X) n x :
   iter f (S n) x = iter f n (f x).
+Proof.
+  induction n as [|n IH].
+  - cbn. reflexivity.
+  - cbn. f_equal. exact IH.
+Qed.
+
+Fact iter_shift' X (f: X -> X) n x :
+  f (iter f n x) = iter f n (f x).
 Proof.
   induction n as [|n IH].
   - cbn. reflexivity.
