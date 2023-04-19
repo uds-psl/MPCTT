@@ -1,5 +1,6 @@
 (** Step through the teaser file and relate what you see to what is discussed in the first chapter “Getting Started” of MPCTT. You want to understand the inductive proofs first. Next try to understand how the inductive functions “min” and “iter” are defined in Coq. Note that “Fixpoint” is Coq’s keyword for defining recursive functions. *)
 
+(** Addition is commutative *)
 
 Fact addO x :
   x + 0 = x.
@@ -26,6 +27,8 @@ Proof.
   - rewrite addO. reflexivity.
   - rewrite IH. rewrite addS. reflexivity.
 Qed.
+
+(** Minimum with quantified IH for commutativity *)
 
 Fixpoint min x y :=
   match x, y with
