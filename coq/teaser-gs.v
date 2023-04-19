@@ -92,6 +92,7 @@ Definition Fib f n :=
   end.
 
 Check Fib.
+Arguments Fib : simpl nomatch.
 
 Definition step a := (snd a, fst a + snd a).
 
@@ -103,10 +104,8 @@ Fact fib_correct n :
   fib n = Fib fib n.
 Proof.
   destruct n as [|n].
-  - reflexivity.
+  - cbn. reflexivity.
   - destruct n as [|n].
-    + reflexivity.
-    + reflexivity.
+    + cbn. reflexivity.
+    + cbn. unfold fib. reflexivity.
 Qed.
-
-(* Remark: If you put a ";cbn" after the two destructs, the proof still goes through but you see things you don't want to see.  Getting simplification right in Coq is tricky. *)
