@@ -13,18 +13,23 @@ fun x:nat => match 0 with 0 => x | S y => x + y end.
             
 Eval cbv match in
 fun x:nat => match S (2 * x) with 0 => x | S y => x + y end.
-
-Eval cbv match beta in
-fun x:nat => match S (2 * x) with 0 => x | S y => x + y end.
             
 Eval cbv match in
 fun x:nat => match x with 0 => x | S y => x + y end.
+
+(* Note that match reductions in Coq include 
+   resulting beta reductions for matching clauses *)
    
  
 (** Delta reduction *)
 
 Definition T : nat -> nat :=
   fun x => S (S x).
+
+Eval cbv delta in
+T 1 = 3.
+
+(* We switch to proof format so that we can do reduction chains *)
 
 Goal
   T 1 = 3.
@@ -42,7 +47,6 @@ Proof.
   cbv delta [P].
   cbv beta.
   cbv match.
-  cbv beta.
 Abort.
 
 (** Fix reduction *)
@@ -54,21 +58,25 @@ Goal
   D 1 = 2.
 Proof.
   cbv delta [D].
-  cbv fix. fold D.
-  cbv beta.
-  cbv match. cbv beta.
+  cbv fix. fold D. cbv beta.
+  cbv match.
   cbv delta [D].
-  cbv fix. fold D.
-  cbv beta.
+  cbv fix. fold D. cbv beta.
   cbv match.
 Abort.
+
+(* Note that fix reductions in Coq include the
+   resulting beta reduction for the continuation function *)
+
+(* Also note the non-computational fold steps 
+   to be undone with delta un recursion *)
 
 Goal
   D 1 = 2.
 Proof.
   cbv delta [D].
   cbv fix. cbv beta.
-  cbv match. cbv beta.
+  cbv match.
   cbv fix. cbv beta.
   cbv match.
 Abort.
@@ -81,6 +89,8 @@ Proof.
   cbv match. cbv beta.
   subst a.
 Abort.
+
+(* Note that we use set/subst so that delta affects only the left occurrence od D *)
 
 Locate "+".
 Import Nat. (* Write add for Nat.add *)
@@ -129,14 +139,14 @@ Goal
   add 1 = S.
 Proof.
   cbv.
-  change (S = S).
+  reflexivity.
 Abort.
 
 Goal
   (fun x => 3 + x - 2) = S.
 Proof.
   cbv.
-  change (S = S).
+  reflexivity.
 Abort.
 
 (* We use the predefined iter, which has arguments swapped *)
@@ -159,7 +169,7 @@ Print swap.
 Example demo X Y x y :
   swap X Y (pair X Y x y) = pair Y X y x.
 Proof.
-  cbv delta. cbv beta. cbv match. cbv beta.
+  cbv delta. cbv beta. cbv match.
 Abort.
 
 (** If-then-else and let notations *)
@@ -185,20 +195,22 @@ Section Currying.
   Definition U : (X -> Y -> Z) -> X * Y -> Z
     := fun f '(x,y) => f x y.
   Goal forall f x y, U (C f) (x,y) = f (x,y).
-  Proof.  
+  Proof.
+    cbv.
     reflexivity.
   Qed.
   Goal forall f x y, C (U f) x y = f x y.
   Proof.
-    reflexivity.
+    cbv. reflexivity.
   Qed.
   Goal forall f, C (U f) = f.
   Proof.
     cbv. reflexivity.
+    (* Note the use of eta equivalence *)
   Qed.
   Goal forall f, U (C f) = f.
   Proof.
-    intros f.
     cbv.
+    Fail reflexivity.
   Abort.
 End Currying.
