@@ -39,4 +39,4 @@ Fail
 
 (* Universe Inconsistency *)
 
-Check (fun X: Set => True) Set.
+Fail Check (fun X: Set => True) Set.
