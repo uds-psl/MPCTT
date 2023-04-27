@@ -39,4 +39,15 @@ Fail
 
 (* Universe Inconsistency *)
 
-Fail Check (fun X: Set => True) Set.
+Fail Check
+  (fun X: Set => True) Set.
+
+(* Elimnation restriction *)
+
+Fail Check
+  fun a: True \/ True => if a then true else true.
+
+Print or.
+
+Check
+  fun a: True \/ True => if a then or_intror I else or_introl I.
