@@ -99,7 +99,6 @@ Proof.
   - cbv. reflexivity.
   - intros n IH y. cbn. rewrite IH. reflexivity.
 Qed.
- 
 
 (*** [nat <> bool] *)
 
@@ -198,6 +197,22 @@ Proof.
     + specialize (IH y). intuition.
 Qed.
 
+Definition eq_nat' : nat -> nat -> bool :=
+  elim_nat (fun _ => nat -> bool)
+    (elim_nat (fun _ => bool) true (fun _ _ => false))
+    (fun _ f => elim_nat (fun _ => bool) false (fun y _ => f y)).
+
+Goal forall x y, x = y <-> eq_nat' x y = true.
+Proof.
+  refine (elim_nat _ _ _).
+  - intros [|y]; cbn.
+    + intuition.
+    + intuition congruence.
+  - intros x IH [|y]; cbn.
+    + intuition congruence.
+    + specialize (IH y). intuition.
+Qed.
+
 Definition plus
   : nat -> nat -> nat
   := fun x y => elim_nat (fun _ => nat) y (fun _ a => S a) x.
@@ -227,4 +242,21 @@ Proof.
     + reflexivity.
     + cbn. apply IH.
 Qed.
+
+(* We may define elim_nat with a section *)
+
+Section Elim_nat.
+  Variable p : nat -> Type.                  (*return type function *)
+  Variable e1 : p 0.                         (*continuation for zero *)
+  Variable e2 : forall n, p n -> p (S n).    (*continuation for S *)
+  Fixpoint elim_nat n : p n :=
+    match n with
+    | 0 => e1
+    | S n => e2 n (elim_nat n)
+    end.
+End Elim_nat.
+
+Check elim_nat.
+Print elim_nat.
+ 
 End Exercises.
