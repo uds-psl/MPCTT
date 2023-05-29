@@ -246,9 +246,9 @@ Qed.
 (* We may define elim_nat with a section *)
 
 Section Elim_nat.
-  Variable p : nat -> Type.                  (*return type function *)
+  Variable p : nat -> Type.                     (*return type function *)
   Variable e1 : p 0.                         (*continuation for zero *)
-  Variable e2 : forall n, p n -> p (S n).    (*continuation for S *)
+  Variable e2 : forall n, p n -> p (S n).          (*continuation for S *)
   Fixpoint elim_nat n : p n :=
     match n with
     | 0 => e1
