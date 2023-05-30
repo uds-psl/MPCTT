@@ -359,6 +359,59 @@ Proof.
       * apply le_S.
 Qed.
 
+(*** Lia *)
+
+(* The automation tactic lia provides an abstract treatment 
+   of numbers that frees  us from knowing the basic definitions 
+   and the basic lemmas. We shall use it from now on. *)
+
+(* Note that our definition of order via subtraction is still active.
+   All examples with lia will also work with Coq's definition of order *)
+
+From Coq Require Import Lia.
+
+Goal forall x y, x <= y -> y <= x -> x = y.
+Proof.
+  lia.
+Qed.
+
+Goal forall x y, ~ x < y -> ~ y < x -> x = y.
+Proof.
+  lia.
+Qed.
+
+Goal forall x y, x <= y -> x + (y - x) = y.
+Proof.
+  lia.
+Qed.
+
+Goal forall x y, x + y <= x -> y = 0.
+Proof.
+  lia.
+Qed.
+
+  Goal forall x y, x < y \/ x = y \/ y < x.
+Proof.
+  lia.
+Qed.
+
+(* lia cannot do sums but with a little help ... *)
+Goal forall x y, (x <= y) + (y < x).
+Proof.
+  intros x y.
+  Fail lia.
+  destruct (x-y) as [|z] eqn:E.
+  - left. reflexivity.
+  - right. lia.
+Qed.
+
+Goal forall x y, x <= y <-> exists z, x + z = y.
+Proof.
+  split.
+  - intros H. exists (y-x). lia.
+  - intros [z H]. lia. 
+Qed.
+
 (*** Complete Induction  *)
 
 Definition nat_compl_ind (p: nat -> Type) :
@@ -366,10 +419,60 @@ Definition nat_compl_ind (p: nat -> Type) :
 Proof.
   intros H x. apply H.
   induction x as [|x IH]; intros y H1.
-  - exfalso. cbn in H1. discriminate H1.
-  - apply H. intros z H2. apply IH.
+  - exfalso. cbn in H1.  discriminate H1.
+  - apply H. intros z H2. apply IH. 
     eapply le_trans_lt_le. exact H2. exact H1.
 Defined.
+
+(* Applications of nat_compl_ind appearing below use lia *)
+
+(* Euclidean remainder function using complete induction *)
+
+Definition U f (x y: nat) : nat :=
+  if le_lt_dec x y then x else f (x - S y) y.
+
+(* We exploit that y can be fixed *)
+
+Fact U_unique f g y :
+  (forall x, f x y = U f x y) ->
+  (forall x, g x y = U g x y) ->
+  (forall x, f x y = g x y).
+Proof.
+  intros H1 H2.
+  refine (nat_compl_ind _ _).
+  intros x IH.
+  rewrite H1, H2.
+  unfold U. destruct le_lt_dec as [H|H].
+  - reflexivity.
+  - apply IH. lia.
+Qed.
+
+Fact U_le f y :
+  (forall x, f x y = U f x y) -> forall x, f x y <= y.
+Proof.
+  intros H.
+  refine (nat_compl_ind _ _).
+  intros x IH.
+  rewrite H.
+  unfold U. destruct le_lt_dec as [H1|H1].
+  - exact H1.
+  - apply IH. lia.
+Qed.
+
+Fact U_Sigma f y :
+  (forall x, f x y = U f x y) ->
+  forall x, Sigma k, x = k * S y + f x y.
+Proof.
+  intros H.
+  refine (nat_compl_ind _ _).
+  intros x IH.
+  rewrite H.
+  unfold U. destruct le_lt_dec as [H1|H1].
+  - exists 0. reflexivity.
+  - specialize (IH (x - S y)) as [k IH]. lia.
+    exists (S k). lia.
+Qed.
+
 
 (*** Euclidean Division *)
 
@@ -485,60 +588,11 @@ Proof.
       * exact H.
 Qed.
 
-(*** Lia Demo *)
 
-(* The automation tactic lia provides an abstract treatment 
-   of numbers that frees  us from knowing the basic definitions 
-   and the basic lemmas. We shall use it from now on. *)
 
-(* Note that our definition of order via subtraction is still active.
-   All examples with lia will also work with Coq's definition of order *)
+  
 
-From Coq Require Import Lia.
 
-Goal forall x y, x <= y -> y <= x -> x = y.
-Proof.
-  lia.
-Qed.
-
-Goal forall x y, ~ x < y -> ~ y < x -> x = y.
-Proof.
-  lia.
-Qed.
-
-Goal forall x y, x <= y -> x + (y - x) = y.
-Proof.
-  lia.
-Qed.
-
-Goal forall x y, x + y <= x -> y = 0.
-Proof.
-  lia.
-Qed.
-
-  Goal forall x y, x < y \/ x = y \/ y < x.
-Proof.
-  lia.
-Qed.
-
-Locate "<=".
-
-(* lia cannot do sums *)
-Goal forall x y, (x <= y) + (y < x).
-Proof.
-  intros x y.
-  Fail lia.
-  destruct (x-y) as [|z] eqn:E.
-  - left. lia.
-  - right. lia.
-Qed.
-
-Goal forall x y, x <= y <-> exists z, x + z = y.
-Proof.
-  split.
-  - intros H. exists (y-x). lia.
-  - intros [z H]. lia. 
-Qed.
 
  
 

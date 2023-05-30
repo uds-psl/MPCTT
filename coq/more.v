@@ -229,6 +229,7 @@ Module SigmaTypes.
   Fact pi2_injective X (p: X -> Type) x (c c': p x) :
     E x c = E x c' -> c = c'.
   Proof.
+    (* cannot be shown without assumptions *)
     intros H.
     change c with (pi2 (E x c)).
     Fail pattern (E x c).
@@ -442,12 +443,24 @@ Proof.
   - intros (f&g&H1&H2). reflexivity.
 Defined.
 
+Fact bij_empty X Y :
+  (X -> False) -> (Y -> False) -> bijection X Y.
+Proof.
+  intros f g.
+  exists (fun x => match f x with end) (fun y => match g y with end).
+  - intros x. exfalso. easy.
+  - intros y. exfalso. easy.
+Qed.
+
 Goal bijection nat bool -> False.
 Proof.
   intros [f g H _].
-  (* Challenge: There is a two line proof using lia. *)
-Abort.
-
+  assert (f 0 = f 1 \/ f 0 = f 2 \/ f 1 = f 2) as [H3| [H3|H3]].
+  { destruct (f 0), (f 1), (f 2); auto. }
+  all: apply (f_equal g) in H3.
+  all: rewrite !H in H3.
+  all: easy.
+Qed.
 
 (*** Option Types *)
 
