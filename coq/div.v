@@ -105,12 +105,22 @@ Proof.
     + apply delta3; assumption.
 Qed.
 
+Fact Delta_correct' x y :
+  delta x y (fst (Delta x y)) (snd (Delta x y)).
+Proof.
+  unfold delta.
+  induction x as [|x IH]; cbn.
+  - lia.
+  - destruct (Delta x y) as [a b]; cbn in *.
+    destruct (Nat.eq_dec b y) as [H|H]; cbn; lia.
+ Qed.
+
 (*** Uniqueness of delta *)
 
 Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
-  unfold delta.intros H1 H2.
+  unfold delta. intros H1 H2.
   enough (a = a') by lia.
   nia.
   (* nia is an extension of lia that can handle multiplication *)
