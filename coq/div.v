@@ -1,8 +1,10 @@
 From Coq Require Import Arith Lia.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
+Notation sig := sigT.
+Notation Sig := existT.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sig (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
@@ -50,42 +52,32 @@ Proof.
   unfold delta. lia.
 Qed.
 
-Definition delta_total :
+Definition delta_cert :
   forall x y, Sigma a b, delta x y a b.
 Proof.
   intros x y.
   induction x as [|x (a&b&IH)].
-  - exists 0, 0. apply delta1.
+  - exists 0, 0. unfold delta; lia.
   - destruct (Nat.eq_dec b y) as [H|H].
-    + exists (S a), 0. eapply delta2; eassumption.
-    + exists a, (S b). apply delta3; assumption.
+    + exists (S a), 0. unfold delta in *; lia.
+    + exists a, (S b). unfold delta in *; lia.
 Defined.
-
-(* Lia doesn't need the derivation rules *)
-
-Goal forall x y, Sigma a b, delta x y a b.
-Proof.
-  intros x y. unfold delta.
-  induction x as [|x (a&b&IH)].
-  - exists 0, 0. lia. 
-  - destruct (Nat.eq_dec b y) as [H|H].
-    + exists (S a), 0. lia.
-    + exists a, (S b). lia.
-Qed.
 
 (* Computation is possible *)
 
-Definition D x y := pi1 (delta_total x y).
-Definition M x y := pi1 (pi2 (delta_total x y)).
+Definition D x y := pi1 (delta_cert x y).
+Definition M x y := pi1 (pi2 (delta_cert x y)).
 
 Compute D 100 3.
 Compute M 100 3.
 
-Fact delta_DM x y :
-delta x y (D x y) (M x y).
+Definition sat_delta f := forall x y, delta x y (fst (f x y)) (snd (f x y)).
+
+Fact DM_sat_delta :
+  sat_delta (fun x y => (D x y, M x y)).
 Proof.
-  exact (pi2 (pi2 (delta_total x y))).
-Qed.
+  exact (fun x y => pi2 (pi2 (delta_cert x y))).
+ Qed.
 
 Fixpoint Delta (x y: nat) : nat * nat :=
   match x with
@@ -94,26 +86,17 @@ Fixpoint Delta (x y: nat) : nat * nat :=
            if Nat.eq_dec b y then (S a, 0) else (a, S b)
   end.
 
-Fact Delta_correct x y :
-  delta x y (fst (Delta x y)) (snd (Delta x y)).
+Fact Delta_sat_delta :
+  sat_delta Delta.
 Proof.
+  intros x y.
   induction x as [|x IH]; cbn.
-  - apply delta1.
+  - unfold delta; lia.
   - destruct (Delta x y) as [a b]; cbn in *.
     destruct (Nat.eq_dec b y) as [H|H]; cbn.
-    + eapply delta2; eassumption.
-    + apply delta3; assumption.
+    + unfold delta in *; lia.
+    + unfold delta in *; lia.
 Qed.
-
-Fact Delta_correct' x y :
-  delta x y (fst (Delta x y)) (snd (Delta x y)).
-Proof.
-  unfold delta.
-  induction x as [|x IH]; cbn.
-  - lia.
-  - destruct (Delta x y) as [a b]; cbn in *.
-    destruct (Nat.eq_dec b y) as [H|H]; cbn; lia.
- Qed.
 
 (*** Uniqueness of delta *)
 
@@ -156,6 +139,24 @@ Proof.
   intros x y z [H [=]] %delta_unique1; lia.
 Qed.
 
+Definition agree {X Y Z} (f g: X -> Y -> Z) :=
+  forall x y, f x y = g x y.
+ 
+Lemma pair_eq X Y (a b: X * Y) :
+  fst a = fst b /\ snd a = snd b -> a = b.
+Proof.
+  destruct a; destruct b; cbn; intuition congruence.
+Qed.
+
+Fact sat_delta_unique f g :
+  sat_delta f -> sat_delta g -> agree f g.
+Proof.
+  intros H1 H2 x y.
+  apply pair_eq. 
+  eapply delta_unique; easy.
+Qed.
+
+
 (*** Repeated subtraction *)
 
 Fact delta4 x y:
@@ -176,18 +177,17 @@ Goal forall x y,
 Proof.
   intros x y.
   apply (delta_unique x y).
-  - apply delta_DM.
+  - apply DM_sat_delta.
   - destruct (le_lt_dec x y) as [H|H].
-    + apply delta4, H.
-    + apply delta5.
-      * apply delta_DM.
-      * exact H.
+    + unfold delta; lia.
+    + generalize (DM_sat_delta (x - S y) y). cbn.
+      unfold delta; lia.
 Qed.
 
 (* Euclidean Division with repeated subtraction *)
 Module Repeated_Subtraction.
 
-  Definition delta_tot :
+  Definition delta_cert_rep_sub :
     forall x y, Sigma a b, delta x y a b.
   Proof.
     intros x y. revert x.
@@ -195,70 +195,50 @@ Module Repeated_Subtraction.
     intros x IH.
     destruct (le_lt_dec x y) as [H|H].
     - exists 0, x. unfold delta; lia.
-    - specialize (IH (x - S y)) as (a&b&IH1&IH2). lia.
-      exists (S a), b. unfold delta; lia.
-  Defined.
-
-  Definition D x y := pi1 (delta_total x y).
-  Definition M x y := pi1 (pi2 (delta_total x y)).
-  
-  Compute D 1003 3.
-  Compute M 1003 3.
+    - specialize (IH (x - S y)) as (a&b&IH). lia.
+      exists (S a), b. unfold delta in *; lia.
+  Qed.
 
 End Repeated_Subtraction.
 
 (* Equivalence relation spec and procedural spec *)
 
-Implicit Type f : nat -> nat -> nat * nat.
-
-Definition sat_delta f :=
-  forall x y, delta x y (fst (f x y)) (snd (f x y)).
-
-Fact cert_sat_delta :
-  forall F: (forall x y, Sigma a b, delta x y a b),
-    sat_delta (fun x y => (pi1 (F x y), pi1 (pi2 (F x y)))).
-Proof.
-  intros F x y. exact (pi2 (pi2 (F x y))).
-Qed.
-
-Definition rep_sub f x y :=
+Definition rep_sub (f: nat -> nat -> nat * nat) x y :=
   if le_lt_dec x y then (0,x)
   else let (a,b) := f (x - S y) y in (S a, b).
 
-Definition sat_rep_sub f :=
-  forall x y, f x y = rep_sub f x y.
-
 Fact rep_sub_delta f :
-  sat_rep_sub f -> sat_delta f.
+  agree f (rep_sub f) -> sat_delta f.
 Proof.
   intros E x y. revert x.
   refine (nat_compl_ind _ _). intros x IH.
-  rewrite E. unfold rep_sub.
   specialize (IH (x - S y)).
+  rewrite E. unfold rep_sub.
   destruct (f (x - S y) y) as [a b]; cbn in *.
   destruct (le_lt_dec x y) as [H|H]; cbn.
-  - apply delta4, H.
-  - apply delta5. 2:exact H. apply IH. lia.
+  - unfold delta in *; lia.
+  - unfold delta in *; lia.
 Qed.
-    
-Lemma pair_eq X Y (a b: X * Y) :
-  fst a = fst b /\ snd a = snd b -> a = b.
+   
+Fact delta_rep_sub f :
+  sat_delta f -> agree f (rep_sub f).
 Proof.
-  destruct a; destruct b; cbn; intuition congruence.
+  intros H.
+  apply sat_delta_unique. exact H.
+  intros x y. unfold rep_sub.
+  destruct (le_lt_dec x y) as [H1|H1]; cbn.  
+  - unfold delta; lia.
+  - specialize (H (x - S y) y).
+    destruct (f (x - S y) y) as [a b]; cbn in *.
+    unfold delta in *; lia.
 Qed.
 
-Fact delta_rep_sub f :
-  sat_delta f -> sat_rep_sub f.
+Fact rep_sub_Delta :
+  agree Delta (rep_sub Delta).
 Proof.
-  intros H x y. apply pair_eq.
-  apply (delta_unique x y). easy.
-  unfold rep_sub.
-  specialize (H (x - S y) y).
-  destruct (f (x - S y) y) as [a b]; cbn in *.  
-  destruct (le_lt_dec x y) as [H1|H1]; cbn.
-  - apply delta4, H1.
-  - apply delta5; easy. 
-Qed.
+  apply delta_rep_sub, Delta_sat_delta.
+ Qed.
+
 
 (*** Predefined div and mod *)
 
