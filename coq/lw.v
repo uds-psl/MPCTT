@@ -6,14 +6,17 @@ Notation Sig := existT.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Notation decider p := (forall x, dec (p x)).
-Notation unique p := (forall x y, p x -> p y -> x = y).
+Notation unique p := (forall x x', p x -> p x' -> x = x').
+Notation functional p := (forall x y y', p x y -> p x y' -> y = y').
 
 Definition nat_eqdec : eqdec nat.
 Proof.
   intros x y.
-  destruct (Nat.eq_dec x y) as [H|H].
-  - left. exact H.
-  - right. exact H.
+  destruct (x-y) eqn:E.
+  - destruct (y-x) eqn:E'.
+    + left; lia.
+    + right; lia.
+  - right; lia.
 Defined.
 
 Implicit Types (n k: nat).
@@ -42,218 +45,151 @@ Proof.
   intros H1 H2 k H3.
   specialize (H1 k H3).
   enough (k <> n) by lia.
-  intros ->. easy.
+  congruence.
 Qed.
 
-(*** Step-Indexed Linear Search *)
+(*** Least witness functions *)
 
+Section LWF.
+  Variable p : nat -> Prop.
 
-Section Step_indexed_linear_search.
-  Variable p: nat -> Prop.
-  Variable p_dec: decider p.
+  Definition delta x y := (least p y /\ y < x) \/ (safe p x /\ y = x).
+  Definition lwf f := forall x, delta x (f x).
+
+  Fact delta_functional :
+    functional delta.
+  Proof.
+    intros x y y' [[H1 H2]|[H2 ->]] [[H1' H2']|[H2' ->]].
+    - eapply least_unique; eassumption.
+    - exfalso. specialize H1 as [H1 _]. apply H2' in H1. lia.
+    - exfalso. specialize H1' as [H1 _]. apply H2 in H1. lia.
+    - reflexivity.
+  Qed.
+
+  Fact delta_least n x y :
+    p n -> n <= x -> delta x y -> least p y.
+   Proof.
+     intros H1 H2 [[H3 _]|[H3 ->]]. exact H3.
+     enough (n=x) as -> by easy.
+     apply H3 in H1. lia.
+   Qed.
+   
+   Fact lwf_least f n x :
+     lwf f -> p n -> n <= x  -> least p (f x).
+   Proof.
+     intros H1 H2 H3.
+     eapply delta_least.  exact H2. exact H3. apply H1.
+   Qed.
   
-  Fixpoint L n k : nat :=
-    match n with
-    | 0 => k
-    | S n' => if p_dec k then k else L n' (S k)
-    end.
+   Variable p_dec : forall x, p x + (p x -> False).
 
-  Lemma L_correct' :
-    forall n k, p (n + k) -> safe p k -> least p (L n k).
-  Proof.
-    induction n as [|n IH]; cbn; intros k H1 H2.
-    - easy.
-    - destruct (p_dec k) as [H|H].
-      + easy.
-      + apply IH. 
-        * replace (n + S k) with (S n + k) by lia. exact H1.
-        * apply safe_S; assumption.
-  Qed.
+   Fixpoint G x :=
+     match x with
+     | 0 => 0
+     | S x => let y:= G x in if p_dec y then y else S x
+     end.
 
-  Lemma L_correct n :
-    p n -> least p (L n 0).
-  Proof.
-    intros H. apply L_correct'.
-    - replace (n + 0) with n by lia. exact H.
-    - apply safe_O.
-  Qed.
+   Fact G_lwf :
+     lwf G.
+   Proof.
+     hnf.
+     induction x as [|x IH]; cbn.
+     - right. split. apply safe_O. reflexivity. 
+     - destruct p_dec as [H|H].
+       + left.
+         destruct IH as [[IH1 IH]|[IH1 IH2]].
+         * split. exact IH1. lia.
+         * rewrite IH2 in *. split. easy. lia.
+       + destruct IH as [IH|[IH1 IH2]].
+         * exfalso. apply H, IH.
+         * right. split. 2:reflexivity.
+           apply safe_S. easy.  congruence.
+   Qed.
 
-  Lemma least_linear_sigma' :
-    forall n k, p (n + k) -> safe p k -> sig (least p).
-  Proof.
-    induction n as [|n IH]; intros k H1 H2.
-    - exists k. easy.
-    - destruct (p_dec k) as [H|H].
-      + exists k. easy.
-      + apply (IH (S k)).
-        * replace (n + S k) with (S n + k) by lia. exact H1.
-        * apply safe_S; assumption.
-  Qed.
+   Fact G_least n x :
+     p n -> n <= x  -> least p (G x).
+   Proof.
+     intros H1 H2.
+     eapply lwf_least.
+     - apply G_lwf.
+     - exact H1.
+     - exact H2.
+   Qed.
 
-  Lemma least_linear_sigma :
-    sig p -> sig (least p).
-  Proof.
-    intros [n H].
-    apply (least_linear_sigma' n 0).
-    - replace (n + 0) with n by lia. exact H.
-    - apply safe_O.
-  Qed.
-End Step_indexed_linear_search.
 
-(*** Direct Search *)
+   Fixpoint L n k :=
+     match n with
+     | 0 => k
+     | S n => if p_dec k then k else L n (S k)
+     end.
 
-Section Direct_search.
-  Variable p: nat -> Prop.
+   Fact L_correct n k :
+     safe p k -> delta (n + k) (L n k).
+   Proof.
+     induction n as [|n IH] in k |-*; cbn; intros H.
+     - right. easy.
+     - destruct p_dec as [H1|H1].
+       + left. split. easy. lia.
+       + specialize (IH (S k)).
+         replace (S (n + k)) with (n + S k) by lia.
+         apply IH. apply safe_S; assumption.
+   Qed.
 
-  (** Certifying version *)
+   Fact L_lwf :
+     lwf (fun x => L x 0).
+   Proof.
+     intros x.
+     replace x with (x + 0) at 1.
+     apply L_correct. apply safe_O. lia.
+   Qed.
 
-  Variable p_dec: decider p.
-  
-  Lemma least_direct_sigma' :
-    forall n, safe p n + sig (least p).
-  Proof.
-    induction n as [|n IH].
-    - left. apply safe_O.
-    - destruct IH as [IH|IH].
-      + destruct (p_dec n) as [H|H].
-        * right. exists n. easy.
-        * left. apply safe_S; assumption.
-      + right. exact IH.
-  Qed.
+   Definition delta_sat : forall x, sig (delta x).
+   Proof.
+     induction x as [|x IH].
+     - exists 0. right. split. 2:reflexivity. apply safe_O.
+     - destruct IH as [y IH].
+       destruct (p_dec y) as [H|H].
+       + exists y. left.
+         destruct IH as [IH|[IH ->]]; unfold delta.
+         * intuition lia.
+         * split. easy. lia.
+       + exists (S x).
+         destruct IH as [IH|[IH ->]].
+         * exfalso. apply H, IH.
+         * right. split. 2:reflexivity.
+           apply safe_S; assumption.
+   Defined.
 
-  Lemma least_direct_sigma :
-    sig p -> sig (least p).
-  Proof.
-    intros [n H].
-    destruct (least_direct_sigma' n) as [H1|H1].
-    - exists n. easy.
-    - exact H1.
-  Qed.
+End LWF.
 
-  Fact least_ex :
-    ex p -> ex (least p).
-  Proof.
-    intros [n H].
-    edestruct least_direct_sigma as [k H1].
-    - exists n. exact H.
-    - exists k. exact H1.
-  Qed.
+Fact lw_operator (p: nat -> Prop) :
+  decider p -> sig p -> sig (least p).
+Proof.
+  intros d [n H]. exists (G p d n).
+  eapply G_least. exact H. lia.
+Qed.
 
-  Fact least_dec :
-    decider (least p).
-  Proof.
-    intros n.
-    destruct (p_dec n) as [H|H].
-    2:{ right. contradict H. apply H. }
-    destruct (least_direct_sigma (Sig _ n H)) as [k H1].
-    destruct (nat_eqdec k n) as [->|H2].
-    - left. exact H1.
-    - right. contradict H2. eapply least_unique; eassumption.
-  Qed.
+Fact lw_exists (p: nat -> Prop) :
+  decider p -> ex p -> ex (least p).
+Proof.
+  intros d [n H]. exists (G p d n).
+  eapply G_least. exact H. lia.
+Qed.
 
-  (** Simply-typed version *)
+Fact least_dec (p: nat -> Prop) :
+  decider p -> decider (least p).
+Proof.
+  intros d n.
+  destruct (d n) as [H|H].
+  - assert (H1: least p (G p d n)).
+    { eapply G_least. exact H. lia. }
+    destruct (nat_eqdec (G p d n) n) as [H2|H2].
+    + left. congruence.
+    + right. contradict H2. eapply least_unique; eassumption.
+  - right. contradict H. apply H.
+Qed.
 
-  Fixpoint D n : option nat :=
-    match n with
-    | 0 => None
-    | S n' => match D n' with
-             | Some x => Some x
-             | None => if p_dec n' then Some n' else None
-             end
-    end.
-
-  Definition W n : nat :=
-    match D n with
-    | Some x => x
-    | None => n
-    end.
-
-  Fact D_correct n :
-    match D n with
-    | Some x => least p x
-    | None => safe p n
-    end.
-  Proof.
-    induction n as [|n IH]; cbn.
-    - apply safe_O.
-    - destruct (D n) as [x|].
-      + exact IH.
-      + destruct (p_dec n) as [H|H].
-        * easy.
-        * apply safe_S; assumption.
-  Qed.
-
-  Fact W_correct n :
-    p n -> least p (W n).
-  Proof.
-    intros H. unfold W. generalize (D_correct n).
-    destruct (D n) as [x|]; easy.
-  Qed.
-
-  (** Derivation rules *)
-
-  Definition delta n (a: option nat) : Prop :=
-    match a with None => safe p n | Some x => least p x end.
-
-  Fact delta1 :
-    delta 0 None.
-  Proof.
-    apply safe_O.
-  Qed.
-  
-  Fact delta2 n x :
-    delta n (Some x) -> delta (S n) (Some x).
-  Proof.
-    easy.
-  Qed.
-  
-  Fact delta3 n :
-    delta n None -> p n -> delta (S n) (Some n).
-  Proof.
-    easy.
-  Qed.
-  
-  Fact delta4 n :
-    delta n None -> ~p n -> delta (S n) None.
-  Proof.
-    intros H1 H2. apply safe_S; assumption.
-  Qed.
-
-  Goal forall n, delta n (D n).
-  Proof.
-    induction n as [|n IH].
-    - apply delta1.
-    - cbn. destruct (D n) as [x|].
-      + apply delta2, IH.
-      + destruct (p_dec n) as [H|H].
-        * apply delta3; assumption.
-        * apply delta4; assumption.
-  Qed.
-  
-  Goal forall n, sig (delta n).
-  Proof.
-    induction n as [|n IH]; cbn.
-    - exists None. apply delta1.
-    - destruct IH as [[x|] IH].
-      + exists (Some x). apply delta2, IH.
-      + destruct (p_dec n) as [H|H].
-        * exists (Some n). apply delta3; assumption.
-        * exists None. apply delta4; assumption.
-  Qed.
-
-  Goal forall n, sig (delta n) <=> safe p n + sig (least p).
-  Proof.
-    split.
-    - intros [[x|] H].
-      + right. exists x. exact H.
-      + left. exact H.
-    - intros [H|[x H]].
-      + exists None. exact H.
-      + exists (Some x). exact H.
-  Qed.
-End Direct_search.
-
-(*** XM and Least Elements *)
+(*** XM and least elements *)
 
 Definition XM := forall P, P \/ ~P.
 
@@ -286,8 +222,8 @@ Proof.
   destruct (H (fun x => if x then P else True)) as (n&H1&H2).
   + exists 1. exact I.
   + destruct n.
-      * left. exact H1. 
-      * right. intros H3. specialize (H2 0). hnf in H2. apply H2 in H3. lia.
+    * left. exact H1. 
+    * right. intros H3. specialize (H2 0). hnf in H2. apply H2 in H3. lia.
 Qed.
 
 
