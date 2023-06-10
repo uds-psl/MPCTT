@@ -14,7 +14,7 @@
 -  Numbers [nat.v](nat.v)
 -  Euclidean Division [div.v](div.v)
 -  Least Witnesses [lw.v](lw.v)
--  Size Recursion [sizerec.v](sizerec.v)
+-  Size Recursion and Step-Indexing [sizerec.v](sizerec.v)
 -  Lists [list.v](list.v)
 -  Case Study: Expression Compiler [compiler.v](compiler.v)
 -  Numeral Types as Indexed Inductive Types [numeral.v](numeral.v)
