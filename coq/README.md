@@ -7,7 +7,7 @@
 -  Inductive Eliminators [elim.v](elim.v)
 -  Case Study: Cantor Pairing [pairing.v](pairing.v)
 -  Existential Quantification [exquant.v](exquant.v)
--  Sum and Sigma Types [more.v](more.v)
+-  Sum and Sigma Types [sumsigma.v](sumsigma.v)
 -  Extensionality [ext.v](ext.v)
 -  Excluded Middle and Double Negation [xm.v](xm.v)
 -  Provability [provability.v](provability.v)
