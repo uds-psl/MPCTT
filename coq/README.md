@@ -34,5 +34,6 @@
 - [List of tactics used](Tactics.md)
 - [List of commands used](Commands.md)
 
-For some of the chapters there are teaser files that may be used for lectures.
+For some of the chapters there are teaser files 
+that may be used for demos in lectures.
 For instance, there is [teaser-gs.v](teaser-gs.v) for "Getting Started".
