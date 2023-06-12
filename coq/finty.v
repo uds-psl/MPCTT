@@ -41,7 +41,7 @@ Proof.
   - right. congruence.
 Qed.
 
-(*** Lists *)
+(*** Preliminaries for Lists *)
 
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
@@ -600,7 +600,6 @@ Proof.
   - apply bijection_sym, H.
 Qed.
   
-
 Fact fin_fin_le_injection X Y m n :
   fin m X -> fin n Y -> 1 <= m <= n -> injection X Y.
 Proof.
@@ -659,7 +658,7 @@ Proof.
     intros x. rewrite sub_pos; trivial.
 Qed.
 
-Fact injection_nat_finite X :
+Fact injection_nat_not_finite X :
   injection nat X -> finite X -> False.
 Proof.
   intros [f g H] (D&A&H1).
@@ -759,24 +758,6 @@ Proof.
   eapply injective_eqdec, inv_injective. easy.
 Qed.
   
-Fact bijection_fin_fin X Y n :
-  bijection X Y -> fin n X -> fin n Y.
-Proof.
-  intros H (D&A&H2&H3). hnf.
-  split.
-  { eapply bijection_eqdec; eassumption. }
-  destruct H as  [f g H1 H4].
-  exists (map f A). split.
-  2:{ rewrite <- H3. apply map_length. }
-  split.
-  - intros x. eapply in_map_iff. exists (g x). split.
-    + apply H4.
-    + apply H2.
-  - apply nrep_map.
-    + eapply inv_injective, H1.
-     + apply H2.
-Qed.
-
 Fact fin_fin_bijection n X Y:
   fin n X -> fin n Y -> bijection X Y.
 Proof.

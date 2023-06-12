@@ -135,6 +135,18 @@ Proof.
   - intuition congruence.
 Qed.
 
+Definition injective {X Y} (f: X -> Y) :=
+  forall x x', f x = f x' -> x = x'.
+
+Fact injective_eqdec {X Y f} :
+  @injective X Y f -> eqdec Y -> eqdec X.
+Proof.
+  intros H F x x'.
+  destruct (F (f x) (f x')) as [H1|H1].
+  - left. apply H, H1.
+  - right. congruence.
+Qed.
+
 (*** Dependent Pair Types *)
 
 Module SigmaTypes.
