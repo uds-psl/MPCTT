@@ -12,7 +12,7 @@ Notation "'Sigma' x .. y , p" :=
 
 Implicit Types n k: nat.
 
-Section WO.
+Section EWO.
   Variable p: nat -> Prop.
   Variable p_dec: decidable p.
 
@@ -50,18 +50,15 @@ Section WO.
   Proof.
     intros H. eapply T_zero, T_base, H.
   Qed.
-  
-  Lemma W' :
-    forall n, T n -> sig p.
-  Proof.
-    refine (fix F n a {struct a} := let (phi) := a in
-                         match p_dec n with
-                           inl H => _ | inr H => _
-                         end).
-    - exact (Sig p n H).
-    - exact (F (S n) (phi H)).
-  Qed.
-  
+
+  Definition W'
+    : forall n, T n -> sig p
+    := fix f n a := let (phi) := a in
+                    match p_dec n with
+                    | inl h => (Sig p n h)
+                    | inr h => f (S n) (phi h)
+                    end.
+
   Theorem W :
     ex p -> sig p.
   Proof.
@@ -69,18 +66,30 @@ Section WO.
     destruct H as [n H].
     apply (V n), H.
   Qed.
- 
-  Definition elim_T
-    : forall q: nat -> Type, (forall n, (~p n -> q (S n)) -> q n) -> forall n, T n -> q n
-    := fun q f => fix F n a := let (phi) := a in f n (fun h => F (S n) (phi h)).
 
-  Goal forall q g n phi,
-      elim_T q g n (C n phi) = g n (fun h => elim_T q g (S n) (phi h)).
+  (* Eliminator generalizing W' *)
+  
+  Definition elim_T (q: nat -> Type)
+    : (forall n, (~p n -> q (S n)) -> q n) ->
+      forall n, T n -> q n
+    := fun e => fix f n a := let (phi) := a in e n (fun h => f (S n) (phi h)).
+
+  Fact W'_elim_T_agree n a :
+    W' n a = elim_T (fun _ => sig p)
+               (fun n f => match p_dec n with
+                        | inl h => (Sig p n h)
+                        | inr h => f h
+                        end)
+               n a.
   Proof.
     reflexivity.
   Qed.
-
-  (** W' can be defined with the eliminator for T *)
+ 
+  Fact elim_T_unfold q e n phi :
+    elim_T q e n (C n phi) = e n (fun h => elim_T q e (S n) (phi h)).
+  Proof.
+    reflexivity.
+  Qed.
   
   Goal forall n, T n -> sig p.
   Proof.
@@ -90,12 +99,11 @@ Section WO.
     - exact (IH H).
   Qed.
 
-
   (** W' can also be defined  with eliminator Coq derives for T *)
   
   Goal forall n, T n -> sig p.
   Proof.
-    induction 1 as [n phi IH].
+    induction 1 as [n phi IH]. clear phi.
     destruct (p_dec n) as [H|H].
     - exists n. exact H.
     - exact (IH H).
@@ -129,7 +137,7 @@ Section WO.
         exists k. split. lia. exact H2.
     - intros (k&H1&H2). apply (T_step_add (k - n)).
       replace (k - n + n) with k by lia.
-      apply T_base, H2.
+      constructor. easy. 
   Qed.
       
 End WO.
@@ -137,7 +145,7 @@ End WO.
 (** Binary witness operator *)
 
 Section W2.
-  (** We assume a paiting bijection *)
+  (** We assume a pairing bijection *)
   Variable P: nat -> nat -> nat.
   Variable pi1 pi2: nat -> nat.
   Variable pi1_eq: forall x y, pi1 (P x y) = x.
