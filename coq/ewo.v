@@ -74,13 +74,12 @@ Section EWO.
       forall n, T n -> q n
     := fun e => fix f n a := let (phi) := a in e n (fun h => f (S n) (phi h)).
 
-  Fact W'_elim_T_agree n a :
-    W' n a = elim_T (fun _ => sig p)
-               (fun n f => match p_dec n with
-                        | inl h => (Sig p n h)
-                        | inr h => f h
-                        end)
-               n a.
+  Fact W'_elim_T_agree :
+    W' = elim_T (fun _ => sig p)
+           (fun n f => match p_dec n with
+                    | inl h => (Sig p n h)
+                    | inr h => f h
+                    end).
   Proof.
     reflexivity.
   Qed.
@@ -140,7 +139,7 @@ Section EWO.
       constructor. easy. 
   Qed.
       
-End WO.
+End EWO.
 
 (** Binary witness operator *)
 
