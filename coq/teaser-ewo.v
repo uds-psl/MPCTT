@@ -50,4 +50,45 @@ Section EWO.
     reflexivity.
   Qed.
 
+  Lemma T_lower n :
+    T n -> T 0.
+  Proof.
+    induction n as [|n IH]. easy.
+    intros H. apply IH. constructor. auto.
+  Qed.
+
+  Definition W : ex p -> sig p.
+  Proof.
+    intros H. eapply W' with (n:=0).
+    destruct H as [n H].
+    enough (T n) as H1%T_lower by easy.
+    constructor. easy.
+  Qed.
+
 End EWO.
+
+Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
+
+Section Countable_EWO.
+  Variable X: Type.
+  Variable f: X -> nat.
+  Variable g: nat -> X.
+  Variable gf: inv g f.
+  Variable p: X -> Prop.
+  Variable p_dec: decidable p.
+
+  Definition cewo : ex p -> sig p.
+  Proof.
+    intros H.
+    pose (q n := p (g n)).
+    assert (q_dec: decidable q).
+    { intros n. apply p_dec. }
+    assert (q_ex: ex q).
+    { destruct H as [x H]. exists (f x). hnf. congruence. }
+    enough (sig q) as [n H1].
+    { exists (g n). exact H1. }
+    apply W; assumption.
+  Qed.
+End Countable_EWO.
+    
+      

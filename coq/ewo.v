@@ -18,13 +18,6 @@ Section EWO.
 
   Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
 
-  Definition pad3 n (d: T n) : T n :=
-    C n (fun h => C (S n) (fun h1 => C (S (S n)) (fun h2 =>
-       let (phi) := d in
-       let (phi1) := phi h in
-       let (phi2) := phi1 h1 in
-       phi2 h2))).
-
   Lemma T_base n :
     p n -> T n.
   Proof.
@@ -98,16 +91,6 @@ Section EWO.
     - exact (IH H).
   Qed.
 
-  (** W' can also be defined  with eliminator Coq derives for T *)
-  
-  Goal forall n, T n -> sig p.
-  Proof.
-    induction 1 as [n phi IH]. clear phi.
-    destruct (p_dec n) as [H|H].
-    - exists n. exact H.
-    - exact (IH H).
-  Qed.
-
   (** Existential characterisation of T *)
 
   Fact T_step_add k n :
@@ -138,7 +121,16 @@ Section EWO.
       replace (k - n + n) with k by lia.
       constructor. easy. 
   Qed.
-      
+
+  (* Padding *)
+  
+  Definition pad3 n (d: T n) : T n :=
+    C n (fun h => C (S n) (fun h1 => C (S (S n)) (fun h2 =>
+       let (phi) := d in
+       let (phi1) := phi h in
+       let (phi2) := phi1 h1 in
+       phi2 h2))).
+
 End EWO.
 
 (** Binary witness operator *)
@@ -197,6 +189,30 @@ Section W_or.
   Qed.
 End W_or.
 
+Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
+
+Section Countable_EWO.
+  Variable X: Type.
+  Variable f: X -> nat.
+  Variable g: nat -> X.
+  Variable gf: inv g f.
+  Variable p: X -> Prop.
+  Variable p_dec: decidable p.
+
+  Definition cewo : ex p -> sig p.
+  Proof.
+    intros H.
+    pose (q n := p (g n)).
+    assert (q_dec: decidable q).
+    { intros n. apply p_dec. }
+    assert (q_ex: ex q).
+    { destruct H as [x H]. exists (f x). hnf. congruence. }
+    enough (sig q) as [n H1].
+    { exists (g n). exact H1. }
+    apply W; assumption.
+  Qed.
+End Countable_EWO.
+    
 Section Step_indexed_eqdec.
   Variable X: Type.
   Variable f: X -> X -> nat -> bool.
