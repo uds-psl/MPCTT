@@ -1,8 +1,7 @@
 From Coq Require Import Arith Lia.
-Unset Elimination Schemes.
 Definition dec (X: Type) := sum X (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Notation decidable p := (forall x, dec (p x)).
+Definition decidable X p := forall x:X, dec (p x).
 Notation sig := sigT.
 Notation Sig := existT.
 Notation "'Sigma' x .. y , p" :=
@@ -31,7 +30,7 @@ Section List1.
   Proof.
     intros d A.
     induction A as [|a A IH]; cbn.
-    - intros [|x B].
+    - intros [|b B].
       + left. easy.
       + right. easy.
     - intros [|x B].
