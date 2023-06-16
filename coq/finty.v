@@ -451,6 +451,18 @@ Proof.
   exact H1.
 Qed.
 
+Fact list_sigma_forall {X} {p: X -> Prop} (p_dec: decidable p) :
+  forall A, (Sigma x, x el A /\ p x) + (forall x, x el A -> ~p x).
+Proof.
+  induction A as [|a A IH].
+  - right. intros x [].
+  - destruct IH as [(b&H1&H2)|H].
+    + left. exists b. firstorder.
+    + destruct (p_dec a) as [H1|H1].
+      * left. exists a. firstorder.
+      * right. intros x [->|H2]; auto.
+Defined.          
+
 Section Dec.
   Variable (X: Type).
   Variable (X_fin: finite X).
@@ -458,23 +470,11 @@ Section Dec.
   Variable (p_dec: decidable p).
   Implicit Types A B: list X.
 
-  Fact list_sigma_forall A :
-    (Sigma x, x el A /\ p x) + (forall x, x el A -> ~p x).
-  Proof.
-    induction A as [|a A IH].
-    - right. intros x [].
-    - destruct IH as [(b&H1&H2)|H].
-      + left. exists b. firstorder.
-      + destruct (p_dec a) as [H1|H1].
-        * left. exists a. firstorder.
-        * right. intros x [->|H2]; auto.
-  Defined.          
-
   Fact fin_sigma_forall :
     (Sigma x, p x) + (forall x, ~p x).
   Proof.
     destruct X_fin as (_&A&H).
-    destruct (list_sigma_forall A) as [(a&H1&H2)|H1]; eauto.
+    destruct (list_sigma_forall p_dec A) as [(a&H1&H2)|H1]; eauto.
   Qed.
 
   Fact fin_dec_exists :
@@ -501,7 +501,38 @@ Proof.
   - intros x x'. eapply nrep_injective. 2,3:apply H0.
     clear x x'. apply H4. intros y. specialize (H y) as [x H].
     eapply in_map_iff; eauto.
- Qed.
+Qed.
+
+Fixpoint nat_list_sum (A: list nat) :=
+  match A with
+  | nil => 0
+  | x::A => x + nat_list_sum A
+  end.
+
+Fact nat_list_sum_le x A :
+  x el A -> x <= nat_list_sum A.
+Proof.
+  induction A as [|y A IH]; cbn.
+  - easy.
+  - intros [<-|H]. lia.
+    specialize (IH H). lia.
+Qed.
+
+Fact fin_nat {X} (f: X -> nat) :
+  finite X -> Sigma u, forall x, f x <= u.
+Proof.
+  intros (H1&A&H2).
+  exists (nat_list_sum (map f A)).
+  intros x. apply nat_list_sum_le.
+  apply in_map. apply H2.
+Qed.
+
+Fact nat_not_finite :
+  finite nat -> False.
+Proof.
+  intros [u H] % (fin_nat S).
+  specialize (H u). lia.
+Qed.
 
 (*** Injections and Bijections *)
 
@@ -517,12 +548,6 @@ Qed.
 Inductive bijection (X Y: Type) : Type :=
 | Bijection (f: X -> Y) (g: Y -> X) (_: inv g f) (_: inv f g).
 Arguments Bijection {X Y}.
-
-Fact bijection_refl {X} :
-  bijection X X.
-Proof.
-  exists (fun x => x) (fun x => x); easy.
-Qed.
 
 Fact bijection_sym {X Y} :
   bijection X Y -> bijection Y X.
@@ -718,6 +743,163 @@ Proof.
   split. apply fin_eqdec. apply Fin_listing.
 Qed.  
 
+(*** List-free proofs *)
+
+Fact fin_Fin_bijection X n :
+  fin n X <=> bijection X (Fin n).
+Proof.
+  split; intros H.
+  - eapply fin_fin_bij. exact H. apply fin_Fin.
+  - eapply bijection_fin_fin.
+    + apply bijection_sym, H.
+    + apply fin_Fin.
+Qed.
+
+Definition L {X Y}
+  : (option X -> option (option Y)) -> X -> option Y
+  := fun f x => match f (Some x) with
+             | Some b => b
+             | None => match f None with
+                      | Some b => b
+                      | None => None
+                      end
+             end.
+
+Lemma lowering {X Y}
+  {f: option (option X) -> option (option Y)}
+  {g: option (option Y) -> option (option X)} :
+  inv g f -> inv (L g) (L f).
+Proof.
+  intros H a. unfold L.
+  destruct (f None) eqn:?, (g None) eqn:?, (f (Some _)) eqn:?, (g (Some _)) eqn:?.
+  all: congruence.
+Qed.
+
+Fact Fin_inv_inv n f g :
+  @inv (Fin n) (Fin n) g f -> inv f g.
+Proof.
+  revert f g.
+  induction n as [|n IH]; cbn.
+  { intros f g _ []. }
+  destruct n; cbn.
+  { intros f g H [[]|]. destruct f as [[]|]. reflexivity. }
+  intros f g H.
+  specialize (IH _ _ (lowering H)).
+  destruct (f (g None)) as [b|] eqn:E.
+  - exfalso.
+    destruct (f None) as [b'|] eqn:?. 2:congruence.
+    specialize (IH b'). revert IH. unfold L.
+    destruct  (g (Some b')) eqn:?. 1:congruence.
+    destruct (g None) eqn:?.
+    + rewrite E. congruence.
+    + destruct (f (Some None)) eqn:?; congruence.
+  - intros [b|]. 2:exact E.
+    specialize (IH b). revert IH. unfold L.
+    destruct (g (Some b)) as [a|] eqn:?.
+    + destruct (f (Some a)) eqn:?.
+      * congruence.
+      * destruct (f None) eqn:?; congruence.
+    + destruct (g None) as [a|] eqn:?.
+      * rewrite E. destruct (f None) eqn:?; congruence.
+      * destruct (f (Some None)) eqn:?; congruence.
+Qed.
+
+(*
+Corollary fin_bijection_fin_fin X Y n f g :
+  bijection X (Fin n) ->
+  bijection Y (Fin n) ->
+  @inv X Y g f -> inv f g.
+Proof.
+  intros [fX gX HX1 HX2] [fY gY HY1 HY2] H.
+  enough (inv (fun a => fY (f (gX a))) (fun a => fX (g (gY a)))) as H3.
+  { intros y.
+                  
+*)
+
+Lemma Fin_Fin_False n :
+  injection (Fin (S (S n))) (Fin 1) -> False.
+Proof.
+  intros [f g H].
+  enough (f (Some None) = f None) as E.
+  { apply (f_equal g) in E. congruence. }
+  destruct f as [a|]. easy.
+  destruct f as [a|]; easy.
+Qed.
+  
+Lemma Fin_le m n :
+  injection (Fin m) (Fin n) -> m <= n.
+Proof.
+  intros H.
+  destruct m. lia.
+  destruct H as [f g H].
+  destruct n. contradiction (f None).
+  induction m as [|m IH] in H, f, g, n |-*.
+  - lia.
+  - destruct n.
+    + exfalso. eapply Fin_Fin_False. exists f g. exact H.
+    + enough (S m <= S n) by lia.
+      apply (IH n (L f) (L g)), lowering, H.
+Qed.
+
+Lemma Fin_bijection_card m n :
+  bijection (Fin m) (Fin n) -> m = n.
+Proof.
+  intros H.
+  enough (m <= n /\ n <= m) by lia.
+  split.
+  - apply Fin_le, bijection_injection, H.
+  - apply Fin_le, bijection_injection, bijection_sym, H.
+Qed.
+ 
+
+(*** Exercises *)
+
+(* Bijection theorem for option types *)
+
+Fact R {X Y f g} :
+  @inv (option X) (option Y) g f ->
+  forall x, Sigma y, match f (Some x) with Some y' => y = y' | None => f None = Some y end.
+Proof.
+  intros H x.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  - exists y. reflexivity.
+  - destruct (f None) as [y|] eqn:E2.
+    + exists y. reflexivity.
+    + exfalso. congruence.
+Qed.
+
+Fact R_inv {X Y f g} :
+  forall (H1: @inv (option X) (option Y) g f)
+    (H2: inv f g),
+    inv (fun y => pi1 (R H2 y)) (fun x => pi1 (R H1 x)).
+Proof.
+  intros H1 H2 x.
+  destruct (R H1 x) as [y H3]; cbn.
+  destruct (R H2 y) as [x' H4]; cbn.
+  revert H3 H4.  
+  destruct (f (Some x)) as [y1|] eqn:E.
+  - intros <-. rewrite <-E, H1. easy.
+  - intros <-.  rewrite H1. rewrite <-E, H1. congruence.
+Qed.
+
+Theorem bijection_option X Y : 
+  bijection (option X) (option Y) -> bijection X Y.
+Proof.
+  intros [f g H1 H2].
+  exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
+Qed.
+
+Lemma num_agree m n :
+  bijection (Fin m ) (Fin n) -> m = n.
+Proof.
+  induction m as [|m IH] in n |-*;  destruct n; cbn.
+  - easy.
+  - intros [_ g _ _]. exfalso. apply g. apply None.
+  - intros [f _ _ _]. exfalso. apply f. apply None.
+  - intros H. f_equal. apply IH. clear IH.
+    apply bijection_option, H.
+Qed.
+
 Fact Fin_forall_dec n X (f: Fin n -> X) (p: X -> Prop) :
   (forall x, dec (p x)) -> dec (forall a, p (f a)).
 Proof.
@@ -742,58 +924,4 @@ Proof.
     + destruct (F (f None)) as [H|H].
       * left. eauto.
       * right. intros [[a|] H1]; eauto.
-Qed.
-
-Goal forall m n, m = n -> Fin m = Fin n.
-Proof.
-  intros m n ->. reflexivity.
-Qed.
-
-(*** Bijections *)
-
-Fact bijection_eqdec X Y :
-  bijection X Y -> eqdec X -> eqdec Y.
-Proof.
-  intros [f g H H'].
-  eapply injective_eqdec, inv_injective. easy.
-Qed.
-  
-Fact fin_fin_bijection n X Y:
-  fin n X -> fin n Y -> bijection X Y.
-Proof.
-  (* beautiful proof script *)
-  intros (D&A&(H1&H2)&H3) (E&B&(H4&H5)&H6).
-  destruct n as [|n], A as [|a A], B as [|b B];
-    try discriminate H3; try discriminate H6.
-  - exists (fun x => match (H1 x) with end)
-      (fun y => match (H4 y) with end).
-    + intros x. destruct (H1 x).
-    + intros y. destruct (H4 y).
-  - assert (H: length (a::A) = length (b::B)) by congruence.
-    exists (fun x => sub b (b::B) (pos D (a::A) x))
-      (fun y => sub a (a::A) (pos E (b::B) y)).
-    + intros x. rewrite pos_sub, sub_pos; trivial.
-      rewrite <- H. apply pos_bnd, H1.
-    + intros y. rewrite pos_sub, sub_pos; trivial.
-      rewrite H. apply pos_bnd, H4.
-Qed.
-
-Corollary fin_fin_bij_card_eq  X Y m n :
-  fin m X -> fin n Y -> (bijection X Y <=> m = n).
-Proof.
-  intros H1 H2. split.
-  - intros H3. eapply fin_unique. exact H1.
-    eapply bijection_fin_fin. 2: exact H2.
-    apply bijection_sym, H3.
-  - intros ->. eapply fin_fin_bijection; eassumption.
-Qed.
-  
-Corollary bijection_Fin m n :
-  bijection (Fin m) (Fin n) -> m = n.
-Proof.
-  intros H. eapply fin_unique.
-  - apply fin_Fin.
-  - eapply bijection_fin_fin.
-    + apply bijection_sym, H.
-    + apply fin_Fin.
 Qed.
