@@ -311,7 +311,7 @@ Arguments nrep {X}.
 Arguments nrep_equiv {X}.
 Arguments nrep_discriminate {X}.
 
-Lemma nrep_map X Y (f: X -> Y) A :
+Fact nrep_map X Y (f: X -> Y) A :
   injective f -> nrep A -> nrep (map f A).
 Proof.
   intros H1.
@@ -324,7 +324,7 @@ Proof.
     auto.
 Qed.
 
-Lemma nrep_injective X Y (f: X -> Y) x x' A :
+Fact nrep_injective X Y (f: X -> Y) x x' A :
   nrep (map f A) -> x el A -> x' el A -> f x = f x' -> x = x'.
 Proof.
   induction A as [|a A IH]; cbn.
@@ -804,17 +804,16 @@ Proof.
       * destruct (f (Some None)) eqn:?; congruence.
 Qed.
 
-(*
+
 Corollary fin_bijection_fin_fin X Y n f g :
   bijection X (Fin n) ->
   bijection Y (Fin n) ->
   @inv X Y g f -> inv f g.
 Proof.
-  intros [fX gX HX1 HX2] [fY gY HY1 HY2] H.
-  enough (inv (fun a => fY (f (gX a))) (fun a => fX (g (gY a)))) as H3.
-  { intros y.
-                  
-*)
+  intros [f1 g1 g1f1 f1g1] [f2 g2 g2f2 f2g2] gf y.
+  enough (inv (fun a => f2 (f (g1 a))) (fun a => f1 (g (g2 a)))) as H by congruence.
+  apply Fin_inv_inv. congruence.
+Qed.
 
 Lemma Fin_Fin_False n :
   injection (Fin (S (S n))) (Fin 1) -> False.
@@ -826,7 +825,7 @@ Proof.
   destruct f as [a|]; easy.
 Qed.
   
-Lemma Fin_le m n :
+Fact Fin_le m n :
   injection (Fin m) (Fin n) -> m <= n.
 Proof.
   intros H.
@@ -841,7 +840,7 @@ Proof.
       apply (IH n (L f) (L g)), lowering, H.
 Qed.
 
-Lemma Fin_bijection_card m n :
+Fact Fin_bijection_card m n :
   bijection (Fin m) (Fin n) -> m = n.
 Proof.
   intros H.
@@ -851,8 +850,34 @@ Proof.
   - apply Fin_le, bijection_injection, bijection_sym, H.
 Qed.
  
-
 (*** Exercises *)
+
+Fact Fin_forall_dec n X (f: Fin n -> X) (p: X -> Prop) :
+  (forall x, dec (p x)) -> dec (forall a, p (f a)).
+Proof.
+  intros F.
+  induction n as [|n IH].
+  - left. intros [].
+  - specialize (IH (fun a => f (Some a))) as [IH|IH].
+    + destruct (F (f None)) as [H|H].
+      * left. intros [a|]. exact (IH a). exact H.
+      * right. intros H1. contradict (H (H1 None)).
+    + right. contradict IH. intros a. apply IH.
+Qed.
+
+Fact Fin_exists_dec n X (f: Fin n -> X) (p: X -> Prop) :
+  (forall x, dec (p x)) -> dec (exists a, p (f a)).
+Proof.
+  intros F.
+  induction n as [|n IH].
+  - right. intros [[] _].
+  - specialize (IH (fun a => f (Some a))) as [IH|IH].
+    +  left. destruct IH as [a IH]. eauto.
+    + destruct (F (f None)) as [H|H].
+      * left. eauto.
+      * right. intros [[a|] H1]; eauto.
+Qed.
+
 
 (* Bijection theorem for option types *)
 
@@ -889,7 +914,7 @@ Proof.
   exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
 Qed.
 
-Lemma num_agree m n :
+Fact Fin_bijection_card' m n :
   bijection (Fin m ) (Fin n) -> m = n.
 Proof.
   induction m as [|m IH] in n |-*;  destruct n; cbn.
@@ -898,30 +923,4 @@ Proof.
   - intros [f _ _ _]. exfalso. apply f. apply None.
   - intros H. f_equal. apply IH. clear IH.
     apply bijection_option, H.
-Qed.
-
-Fact Fin_forall_dec n X (f: Fin n -> X) (p: X -> Prop) :
-  (forall x, dec (p x)) -> dec (forall a, p (f a)).
-Proof.
-  intros F.
-  induction n as [|n IH].
-  - left. intros [].
-  - specialize (IH (fun a => f (Some a))) as [IH|IH].
-    + destruct (F (f None)) as [H|H].
-      * left. intros [a|]. exact (IH a). exact H.
-      * right. intros H1. contradict (H (H1 None)).
-    + right. contradict IH. intros a. apply IH.
-Qed.
-
-Fact Fin_exists_dec n X (f: Fin n -> X) (p: X -> Prop) :
-  (forall x, dec (p x)) -> dec (exists a, p (f a)).
-Proof.
-  intros F.
-  induction n as [|n IH].
-  - right. intros [[] _].
-  - specialize (IH (fun a => f (Some a))) as [IH|IH].
-    +  left. destruct IH as [a IH]. eauto.
-    + destruct (F (f None)) as [H|H].
-      * left. eauto.
-      * right. intros [[a|] H1]; eauto.
 Qed.
