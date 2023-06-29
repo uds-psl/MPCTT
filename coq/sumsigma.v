@@ -392,13 +392,71 @@ Section M.
 End M.
 End Ex_eta.
 
-(*** Bijection Types *)
+(*** Injections and Bijections *)
+
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
 
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 
+Fact inv_injective X Y (f: X -> Y) (g: Y -> X) :
+  inv g f -> injective f.
+Proof.
+  intros H x x' H1 %(f_equal g). rewrite !H in H1. exact H1.
+Qed.
+Fact inv_surjective X Y (f: X -> Y) (g: Y -> X) :
+  inv g f -> surjective g.
+Proof.
+  intros H x. exists (f x). apply H.
+Qed.
+Fact inv_injective_inv X Y (f: X -> Y) (g: Y -> X) :
+  inv f g -> injective f -> inv g f.
+Proof.
+  intros H1 H2 y. apply H2. rewrite H1. reflexivity.
+Qed.
+Fact inv_surjective_inv X Y (f: X -> Y) (g: Y -> X) :
+  inv g f -> surjective f -> inv f g.
+Proof.
+  intros H1 H2 y.
+  specialize (H2 y) as [x H2]. subst y. rewrite H1. reflexivity.
+Qed.
+Fact inv_agree X Y (f: X -> Y) (g g': Y -> X) :
+  surjective f -> inv g f -> inv g' f -> forall y, g y = g' y.
+Proof.
+  intros H1 H2 H3 y.
+  specialize (H1 y) as [x H1]. subst y. rewrite H2, H3. reflexivity.
+Qed.
+
+Inductive injection (X Y: Type) : Type :=
+| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+
+Fact injection_refl X :
+  injection X X.
+Proof.
+  exists (fun x => x) (fun x => x). intros x. reflexivity.
+Qed.
+
+Fact injection_transport X Y :
+  injection X Y -> eqdec Y -> eqdec X.
+Proof.
+  intros [f g H] d x y.
+  destruct (d (f x) (f y)) as [H1|H1].
+  - left. congruence.
+  - right. congruence.
+Qed.
+
+Fact injection_Cantor X :
+  injection (X -> bool) X -> False.
+Proof.
+  intros [f g H].
+  pose (h x := negb (g x x)).
+  enough (g (f h) (f h) = h (f h)) as H1.
+  { revert H1. unfold h at 3. destruct g; easy. }
+  congruence.
+Qed.
+    
 Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
-Arguments Bijection {X Y}.
 
 Fact bijection_refl X :
   bijection X X.
@@ -450,7 +508,7 @@ Definition bij_bij_sig X Y:
 Proof.
   unshelve eexists.
   - intros [f g H1 H2]. exists f, g. exact (conj H1 H2).
-  - intros (f&g&H1&H2). exact (Bijection f g H1 H2). 
+  - intros (f&g&H1&H2). exists f g; assumption. 
   - intros [f g H1 H2]. reflexivity.
   - intros (f&g&H1&H2). reflexivity.
 Defined.
