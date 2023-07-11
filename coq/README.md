@@ -25,12 +25,11 @@
 -  Vectors [vector.v](vector.v) 
 -  Well-Founded Recursion [wfrec.v](wfrec.v)
 -  Aczel Trees and Hierarchy Theorems [aczel.v](aczel.v) 
--  Propositional Deduction Systems [pds.v](pds.v)
+-  Propositional Deduction Systems [pds.v](pds.v), [refut.v](refult.v)
 -  Boolean Satisfiability [bsat.v](bsat.v)
 -  Semi-Decidability and Markov's Principle [sdec.v](sdec.v) 
 -  Abstract Reduction Systems [ars.v](ars.v)
 -  Data Types [dat.v](dat.v)
-% -  Finite Types [fin.v](fin.v)
 - [List of tactics used](Tactics.md)
 - [List of commands used](Commands.md)
 

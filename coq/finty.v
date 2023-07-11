@@ -546,8 +546,7 @@ Proof.
 Qed.
 
 Inductive bijection (X Y: Type) : Type :=
-| Bijection (f: X -> Y) (g: Y -> X) (_: inv g f) (_: inv f g).
-Arguments Bijection {X Y}.
+| Bijection  {f: X -> Y} {g: Y -> X} (_: inv g f) (_: inv f g).
 
 Fact bijection_sym {X Y} :
   bijection X Y -> bijection Y X.
@@ -565,8 +564,7 @@ Proof.
 Qed.  
 
 Inductive injection (X Y: Type) : Type :=
-| Injection (f: X -> Y) (g: Y -> X) (_: inv g f).
-Arguments Injection {X Y}.
+| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
 
 Fact bijection_injection X Y :
   bijection X Y -> injection X Y.
@@ -924,3 +922,5 @@ Proof.
   - intros H. f_equal. apply IH. clear IH.
     apply bijection_option, H.
 Qed.
+
+
