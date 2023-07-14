@@ -168,74 +168,44 @@ Section List.
     - lia.
     - destruct H6 as [->|H6]; auto.
   Qed.
- 
-  Fixpoint rep A : Prop :=
-    match A with
-    | [] => False
-    | x::A => x el A \/ rep A
-    end.
 
-  Fact rep_sigma A :
-    rep A -> Sigma A1 x A2, A = A1++x::A2 /\ x el A2.
+  Fact nrep_sigma A :
+    nrep A + Sigma B, A <<= B /\ length B < length A.
   Proof.
-    induction A as [|x A IH].
-    - intros [].
-    - destruct (mem_dec x A) as [H|H].
-      + intros _. exists [], x, A. auto.
-      + intros H1.
-        destruct IH as (A1&y&A2&IH1&IH2).
-        * revert H H1. cbn. tauto.
-        * subst A. exists (x::A1), y, A2. cbn. auto.
-  Qed.
-   
-  Fact rep_nrep_False A :
-    rep A -> nrep A -> False.
-  Proof.
-    induction A as [|x A IH]; cbn; tauto.
-  Qed.
-
-  Fact rep_plus_nrep A :
-    rep A + nrep A.
-  Proof.
-    induction A as [|x A IH]; cbn.
+    induction A as [|x A [IH1|(B&IH2&IH3)]]; cbn.
     - auto.
     - destruct (mem_dec x A) as [H|H].
+      + right. exists A. split. intuition. cbn. lia.
       + auto.
-      + destruct IH as [IH|IH]; auto.
-  Qed.
-
-  Fact nrep_not_rep A :
-    nrep A <-> ~rep A.
-  Proof.
-    generalize (rep_plus_nrep A), (rep_nrep_False A).
-    tauto.
+    - right. exists (x::B). split. intuition. cbn. lia.
   Qed.
 
   Fact nrep_nrep A B :
     nrep A -> A <<= B -> length B <= length A -> nrep B.
   Proof.
     intros H1 H2 H3.
-    apply nrep_not_rep.
-    intros (B1&x&B2&->&H5)%rep_sigma.
-    assert (H6: length A <= length (B1 ++ B2)).
-    {  apply nrep_le.  exact H1.
-       intros z [H6|[<-|H6]] %H2 %in_app_iff; apply in_app_iff; auto. }
-     revert H3 H6. rewrite !app_length. cbn. lia.
+    destruct (nrep_sigma B) as [H|(C&H4&H5)]. exact H. exfalso.
+    destruct (nrep_discriminate A C) as (x&H6&H7).
+    exact H1. lia. auto.
   Qed.
 
   Fact nrep_equiv :
-    forall A, Sigma B, B == A /\ nrep B.
+    forall A, Sigma B, B == A /\ nrep B /\ length B <= length A.
   Proof.
-    induction A as [|x A (B&IH1&IH2)].
+    induction A as [|x A (B&IH1&IH2&IH3)].
     - exists nil. cbn. auto using equi_refl.
     - destruct (mem_dec x A) as [H3|H3].
-      + exists B. split. 2:exact IH2.
-        split; intros z H.
-        * cbn. right. apply IH1, H.
-        * specialize H as [->|H]; apply IH1; assumption.
-      + exists (x::B); cbn. split.
-        * split; intros z [->|H]; cbn; auto; right; apply IH1, H.
-        * split. 2: exact IH2. contradict H3. apply IH1, H3.
+      + exists B; cbn. repeat split.
+        * firstorder.
+        * firstorder congruence.
+        * easy.
+        * lia.
+      + exists (x::B); cbn. repeat split.
+        * firstorder.
+        * firstorder.
+        * firstorder.
+        * easy.
+        * lia.
   Qed.
 
   (* Sub and Pos *)
@@ -267,19 +237,7 @@ Section List.
       auto.
   Qed.
 
-  Fact pos_bnd A x :
-    x el A -> pos A x < length A.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros [].
-    - destruct X_eqdec as [->|H].
-      + lia.
-      + intros [->|H1].
-        * exfalso; auto. 
-        * apply IH in H1; lia.
-  Qed.
-
-  Fact sub_neq A n :
+  Fact sub_in A n :
     n < length A -> sub A n el A.
   Proof.
     induction A as [|y A IH] in n |-*; cbn.
@@ -299,8 +257,20 @@ Section List.
       { destruct X_eqdec as [_|H]. reflexivity. exfalso; auto. }
       cbn in H3.
       destruct X_eqdec as [->|_].
-      { contradict H1. apply sub_neq. lia. }
+      { contradict H1. apply sub_in. lia. }
       f_equal. apply IH. exact H2. lia.
+  Qed.
+
+  Fact pos_bnd A x :
+    x el A -> pos A x < length A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [->|H].
+      + lia.
+      + intros [->|H1].
+        * exfalso; auto. 
+        * apply IH in H1; lia.
   Qed.
 
 End List.
@@ -385,11 +355,8 @@ Section CoveringListing.
     covering A -> Sigma B, ((length B <= length A) * listing B)%type.
   Proof.
     intros H.
-    destruct (nrep_equiv X_eqdec A) as (B&H1&H2).
-    exists B. split. 
-    - apply nrep_le; easy. 
-    - split. 2:easy.
-      intros y. apply H1, H.
+    destruct (nrep_equiv X_eqdec A) as (B&H1&H2&H3).
+    exists B. repeat split. easy. firstorder. easy.
   Qed.
   
   Fact listing_length_unique A B :
@@ -403,17 +370,13 @@ Section CoveringListing.
   Qed.
 
   Fact nrep_iff_covering A B :
-    listing A -> length B = length A -> (nrep B <-> covering B).
+    listing A -> length B = length A -> nrep B <-> covering B.
   Proof.
-    intros [H1 H2] H3.
-    split; intros H.
-    - intros x.
-      eapply nrep_incl. 1,2:assumption. 3:apply H1. 2:lia.
-      intros x' _. apply H1.
-    - eapply nrep_nrep. 1,2: eassumption. 2:lia.
-      intros x _; apply H.
+    intros [H1 H2] H3. split.
+    - intros H x. eapply nrep_incl. 5:apply H1. 4:lia. all: easy.
+    - intros H. eapply nrep_nrep; eauto. easy. lia.
   Qed.
- 
+
 End CoveringListing.
 Arguments covering_listing {X}.
 
@@ -628,15 +591,15 @@ Fact fin_fin_le_injection X Y m n :
 Proof.
   intros (D&A&(H1&H2)&H3) (E&B&(H4&H5)&H6) [H7 H8].
   (* obtain default values *)
-  destruct A as [|a A].
-  { exfalso. cbn in H3. lia. }
-  destruct B as [|b B].
-  { exfalso. cbn in H6. lia. }
-  exists (fun x => sub b (b::B) (pos D (a::A) x))
-    (fun y => sub a (a::A) (pos E (b::B) y)).
-  hnf. intros x. rewrite pos_sub, sub_pos; trivial.
-  enough (pos D (a::A) x < length (a::A)) by lia.
-  apply pos_bnd, H1.
+  assert (a:X).
+  {destruct A as [|a A]; cbn in *. lia. easy. }
+  assert (b:Y).
+  {destruct B as [|b B]; cbn in *. lia. easy. }
+  exists (fun x => sub b B (pos D A x))
+    (fun y => sub a A (pos E B y)).
+  intros x. rewrite pos_sub, sub_pos; trivial.
+  enough (pos D A x < length A) by lia.
+   apply pos_bnd, H1.
 Qed.
 
 Fact fin_fin_inv_inv X Y n f g :
@@ -675,10 +638,10 @@ Fact finite_injection_nat X n :
   fin (S n) X -> injection X nat.
 Proof.
   intros (D&A&(H1&H2)&H3).
-  destruct A as [|a A].
-  - cbn in H3. lia.
-  - exists (pos D (a::A)) (sub a (a::A)). 
-    intros x. rewrite sub_pos; trivial.
+  assert (a:X).
+  {destruct A as [|a A]; cbn in *. lia. easy. }
+  exists (pos D A) (sub a A).
+    intros x. apply sub_pos. easy.
 Qed.
 
 Fact injection_nat_not_finite X :

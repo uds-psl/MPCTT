@@ -182,7 +182,7 @@ Section List.
     unfold equi, incl. intuition.
   Qed.
  
-  Fact mem_del_ex {x A} :
+  Fact mem_rear_ex {x A} :
     x el A -> exists A', A == x::A' /\ length A = S (length A').
   Proof.
     intros (A1&A2&->) %mem_ex.
@@ -193,7 +193,7 @@ Section List.
   Qed.
 
   (* Direct proof also possible *)
-  Fact mem_del_ex' {x A} :   
+  Fact mem_rear_ex' {x A} :   
     x el A -> exists A', A == x::A' /\ length A = S (length A').
   Proof.     
     induction A as [|a A IH].
@@ -208,7 +208,7 @@ Section List.
         * cbn. congruence.
   Qed.
 
-  Fact mem_del_sig {x A} :
+  Fact mem_rear_sig {x A} :
     x el A -> Sigma A', A == x::A' /\ length A = S (length A').
   Proof.
     intros (A1&A2&->) %mem_sig.
@@ -219,7 +219,7 @@ Section List.
   Qed.
   
   (* Direct proof also possible *)
-  Fact mem_del_sig' {x A} :
+  Fact mem_rear_sig' {x A} :
     x el A -> Sigma A', A == x::A' /\ length A = S (length A').
   Proof.
     induction A as [|a A IH].
@@ -321,7 +321,7 @@ Section List.
     - intros [H1 H2] H3.
       destruct (mem_dec a B) as [H|H].
       2: {exists a. auto. }
-      destruct (mem_del_sig H) as (B'&H4&H5).
+      destruct (mem_rear_sig H) as (B'&H4&H5).
       destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
       exists x. split.
       + auto.
@@ -386,7 +386,7 @@ Section List.
     - lia.
     - intros [H1 H2] H3.
       assert (a el B) as H by intuition.
-      destruct (mem_del_ex H) as (B'&H4&H5).
+      destruct (mem_rear_ex H) as (B'&H4&H5).
       enough (length A <= length B') by lia.
       apply IH. exact H2. firstorder congruence.
    Qed.
@@ -402,7 +402,7 @@ Section List.
     - intros [H1 H2] H3.
       destruct (xm (a el B)) as [H|H].
       2: {exists a. auto. }
-      destruct (mem_del_ex H) as (B'&H4&H5).
+      destruct (mem_rear_ex H) as (B'&H4&H5).
       destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
       exists x. split.
       + auto.
@@ -417,7 +417,7 @@ Section List.
     - intros [H1 H2] H3.
       apply (neg_xm (a el B)); intros H.
       2:{ apply neg_skip. exists a. auto. }
-      destruct (mem_del_ex H) as (B'&H4&H5).
+      destruct (mem_rear_ex H) as (B'&H4&H5).
       specialize (IH B' H2 ltac:(lia)).
       revert IH. apply neg_skip'. intros (x&H6&H7).
       apply neg_skip. exists x. split.
