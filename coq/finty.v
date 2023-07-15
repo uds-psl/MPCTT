@@ -18,14 +18,9 @@ Implicit Types m n k : nat.
 
 Definition option_eqdec X : eqdec X -> eqdec (option X).
 Proof.
-  intros H [x|] [y|].
-  - specialize (H x y) as [<-|H].
-    + left. reflexivity.
-    + right. intros [= <-]. auto.
-  - right. intros [=].
-  - right. intros [=].
-  - left. reflexivity.
-Defined.
+  unfold eqdec, dec; intros H [x|] [y|]; try intuition easy.
+  destruct (H x y); intuition congruence.
+Qed.
 
 Definition injective {X Y} (f: X -> Y) :=
   forall x x', f x = f x' -> x = x'.
@@ -35,10 +30,9 @@ Definition surjective {X Y} (f: X -> Y) :=
 Fact injective_eqdec {X Y f} :
   @injective X Y f -> eqdec Y -> eqdec X.
 Proof.
-  intros H F x x'.
-  destruct (F (f x) (f x')) as [H1|H1].
-  - left. apply H, H1.
-  - right. congruence.
+  intros H d x x'. specialize (H x x').
+  destruct (d (f x) (f x')) as [H1|H1];
+    unfold dec in *; intuition  congruence.
 Qed.
 
 (*** Preliminaries for Lists *)
@@ -48,46 +42,10 @@ Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
 
-Fact map_in_ex X Y  (f: X -> Y) y A :
-  y el map f A -> exists x, f x = y.
-Proof.
-  intros (x&H&_)%in_map_iff. eauto.
-Qed.
-
-Fixpoint deopt {X} (A: list (option X)) : list X :=
-  match A with
-  | [] => []
-  | Some x::A' => x :: deopt A'
-  | None::A' => deopt A'
-  end.
-
-Fact deopt_in X (x: X) A :
-  x el deopt A <-> Some x el A.
-Proof.
-  induction A as [|a A IH]; cbn.
-  - tauto.
-  - destruct a as [y|]; cbn; intuition congruence.
-Qed.
-
 Section List.
   Variable X : Type.
   Variables X_eqdec: eqdec X.
   Implicit Types (x y z: X) (A B: list X).
-  
-  Definition equi A B := A <<= B /\ B <<= A.
-  Notation "A == B" := (equi A B) (at level 70).
-  Fact equi_refl A :
-    A == A.
-  Proof.
-    unfold equi, incl. auto.
-  Qed.
-
-  Fact list_length_zero A :
-    length A = 0 -> A = nil.
-  Proof.
-    destruct A as [|x A]. easy.
-    cbn. lia.
-  Qed.
 
   Fact mem_dec x A :
     dec (x el A).
@@ -99,40 +57,50 @@ Section List.
       + destruct IH as [IH|IH].
         * left. cbn. auto.
         * right. cbn. intuition.
-  Defined.
-  
-  Fact mem_sum x a A :
-    x el a :: A -> (x = a) + (x el A).
-  Proof.
-    intros H.
-    destruct (X_eqdec x a) as [H1|H1].
-    - left. exact H1.
-    - right. destruct H as [H|H].
-      + exfalso. auto.
-      + exact H.
-  Defined.
-  
-  Fact mem_del_sig {x A} :
-    x el A -> Sigma A', A == x::A' /\ length A = S (length A').
-  Proof.
-    induction A as [|a A IH].
-    - intros [].
-    - intros [->|H] %mem_sum.
-      + exists A. split.
-        * firstorder.
-        * cbn. lia.
-      + specialize (IH H) as (A'&IH1&IH2).
-        exists (a::A'). split.
-        * firstorder.
-        * cbn. congruence.
   Qed.
+   
+  Definition equi A B := A <<= B /\ B <<= A.
+  Notation "A == B" := (equi A B) (at level 70).
   
   Fixpoint nrep A : Prop :=
     match A with
     | [] => True
     | x::A => x nel A /\ nrep A
     end.
+
+  Fact nrep_equiv :
+    forall A, Sigma B, B == A /\ nrep B /\ length B <= length A.
+  Proof.
+    induction A as [|x A (B&IH1&IH2&IH3)].
+    - exists nil. easy.
+    - destruct (mem_dec x A) as [H3|H3].
+      + exists B; cbn. repeat split.
+        * firstorder.
+        * firstorder congruence.
+        * easy.
+        * lia.
+      + exists (x::B); cbn. repeat split.
+        * firstorder.
+        * firstorder.
+        * firstorder.
+        * easy.
+        * lia.
+  Qed.
  
+  Fact mem_rearrange {x A} :
+    x el A -> Sigma B, A == x::B /\ length A = S (length B).
+  Proof.
+    intros H.
+    induction A as [|a A IH]. easy.
+    destruct (X_eqdec a x) as [->|H1].
+    - exists A. easy.
+    - specialize IH as (B&(IH1&IH2)&IH3).
+      + destruct H; congruence.
+      + exists (a::B). split. 2:(cbn; lia). split; intros z.
+        * intros [-> | H2]. firstorder. specialize (IH1 z). firstorder.
+        * intros [-> | [-> |H2]]; intuition.
+  Qed.
+
   Fact nrep_discriminate A B :
     nrep A -> length B < length A -> Sigma x, x el A /\ x nel B.
   Proof.
@@ -140,8 +108,8 @@ Section List.
     - lia.  (* computational falsity elimination *)
     - intros [H1 H2] H3.
       destruct (mem_dec a B) as [H|H].
-      2: {exists a. auto. }
-      destruct (mem_del_sig H) as (B'&H4&H5).
+      2: {exists a. intuition. }
+      destruct (mem_rearrange H) as (B'&H4&H5).
       destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
       exists x. split.
       + auto.
@@ -188,27 +156,6 @@ Section List.
     destruct (nrep_discriminate A C) as (x&H6&H7).
     exact H1. lia. auto.
   Qed.
-
-  Fact nrep_equiv :
-    forall A, Sigma B, B == A /\ nrep B /\ length B <= length A.
-  Proof.
-    induction A as [|x A (B&IH1&IH2&IH3)].
-    - exists nil. cbn. auto using equi_refl.
-    - destruct (mem_dec x A) as [H3|H3].
-      + exists B; cbn. repeat split.
-        * firstorder.
-        * firstorder congruence.
-        * easy.
-        * lia.
-      + exists (x::B); cbn. repeat split.
-        * firstorder.
-        * firstorder.
-        * firstorder.
-        * easy.
-        * lia.
-  Qed.
-
-  (* Sub and Pos *)
 
   Variable X_escape: X.
   
@@ -275,11 +222,10 @@ Section List.
 
 End List.
 Arguments mem_dec {X}.
-Arguments sub {X}.
-Arguments pos {X}.
 Arguments nrep {X}.
 Arguments nrep_equiv {X}.
-Arguments nrep_discriminate {X}.
+Arguments sub {X}.
+Arguments pos {X}.
 
 Fact nrep_map X Y (f: X -> Y) A :
   injective f -> nrep A -> nrep (map f A).
@@ -306,38 +252,11 @@ Proof.
     + eauto.
 Qed.
 
-(* List of numbers *)
-
-Fixpoint seq n k : list nat :=
-  match k with
-    0 => []
-  | S k' => n :: seq (S n) k'
-  end.
-
-Fact seq_length n k :
-  length (seq n k) = k.
+Fact map_in_ex X Y  (f: X -> Y) y A :
+  y el map f A -> exists x, f x = y.
 Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - reflexivity.
-  - f_equal. apply IH.
+  intros (x&H&_)%in_map_iff. eauto.
 Qed.
-
-Fact seq_in x n k :
-  x el seq n k <-> n <= x < n + k.
-Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - lia.
-  - rewrite IH. lia.
-Qed.
-
-Fact seq_nrep n k :
-  nrep (seq n k).
-Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - exact I.
-  - rewrite seq_in. split. lia. apply IH.
-Qed.
-
 
 (*** Coverings and Listings *)
 
@@ -364,9 +283,7 @@ Section CoveringListing.
   Proof.
     intros [H1 H2] [H3 H4].
     enough (length A <= length B /\ length B <= length A) by lia.
-    split; apply nrep_le; try assumption.
-    - intros x _. apply H3.
-   - intros x _. apply H1.
+    split; apply nrep_le; firstorder.
   Qed.
 
   Fact nrep_iff_covering A B :
@@ -406,12 +323,31 @@ Proof.
 Qed.
 
 Fact fin_zero X :
-  fin 0 X -> X -> False.
+  fin 0 X <=> (X -> False).
 Proof.
-  intros [D (A&[H1 _]&H2)] x.
-  specialize (H1 x).
-  apply list_length_zero in H2 as ->.
-  exact H1.
+  split.
+  - intros [D (A&[H1 _]&H2)] x.
+    specialize (H1 x). destruct A; easy.
+  - intros H. split.
+    + intros x. easy.
+    + exists nil. easy.
+Qed.
+
+Fact fin_option X n :
+  fin n X -> fin (S n) (option X).
+Proof.
+  intros (d&A&H1&H2).
+  split.
+  - apply option_eqdec, d.
+  - exists (None::map Some A); repeat split; cbn.
+    + intros [a|].
+      *  right. apply in_map, H1.
+      * left. reflexivity.
+    + intros [x H]%map_in_ex; easy.
+    + apply nrep_map.
+      * hnf. congruence.
+      * apply H1.
+    + rewrite map_length. congruence.
 Qed.
 
 Fact list_sigma_forall {X} {p: X -> Prop} (p_dec: decidable p) :
@@ -424,7 +360,7 @@ Proof.
     + destruct (p_dec a) as [H1|H1].
       * left. exists a. firstorder.
       * right. intros x [->|H2]; auto.
-Defined.          
+Qed.          
 
 Section Dec.
   Variable (X: Type).
@@ -466,35 +402,22 @@ Proof.
     eapply in_map_iff; eauto.
 Qed.
 
-Fixpoint nat_list_sum (A: list nat) :=
-  match A with
-  | nil => 0
-  | x::A => x + nat_list_sum A
-  end.
-
-Fact nat_list_sum_le x A :
-  x el A -> x <= nat_list_sum A.
+Fact nat_list_next :
+  forall A: list nat, Sigma n, forall x, x el A -> x < n.
 Proof.
-  induction A as [|y A IH]; cbn.
-  - easy.
-  - intros [<-|H]. lia.
-    specialize (IH H). lia.
+  induction A as [|x A [n IH]].
+  - exists 0. easy.
+  - exists (S x + n). intros y [-> |H].
+    + lia.
+    + apply IH in H. lia.
 Qed.
-
-Fact fin_nat {X} (f: X -> nat) :
-  finite X -> Sigma u, forall x, f x <= u.
-Proof.
-  intros (H1&A&H2).
-  exists (nat_list_sum (map f A)).
-  intros x. apply nat_list_sum_le.
-  apply in_map. apply H2.
-Qed.
-
+ 
 Fact nat_not_finite :
   finite nat -> False.
 Proof.
-  intros [u H] % (fin_nat S).
-  specialize (H u). lia.
+  intros (_&A&H).
+  destruct (nat_list_next A) as [n H1].
+  specialize (H (S n)).  apply H1 in H. lia.
 Qed.
 
 (*** Injections and Bijections *)
@@ -647,17 +570,10 @@ Qed.
 Fact injection_nat_not_finite X :
   injection nat X -> finite X -> False.
 Proof.
-  intros [f g H] (D&A&H1).
-  pose (n:= length A).
-  pose (B:= map f (seq 0 (S n))).
-  enough (length B <= length A) as H2.
-  { revert H2. unfold B. rewrite map_length. rewrite seq_length. lia. }
-  apply nrep_le.
-  - exact D.
-  - apply nrep_map.
-    + eapply inv_injective. exact H.
-    + apply seq_nrep.
-  - easy.
+  intros H1 [n H2]%finite_fin.
+  apply nat_not_finite.
+  destruct (injection_fin_sigma H1 H2) as (m&H3&_).
+  eapply finite_fin. eauto.
 Qed.
 
 (* Exercise *)
@@ -670,39 +586,18 @@ Proof.
   apply in_map_iff. exists (f x). auto.
 Qed.
  
-(*** Numeral Typess *)
+(*** Numeral Types *)
 
 Fixpoint Fin n : Type :=
   match n with 0 => False | S n' => option (Fin n') end.
 
-Fact fin_eqdec n :
-  eqdec (Fin n).
-Proof.
-  induction n as [|n IH]; cbn.
-  - intros [].
-  - apply option_eqdec, IH.
-Qed.
-
-Fact Fin_listing n :
-  Sigma A : list (Fin n), listing A /\ length A = n.
-Proof.
-  induction n as [|n (A&IH1&IH2)].
-  - exists nil. split. 2:reflexivity. split. intros []. constructor. 
-  - exists (None:: map Some A). cbn. split. 1:split.
-    + intros [a|]. 2: now left.
-      right. apply in_map, IH1.
-    + cbn. split.
-      * intros (a&[=]&_)%in_map_iff.
-      * apply nrep_map. 2:{ apply IH1. }
-        intros k l [= <-]. reflexivity.
-    + f_equal. rewrite <- IH2. apply map_length.
-Qed.
-
 Fact fin_Fin n :
   fin n (Fin n).
 Proof.
-  split. apply fin_eqdec. apply Fin_listing.
-Qed.  
+  induction n as [|n IH]; cbn.
+  - apply fin_zero. easy.
+  - apply fin_option, IH.
+Qed.
 
 (*** List-free proofs *)
 
