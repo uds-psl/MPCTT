@@ -4,6 +4,8 @@ Definition eqdec X := forall x y: X, dec (x = y).
 Notation decidable p := (forall x, dec (p x)).
 Notation sig := sigT.
 Notation Sig := existT.
+Notation pi1 := projT1.
+Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,
@@ -232,3 +234,103 @@ Section Step_indexed_eqdec.
     - apply f_prop. reflexivity.
   Qed.
 End Step_indexed_eqdec.
+
+Definition ewo (X:Type) :=
+  forall p: X -> Prop, decidable p -> ex p -> sig p.
+
+Fact bot_ewo:
+  ewo False.
+Proof.
+  intros p _ [[] _].
+Qed.
+
+Goal ewo True.
+Proof.
+  intros p d H.
+  destruct (d I) as [H1|H1].
+  - eauto.
+  - exfalso. destruct H as [[] H]. auto.
+Qed.
+
+Goal ewo bool.
+Proof.
+  intros p d H.
+  destruct (d true) as [H1|H1].
+  - eauto.
+  - destruct (d false) as [H2|H2].
+    + eauto.
+    + exfalso. destruct H as [[|] H]; auto.
+Qed.
+
+Goal ewo nat.
+Proof.
+  intros p d H. apply W; assumption.
+Qed.
+
+
+Definition option_ewo {X} :
+  ewo X -> ewo (option X).
+Proof.
+  intros E p p_dec H.
+  destruct (p_dec None) as [H1|H1].
+  - eauto.
+  - destruct (E (fun x => p (Some x))) as [x H2].
+    + easy. 
+    + destruct H as [[x|] H].
+      * eauto.
+      * easy.
+    + eauto.
+Qed.
+
+Definition option_ewo' {X} :
+  ewo (option X) -> ewo X.
+Proof.
+  intros E p p_dec H.
+  destruct (E (fun a => match a with Some x => p x | none => False end)) as [[x|] H1].
+  - intros [x|].
+      + easy.
+      + right; easy.
+  - destruct H as [x H]. exists (Some x); exact H.
+  - eauto.
+  - easy.
+Qed.
+
+Fixpoint Fin n : Type :=
+  match n with 0 => False | S n' => option (Fin n') end.
+
+Fact Fin_ewo :
+  forall n, ewo (Fin n).
+Proof.
+  induction n as [|n IH]; cbn.
+  - apply bot_ewo.
+  - apply option_ewo, IH.
+Qed.
+
+Fact injection_ewo X Y :
+  injection X Y -> ewo Y -> ewo X.
+Proof.
+  intros [f g H] E p p_dec H1.
+  destruct (E (fun y => p (g y))) as [y H2].
+  - easy.
+  - destruct H1 as [x H1]. exists (f x). congruence.
+  - eauto.
+Qed.
+
+
+(* Injection from surjective function *)
+
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
+
+Fact surjective_inv X Y f :
+  @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
+Proof.
+  intros H E d.
+  enough (G: forall y, Sigma x, f x = y).
+  { exists (fun y => pi1 (G y)). intros y. destruct (G y) as [x H1]; easy. }
+  intros y. apply E.
+  - intros x. apply d.
+  - apply H. 
+Qed.
+
+  

@@ -1,7 +1,7 @@
 From Coq Require Import Arith Lia List.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Definition decidable {X} (p: X -> Prop) := forall x, dec (p x).
+Definition decider {X} (p: X -> Type) := forall x, dec (p x).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.
@@ -14,13 +14,16 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 
-Implicit Types m n k : nat.
+Fixpoint Fin n : Type :=
+  match n with 0 => False | S n' => option (Fin n') end.
 
 Definition option_eqdec X : eqdec X -> eqdec (option X).
 Proof.
   unfold eqdec, dec; intros H [x|] [y|]; try intuition easy.
   destruct (H x y); intuition congruence.
 Qed.
+
+(*** Injection Preliminaries *)
 
 Definition injective {X Y} (f: X -> Y) :=
   forall x x', f x = f x' -> x = x'.
@@ -35,7 +38,94 @@ Proof.
     unfold dec in *; intuition  congruence.
 Qed.
 
-(*** Preliminaries for Lists *)
+Definition inv {X Y} (g: Y -> X) (f: X -> Y) :=
+  forall x, g (f x) = x.
+
+Fact inv_injective X Y (f: X -> Y) (g: Y -> X) :
+  inv g f -> injective f.
+Proof.
+  intros H x x' H1 %(f_equal g). rewrite !H in H1. exact H1.
+Qed.
+
+Inductive bijection (X Y: Type) : Type :=
+| Bijection  {f: X -> Y} {g: Y -> X} (_: inv g f) (_: inv f g).
+
+Fact bijection_sym {X Y} :
+  bijection X Y -> bijection Y X.
+Proof.
+  intros [f g H H']. exists g f; easy. 
+Qed.
+
+Fact bijection_empty X Y :
+  (X -> False) -> (Y -> False) -> bijection X Y.
+Proof.
+  intros f g.
+  exists (fun x => match f x with end) (fun y => match g y with end).
+  - intros x. contradiction (f x).
+  - intros y. contradiction (g y).
+Qed.  
+
+Inductive injection (X Y: Type) : Type :=
+| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+
+Fact bijection_injection X Y :
+  bijection X Y -> injection X Y.
+Proof.
+  intros [f g H _]. exists f g. exact H.
+Qed.
+
+Fact injection_eqdec X Y :
+  injection X Y -> eqdec Y -> eqdec X.
+Proof.
+  intros [f g H1] H2.
+  eapply injective_eqdec. 2:exact H2.
+  eapply inv_injective, H1.
+Qed.
+
+(*** EWO Preliminaries *)
+
+Definition ewo X :=
+  forall (p: X -> Prop), decider p -> ex p -> sig p.
+
+Fact bot_ewo:
+  ewo False.
+Proof.
+  intros p _ [[] _].
+Qed.
+
+Definition option_ewo {X} :
+  ewo X -> ewo (option X).
+Proof.
+  intros E p p_dec H.
+  destruct (p_dec None) as [H1|H1].
+  - eauto.
+  - destruct (E (fun x => p (Some x))) as [x H2].
+    + easy. 
+    + destruct H as [[x|] H].
+      * eauto.
+      * easy.
+    + eauto.
+Qed.
+
+Fact Fin_ewo :
+  forall n, ewo (Fin n).
+Proof.
+  induction n as [|n IH]; cbn.
+  - apply bot_ewo.
+  - apply option_ewo, IH.
+Qed.
+
+Fact injection_ewo X Y :
+  injection X Y -> ewo Y -> ewo X.
+Proof.
+  intros [f g H] E p p_dec H1.
+  destruct (E (fun y => p (g y))) as [y H2].
+  - easy.
+  - destruct H1 as [x H1]. exists (f x). congruence.
+  - eauto.
+Qed.
+
+(*** List Preliminaries *)
 
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
@@ -255,7 +345,8 @@ Qed.
 Fact map_in_ex X Y  (f: X -> Y) y A :
   y el map f A -> exists x, f x = y.
 Proof.
-  intros (x&H&_)%in_map_iff. eauto.
+  induction A as [|a A IH]; cbn. easy.
+  intros [<- | [x <- ]%IH]; eauto.
 Qed.
 
 (*** Coverings and Listings *)
@@ -298,7 +389,7 @@ End CoveringListing.
 Arguments covering_listing {X}.
 
 
-(*** Finite Types *)
+(*** Finite Types Basics *)
 
 Definition finite X : Type :=
   eqdec X * Sigma A, @covering X A.
@@ -350,7 +441,15 @@ Proof.
     + rewrite map_length. congruence.
 Qed.
 
-Fact list_sigma_forall {X} {p: X -> Prop} (p_dec: decidable p) :
+Fact fin_Fin n :
+  fin n (Fin n).
+Proof.
+  induction n as [|n IH]; cbn.
+  - apply fin_zero. easy.
+  - apply fin_option, IH.
+Qed.
+
+Fact list_sigma_forall {X} {p: X -> Prop} (p_dec: decider p) :
   forall A, (Sigma x, x el A /\ p x) + (forall x, x el A -> ~p x).
 Proof.
   induction A as [|a A IH].
@@ -366,7 +465,7 @@ Section Dec.
   Variable (X: Type).
   Variable (X_fin: finite X).
   Variable (p: X -> Prop).
-  Variable (p_dec: decidable p).
+  Variable (p_dec: decider p).
   Implicit Types A B: list X.
 
   Fact fin_sigma_forall :
@@ -387,21 +486,6 @@ Section Dec.
 
 End Dec.
 
-Fact fin_fun_injective_surjective X Y n f :
-  fin n X -> fin n Y -> @injective X Y f <-> surjective f. 
-Proof.
-  intros (_&A&[H0 H1]&<-) (E&B&H2&H3).
-  assert (H4: nrep (map f A) <-> covering (map f A)).
-  { eapply nrep_iff_covering. exact E. exact H2. rewrite H3. apply map_length. }
-  split; intros H.
-  - enough (covering (map f A)) as H5.
-    { intros y. eapply map_in_ex, H5. }
-    apply H4. apply nrep_map; assumption.
-  - intros x x'. eapply nrep_injective. 2,3:apply H0.
-    clear x x'. apply H4. intros y. specialize (H y) as [x H].
-    eapply in_map_iff; eauto.
-Qed.
-
 Fact nat_list_next :
   forall A: list nat, Sigma n, forall x, x el A -> x < n.
 Proof.
@@ -420,51 +504,8 @@ Proof.
   specialize (H (S n)).  apply H1 in H. lia.
 Qed.
 
-(*** Injections and Bijections *)
+(*** Finiteness by Injection *)
 
-Definition inv {X Y} (g: Y -> X) (f: X -> Y) :=
-  forall x, g (f x) = x.
-
-Fact inv_injective X Y (f: X -> Y) (g: Y -> X) :
-  inv g f -> injective f.
-Proof.
-  intros H x x' H1 %(f_equal g). rewrite !H in H1. exact H1.
-Qed.
-
-Inductive bijection (X Y: Type) : Type :=
-| Bijection  {f: X -> Y} {g: Y -> X} (_: inv g f) (_: inv f g).
-
-Fact bijection_sym {X Y} :
-  bijection X Y -> bijection Y X.
-Proof.
-  intros [f g H H']. exists g f; easy. 
-Qed.
-
-Fact bijection_empty X Y :
-  (X -> False) -> (Y -> False) -> bijection X Y.
-Proof.
-  intros f g.
-  exists (fun x => match f x with end) (fun y => match g y with end).
-  - intros x. contradiction (f x).
-  - intros y. contradiction (g y).
-Qed.  
-
-Inductive injection (X Y: Type) : Type :=
-| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
-
-Fact bijection_injection X Y :
-  bijection X Y -> injection X Y.
-Proof.
-  intros [f g H _]. exists f g. exact H.
-Qed.
-
-Fact injection_eqdec X Y :
-  injection X Y -> eqdec Y -> eqdec X.
-Proof.
-  intros [f g H1] H2.
-  eapply injective_eqdec. 2:exact H2.
-  eapply inv_injective, H1.
-Qed.
 
 Fact injection_fin_sigma {X Y n} :
   injection X Y -> fin n Y -> Sigma m, ((fin m X) * (m <= n))%type.
@@ -508,6 +549,17 @@ Proof.
   - apply H.
   - apply bijection_sym, H.
 Qed.
+
+Fact injection_nat_not_finite X :
+  injection nat X -> finite X -> False.
+Proof.
+  intros H1 [n H2]%finite_fin.
+  apply nat_not_finite.
+  destruct (injection_fin_sigma H1 H2) as (m&H3&_).
+  eapply finite_fin. eauto.
+Qed.
+
+(*** Existence of Injections *)
   
 Fact fin_fin_le_injection X Y m n :
   fin m X -> fin n Y -> 1 <= m <= n -> injection X Y.
@@ -557,6 +609,24 @@ Proof.
   eapply fin_fin_bij; eassumption.
 Qed.
 
+Fact fin_Fin_bijection X n :
+  fin n X <=> bijection X (Fin n).
+Proof.
+  split; intros H.
+  - eapply fin_fin_bij. exact H. apply fin_Fin.
+  - eapply bijection_fin_fin.
+    + apply bijection_sym, H.
+    + apply fin_Fin.
+Qed.
+
+Fact fin_ewo X :
+  finite X -> ewo X.
+Proof.
+  intros [n H] %finite_fin.
+  generalize (Fin_ewo n).
+  apply injection_ewo, bijection_injection, fin_Fin_bijection, H.
+Qed.
+
 Fact finite_injection_nat X n :
   fin (S n) X -> injection X nat.
 Proof.
@@ -565,15 +635,6 @@ Proof.
   {destruct A as [|a A]; cbn in *. lia. easy. }
   exists (pos D A) (sub a A).
     intros x. apply sub_pos. easy.
-Qed.
-
-Fact injection_nat_not_finite X :
-  injection nat X -> finite X -> False.
-Proof.
-  intros H1 [n H2]%finite_fin.
-  apply nat_not_finite.
-  destruct (injection_fin_sigma H1 H2) as (m&H3&_).
-  eapply finite_fin. eauto.
 Qed.
 
 (* Exercise *)
@@ -585,31 +646,57 @@ Proof.
   specialize (H2 (f x)).
   apply in_map_iff. exists (f x). auto.
 Qed.
- 
-(*** Numeral Types *)
 
-Fixpoint Fin n : Type :=
-  match n with 0 => False | S n' => option (Fin n') end.
+(*** Upgrade Theorem *)
 
-Fact fin_Fin n :
-  fin n (Fin n).
+Fact fin_fun_injective_surjective X Y n f :
+  fin n X -> fin n Y -> @injective X Y f <-> surjective f. 
 Proof.
-  induction n as [|n IH]; cbn.
-  - apply fin_zero. easy.
-  - apply fin_option, IH.
-Qed.
-
-(*** List-free proofs *)
-
-Fact fin_Fin_bijection X n :
-  fin n X <=> bijection X (Fin n).
-Proof.
+  intros (_&A&[H0 H1]&<-) (E&B&H2&H3).
+  assert (H4: nrep (map f A) <-> covering (map f A)).
+  { eapply nrep_iff_covering. exact E. exact H2. rewrite H3. apply map_length. }
   split; intros H.
-  - eapply fin_fin_bij. exact H. apply fin_Fin.
-  - eapply bijection_fin_fin.
-    + apply bijection_sym, H.
-    + apply fin_Fin.
+  - enough (covering (map f A)) as H5.
+    { intros y. eapply map_in_ex, H5. }
+    apply H4. apply nrep_map; assumption.
+  - intros x x'. eapply nrep_injective. 2,3:apply H0.
+    clear x x'. apply H4. intros y. specialize (H y) as [x H].
+    eapply in_map_iff; eauto.
 Qed.
+
+Fact surjective_inv X Y f :
+  @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
+Proof.
+  intros H E d.
+  enough (G: forall y, Sigma x, f x = y).
+  { exists (fun y => pi1 (G y)). intros y. destruct (G y) as [x H1]; easy. }
+  intros y. apply E.
+  - intros x. apply d.
+  - apply H. 
+Qed.
+
+Theorem upgrade X Y n f :
+  fin n X -> fin n Y -> @surjective X Y f ->
+  Sigma g, inv g f /\ inv f g.
+Proof.
+  intros H1 H2 H3.
+  destruct (surjective_inv X Y f H3) as [g H4].
+  - apply fin_ewo, finite_fin. eauto.
+  - apply H2.
+  - exists g. split. 2:exact H4.
+    eapply fin_fin_inv_inv; eassumption.
+Qed.
+
+Theorem upgrade_inj X Y n f :
+  fin n X -> fin n Y -> @injective X Y f ->
+  Sigma g, inv g f /\ inv f g.
+Proof.
+  intros H1 H2 H3.
+  eapply upgrade. exact H1. exact H2.
+  eapply fin_fun_injective_surjective; eassumption.
+Qed.
+
+(*** Listless proofs *)
 
 Definition L {X Y}
   : (option X -> option (option Y)) -> X -> option Y
@@ -706,7 +793,7 @@ Proof.
   - apply Fin_le, bijection_injection, bijection_sym, H.
 Qed.
  
-(*** Exercises *)
+(** Exercises *)
 
 Fact Fin_forall_dec n X (f: Fin n -> X) (p: X -> Prop) :
   (forall x, dec (p x)) -> dec (forall a, p (f a)).
@@ -733,7 +820,6 @@ Proof.
       * left. eauto.
       * right. intros [[a|] H1]; eauto.
 Qed.
-
 
 (* Bijection theorem for option types *)
 
