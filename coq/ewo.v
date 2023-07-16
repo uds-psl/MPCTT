@@ -242,6 +242,7 @@ Fact bot_ewo:
   ewo False.
 Proof.
   intros p _ [[] _].
+  (* note computational falsity elimination *)
 Qed.
 
 Goal ewo True.
@@ -250,6 +251,7 @@ Proof.
   destruct (d I) as [H1|H1].
   - eauto.
   - exfalso. destruct H as [[] H]. auto.
+    (* note computational falsity elimination *)
 Qed.
 
 Goal ewo bool.
@@ -260,6 +262,7 @@ Proof.
   - destruct (d false) as [H2|H2].
     + eauto.
     + exfalso. destruct H as [[|] H]; auto.
+      (* note computational falsity elimination *)
 Qed.
 
 Goal ewo nat.
