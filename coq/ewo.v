@@ -1,7 +1,7 @@
 From Coq Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Notation decidable p := (forall x, dec (p x)).
+Definition decider {X} (p: X -> Type) := forall x, dec (p x).
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
@@ -10,13 +10,48 @@ Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-  : type_scope.
+    : type_scope.
 
-Implicit Types n k: nat.
 
-Section EWO.
+Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
+Inductive injection (X Y: Type) : Type :=
+| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+
+Definition ewo (X:Type) :=
+  forall p: X -> Prop, decider p -> ex p -> sig p.
+
+Fact bot_ewo:
+  ewo False.
+Proof.
+  intros p _ [[] _].
+  (* note computational falsity elimination *)
+Qed.
+
+Goal ewo True.
+Proof.
+  intros p d H.
+  destruct (d I) as [H1|H1].
+  - eauto.
+  - exfalso. destruct H as [[] H]. auto.
+    (* note computational falsity elimination *)
+Qed.
+
+Goal ewo bool.
+Proof.
+  intros p d H.
+  destruct (d true) as [H1|H1].
+  - eauto.
+  - destruct (d false) as [H2|H2].
+    + eauto.
+    + exfalso. destruct H as [[|] H]; auto.
+      (* note computational falsity elimination *)
+Qed.
+
+
+Module EWO_nat.
+Section EWO_nat.
   Variable p: nat -> Prop.
-  Variable p_dec: decidable p.
+  Variable p_dec: decider p.
 
   Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
 
@@ -133,8 +168,14 @@ Section EWO.
        let (phi2) := phi1 h1 in
        phi2 h2))).
 
-End EWO.
+End EWO_nat.
+End EWO_nat.
 
+Fact ewo_nat : ewo nat.
+Proof.
+  exact EWO_nat.W.
+Qed.
+ 
 (** Binary witness operator *)
 
 Section W2.
@@ -152,7 +193,7 @@ Section W2.
   Proof.
     intros H.
     pose (q n := p (pi1 n) (pi2 n)).
-    destruct (W q) as [n H1].
+    destruct (ewo_nat q) as [n H1].
     - intros n.
       destruct (p_dec (pi1 n) (pi2 n)) as [H1|H1].
       + left. apply H1.
@@ -167,15 +208,15 @@ End W2.
 
 Section W_or.
   Variable p: nat -> Prop.
-  Variable p_dec: decidable p.
+  Variable p_dec: decider p.
   Variable q: nat -> Prop.
-  Variable q_dec: decidable q.
+  Variable q_dec: decider q.
 
   Theorem W_or:
     ex p \/ ex q -> sig p + sig q.
   Proof.
     intros H0.
-    destruct (W (fun n => p n \/ q n)) as [n H].
+    destruct (ewo_nat (fun n => p n \/ q n)) as [n H].
     - intros n.
       destruct (p_dec n) as [H|H].
       2: destruct (q_dec n) as [H1|H1].
@@ -191,27 +232,25 @@ Section W_or.
   Qed.
 End W_or.
 
-Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
-
 Section Countable_EWO.
   Variable X: Type.
   Variable f: X -> nat.
   Variable g: nat -> X.
   Variable gf: inv g f.
   Variable p: X -> Prop.
-  Variable p_dec: decidable p.
+  Variable p_dec: decider p.
 
   Definition cewo : ex p -> sig p.
   Proof.
     intros H.
     pose (q n := p (g n)).
-    assert (q_dec: decidable q).
+    assert (q_dec: decider q).
     { intros n. apply p_dec. }
     assert (q_ex: ex q).
     { destruct H as [x H]. exists (f x). hnf. congruence. }
     enough (sig q) as [n H1].
     { exists (g n). exact H1. }
-    apply W; assumption.
+    apply ewo_nat; assumption.
   Qed.
 End Countable_EWO.
     
@@ -226,7 +265,7 @@ Section Step_indexed_eqdec.
     { destruct (f x y n) eqn:H1.
       - left. apply f_prop. exists n. exact H1.
       - right. intros <-. congruence. }
-    apply W.
+    apply ewo_nat.
     - intros n.
       destruct (f x x n).
       + left. auto.
@@ -234,42 +273,6 @@ Section Step_indexed_eqdec.
     - apply f_prop. reflexivity.
   Qed.
 End Step_indexed_eqdec.
-
-Definition ewo (X:Type) :=
-  forall p: X -> Prop, decidable p -> ex p -> sig p.
-
-Fact bot_ewo:
-  ewo False.
-Proof.
-  intros p _ [[] _].
-  (* note computational falsity elimination *)
-Qed.
-
-Goal ewo True.
-Proof.
-  intros p d H.
-  destruct (d I) as [H1|H1].
-  - eauto.
-  - exfalso. destruct H as [[] H]. auto.
-    (* note computational falsity elimination *)
-Qed.
-
-Goal ewo bool.
-Proof.
-  intros p d H.
-  destruct (d true) as [H1|H1].
-  - eauto.
-  - destruct (d false) as [H2|H2].
-    + eauto.
-    + exfalso. destruct H as [[|] H]; auto.
-      (* note computational falsity elimination *)
-Qed.
-
-Goal ewo nat.
-Proof.
-  intros p d H. apply W; assumption.
-Qed.
-
 
 Definition option_ewo {X} :
   ewo X -> ewo (option X).
