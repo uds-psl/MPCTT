@@ -17,6 +17,8 @@ Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
 
+(*** EWO Basics *)
+
 Definition ewo (X:Type) :=
   forall p: X -> Prop, decider p -> ex p -> sig p.
 
@@ -47,6 +49,88 @@ Proof.
       (* note computational falsity elimination *)
 Qed.
 
+Theorem ewo_or X (p q: X -> Prop) :
+  ewo X -> decider p -> decider q -> ex p \/ ex q -> sig p + sig q.
+Proof.
+    intros E dp dq H.
+    destruct (E (fun x => p x \/ q x)) as [x H1].
+    - intros x. unfold dec.
+      destruct (dp x) as [H1|H1]. { auto. }
+      destruct (dq x) as [H2|H2]. { auto. }
+      tauto.
+    - destruct H as  [[x H]|[x H]]; eauto.
+    - destruct (dp x) as [H2|H2]. { eauto. }
+      destruct (dq x) as [H3|H3]. { eauto. }
+      exfalso. tauto.
+Qed.
+
+Definition option_ewo {X} :
+  ewo X -> ewo (option X).
+Proof.
+  intros E p p_dec H.
+  destruct (p_dec None) as [H1|H1].
+  - eauto.
+  - destruct (E (fun x => p (Some x))) as [x H2].
+    + easy. 
+    + destruct H as [[x|] H].
+      * eauto.
+      * easy.
+    + eauto.
+Qed.
+
+Definition option_ewo' {X} :
+  ewo (option X) -> ewo X.
+Proof.
+  intros E p p_dec H.
+  destruct (E (fun a => match a with Some x => p x | none => False end)) as [[x|] H1].
+  - intros [x|].
+      + easy.
+      + right; easy.
+  - destruct H as [x H]. exists (Some x); exact H.
+  - eauto.
+  - easy.
+Qed.
+
+Fixpoint Fin n : Type :=
+  match n with 0 => False | S n' => option (Fin n') end.
+
+Fact Fin_ewo :
+  forall n, ewo (Fin n).
+Proof.
+  induction n as [|n IH]; cbn.
+  - apply bot_ewo.
+  - apply option_ewo, IH.
+Qed.
+
+Fact injection_ewo X Y :
+  injection X Y -> ewo Y -> ewo X.
+Proof.
+  intros [f g H] E p p_dec H1.
+  destruct (E (fun y => p (g y))) as [y H2].
+  - easy.
+  - destruct H1 as [x H1]. exists (f x). congruence.
+  - eauto.
+Qed.
+
+
+(* Injection from surjective function *)
+
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
+
+Fact surjective_inv X Y f :
+  @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
+Proof.
+  intros H E d.
+  enough (G: forall y, Sigma x, f x = y).
+  { exists (fun y => pi1 (G y)). intros y. destruct (G y) as [x H1]; easy. }
+  intros y. apply E.
+  - intros x. apply d.
+  - apply H. 
+Qed.
+
+  
+(*** Linear Search Types and EWO for nat *)
 
 Module EWO_nat.
 Section EWO_nat.
@@ -175,85 +259,31 @@ Fact ewo_nat : ewo nat.
 Proof.
   exact EWO_nat.W.
 Qed.
- 
-(** Binary witness operator *)
 
-Section W2.
-  (** We assume a pairing bijection *)
-  Variable P: nat -> nat -> nat.
-  Variable pi1 pi2: nat -> nat.
-  Variable pi1_eq: forall x y, pi1 (P x y) = x.
-  Variable pi2_eq: forall x y, pi2 (P x y) = y.
-  
-  Variable p: nat -> nat -> Prop.
-  Variable p_dec: forall x y, dec (p x y).
-
-  Theorem W2:
-    (exists x y, p x y) -> Sigma x y, p x y.
-  Proof.
-    intros H.
-    pose (q n := p (pi1 n) (pi2 n)).
-    destruct (ewo_nat q) as [n H1].
-    - intros n.
-      destruct (p_dec (pi1 n) (pi2 n)) as [H1|H1].
-      + left. apply H1.
-      + right. apply H1.
-    - destruct H as (x&y&H). exists (P x y). hnf.
-      rewrite pi1_eq, pi2_eq. exact H.
-    - exists (pi1 n), (pi2 n). exact H1.
-  Qed.
-End W2.
-
-(** Disjunctive witness operator *)
-
-Section W_or.
-  Variable p: nat -> Prop.
-  Variable p_dec: decider p.
-  Variable q: nat -> Prop.
-  Variable q_dec: decider q.
-
-  Theorem W_or:
-    ex p \/ ex q -> sig p + sig q.
-  Proof.
-    intros H0.
-    destruct (ewo_nat (fun n => p n \/ q n)) as [n H].
-    - intros n.
-      destruct (p_dec n) as [H|H].
-      2: destruct (q_dec n) as [H1|H1].
-      + left. left. exact H.
-      + left. right. exact H1.
-      + right. intros [H2|H2]; auto.
-    - destruct H0 as  [[n H0]|[n H0]]; eauto.
-    - destruct (p_dec n) as [H1|H1].
-      2: destruct (q_dec n) as [H2|H2].
-      + eauto.
-      + eauto.
-      + exfalso. destruct H; auto.
-  Qed.
-End W_or.
-
-Section Countable_EWO.
-  Variable X: Type.
-  Variable f: X -> nat.
-  Variable g: nat -> X.
-  Variable gf: inv g f.
-  Variable p: X -> Prop.
-  Variable p_dec: decider p.
-
-  Definition cewo : ex p -> sig p.
-  Proof.
-    intros H.
-    pose (q n := p (g n)).
-    assert (q_dec: decider q).
-    { intros n. apply p_dec. }
-    assert (q_ex: ex q).
-    { destruct H as [x H]. exists (f x). hnf. congruence. }
-    enough (sig q) as [n H1].
-    { exists (g n). exact H1. }
-    apply ewo_nat; assumption.
-  Qed.
-End Countable_EWO.
+Fact ewo_injection_nat X :
+  injection X nat -> ewo X.
+Proof.
+  intros H %injection_ewo. apply H. apply ewo_nat.
+Qed.
     
+
+(*** More EWOs *)
+
+Fact ewo_binary :
+  injection (nat * nat) nat ->
+  forall p: nat -> nat -> Prop,
+  forall d: forall x y, dec (p x y),
+    (exists x y, p x y) -> Sigma x y, p x y.
+Proof.
+  intros E %injection_ewo. 2:exact ewo_nat.
+  intros p d H.
+  pose (q a := p (fst a) (snd a)).
+  specialize (E (fun a => p (fst a) (snd a))) as [[x y] E].
+  - intros [x y]. apply d.
+  - destruct H as (x&y&H). exists (x,y). exact H.
+  - eauto.
+Qed.
+
 Section Step_indexed_eqdec.
   Variable X: Type.
   Variable f: X -> X -> nat -> bool.
@@ -273,70 +303,3 @@ Section Step_indexed_eqdec.
     - apply f_prop. reflexivity.
   Qed.
 End Step_indexed_eqdec.
-
-Definition option_ewo {X} :
-  ewo X -> ewo (option X).
-Proof.
-  intros E p p_dec H.
-  destruct (p_dec None) as [H1|H1].
-  - eauto.
-  - destruct (E (fun x => p (Some x))) as [x H2].
-    + easy. 
-    + destruct H as [[x|] H].
-      * eauto.
-      * easy.
-    + eauto.
-Qed.
-
-Definition option_ewo' {X} :
-  ewo (option X) -> ewo X.
-Proof.
-  intros E p p_dec H.
-  destruct (E (fun a => match a with Some x => p x | none => False end)) as [[x|] H1].
-  - intros [x|].
-      + easy.
-      + right; easy.
-  - destruct H as [x H]. exists (Some x); exact H.
-  - eauto.
-  - easy.
-Qed.
-
-Fixpoint Fin n : Type :=
-  match n with 0 => False | S n' => option (Fin n') end.
-
-Fact Fin_ewo :
-  forall n, ewo (Fin n).
-Proof.
-  induction n as [|n IH]; cbn.
-  - apply bot_ewo.
-  - apply option_ewo, IH.
-Qed.
-
-Fact injection_ewo X Y :
-  injection X Y -> ewo Y -> ewo X.
-Proof.
-  intros [f g H] E p p_dec H1.
-  destruct (E (fun y => p (g y))) as [y H2].
-  - easy.
-  - destruct H1 as [x H1]. exists (f x). congruence.
-  - eauto.
-Qed.
-
-
-(* Injection from surjective function *)
-
-Definition surjective {X Y} (f: X -> Y) :=
-  forall y, exists x, f x = y.
-
-Fact surjective_inv X Y f :
-  @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
-Proof.
-  intros H E d.
-  enough (G: forall y, Sigma x, f x = y).
-  { exists (fun y => pi1 (G y)). intros y. destruct (G y) as [x H1]; easy. }
-  intros y. apply E.
-  - intros x. apply d.
-  - apply H. 
-Qed.
-
-  
