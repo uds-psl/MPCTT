@@ -28,6 +28,10 @@ Qed.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
+Notation "A <<= B" := (incl A B) (at level 70).
+Ltac list := cbn; auto; firstorder; fail.
+
+(*** Formulas *)
 
 Inductive form: Type :=
 | var (x: nat)
@@ -54,7 +58,7 @@ Proof.
       unfold dec; intuition congruence.
 Qed.
 
-Lemma form_mem s A :
+Lemma form_mem_dec s A :
   dec (s el A).
 Proof.
   unfold dec.
@@ -63,34 +67,69 @@ Proof.
   - destruct (form_eqdec t s) as [->|H]; intuition.
 Qed.
 
-Definition solved' s A :=
-  match s with
-  | var x  => -var x nel A
-  | -var x => var x nel A
-  | imp bot bot => True
-  | _ => False
-  end.
+(*** Solved and Clashed Clauses *)
 
 Fixpoint solved A : Prop :=
   match A with
   | [] => True
-  | s::A => solved A /\ solved' s A
+  | s::A => solved A /\ match s with
+                      | var x => -var x nel A
+                      | -var x => var x nel A
+                      | -bot => True
+                      | _ => False
+                      end
   end.
 
-Definition refuted' s A :=
-  match s with
-  | var x  => -var x el A
-  | -var x => var x el A
-  | bot => True
-  | _ => False
-  end.
+Fact solved_forall A :
+  solved A ->
+  forall s, s el A ->
+       match s with
+       | var x => -var x nel A
+       | -var x => var x nel A
+       | -bot  => True
+       | _ => False
+       end.
+Proof.
+  induction A as [|u A IH]. easy.
+  intros [H1 H2] s [-> |H].
+  - destruct s as [x| | s1 s2]; auto.
+    + intros [H3|H3]; easy.
+    + destruct s1, s2; auto.
+      intros [H3|H3]; easy.
+  - specialize (IH H1 s H).
+    destruct s as [x| | s1 s2] eqn:E.
+     + intros [-> |H4]; easy.
+     + exact IH.
+     + destruct s1, s2; auto.
+       intros [-> |H3]; auto.
+Qed.
 
-Fixpoint refuted A : Prop :=
+Fixpoint clashed A : Type :=
   match A with
   | [] => False
-  | s::A => refuted A \/ refuted' s A
+  | s::A => clashed A + match s with
+                       | var x  => -var x el A
+                       | -var x => var x el A
+                       | bot => True
+                       | _ => False
+                       end
   end.
 
+Fact clashed_exists A :
+  clashed A -> (bot el A) + (Sigma x, var x el A /\ -var x el A).
+Proof.
+  induction A as [|s A IH]. easy.
+  intros [H1|H2].
+  - specialize (IH H1) as [IH|(x&IH1&IH2)].
+    + intuition.
+    + right. exists x; intuition.
+  - destruct s  as [x| | s1 s2].
+    + right. exists x. intuition.
+    + intuition.
+    + destruct s1, s2; try easy.
+      right. exists x. intuition.
+Qed.
+  
 Definition decomposable s :=
   match s with
   | imp s bot => match s with imp _ _ => True | _ => False end
@@ -103,11 +142,8 @@ Lemma analyze s :
     (Sigma x, (s = var x) + (s = -var x))%type +
     decomposable s.
 Proof.
-  destruct s as [x| |s t].
-  - eauto.
-  - eauto.
-  - destruct t as [x| |t1 t2]; cbn; auto.
-    destruct s as [x| |s t]; cbn; eauto.
+  destruct s as [x| |s t]; eauto.
+  destruct s, t; cbn;  eauto.
 Qed.
 
 Lemma analyze_decomp s :
@@ -117,14 +153,14 @@ Proof.
   destruct s as [x| |s t]; try easy.
   destruct t as [x| |t1 t2].
   - intros _. exists s, (var x). right. easy.
-  - destruct s as [x| |s t]; try easy; eauto.
+  - destruct s ; eauto; easy. 
   - intros _. exists s, (t1 ~> t2). right. easy.
 Qed.
 
 Definition decomp A := Sigma B s C, A = B++s::C /\ decomposable s.
- 
+
 Lemma pre_solve A :
-  decomp A + solved A + refuted A.
+  decomp A + solved A + clashed A.
 Proof.
   induction A as [|s A IH]; cbn.
   - auto.
@@ -133,11 +169,13 @@ Proof.
       left. left. exists (s::B), t, C.
       destruct H as [-> H]. easy.
     + destruct (analyze s) as [[[->| ->]|[x [->| ->]]]|H]; cbn; auto.
-      * destruct (form_mem (-var x) A) as [H|H]; auto.
-      * destruct (form_mem (var x) A) as [H|H]; auto.
+      * destruct (form_mem_dec (-var x) A) as [H|H]; auto.
+      * destruct (form_mem_dec (var x) A) as [H|H]; auto.
       * left. left. exists [], s, A. easy.
     + auto.
 Qed.
+
+(*** Derivation Systems *)
 
 Inductive sigma : list form -> Type :=
 | sigma_term A :
@@ -153,7 +191,7 @@ Inductive sigma : list form -> Type :=
 
 Inductive rho : list form -> Type :=
 | rho_term A :
-  refuted A -> rho A
+  clashed A -> rho A
 | rho_rot s A :
   rho (A++[s]) -> rho (s::A) 
 | rho_imp_pos s t A :
@@ -222,7 +260,7 @@ Proof.
       lia.
 Qed.
 
-Lemma solver :
+Lemma solver' :
   forall A, sigma A + rho A.
 Proof.
   apply (size_rec gamma).
@@ -246,4 +284,123 @@ Proof.
   - right. apply rho_term, H.
 Qed.
 
+(*** Satisfiability *)
+
+Implicit Types alpha : nat -> bool.
+
+Fixpoint eva alpha s : bool :=
+  match s with
+  | var x => alpha x
+  | bot => false
+  | s1~>s2 => if eva alpha s1 then eva alpha s2 else true
+  end.
+
+Definition sat A := Sigma alpha, forall s, s el A -> eva alpha s = true.
+
+Fact solved_sat A :
+  solved A -> sat A.
+Proof.
+  intros H.
+  exists (fun x => if form_mem_dec (var x) A then true else false).
+  intros s H1.
+  assert (H2:=solved_forall A H s H1). clear H.
+  destruct s as [x| |s1 s2]; cbn.
+  - destruct form_mem_dec; easy.
+  - easy.
+  - destruct s1, s2; cbn; auto.
+    destruct form_mem_dec; easy.
+Qed.
+
+Fact sigma_sat A :
+  sigma A -> sat A.
+Proof.
+  induction 1 as
+    [A H|s A _ [alpha IH]|s t A H _ [alpha IH]|s t A H _ [alpha IH]|s t A _ [alpha IH]].
+  - apply solved_sat, H.
+  - exists alpha. intros u H1. apply IH.
+    apply in_or_app.
+    destruct H1 as [<- | H1]; intuition.
+   - exists alpha. intros u [<- |H1]; cbn.
+    + specialize (IH (-s)). cbn in IH.
+      destruct (eva alpha s). 2:reflexivity.
+      enough (false = true) by easy.
+      auto.
+    + intuition.
+  - exists alpha. intros u [<- |H1]; cbn.
+    + destruct (eva alpha s);intuition.
+    + intuition.
+  - exists alpha. intros u [<- |H1]; cbn.
+    + assert (H1: eva alpha s = true).
+      { apply IH. intuition. }
+      assert (H2: eva alpha (-t) = true).
+      { apply IH. intuition. }
+      cbn in H2.
+      destruct (eva alpha s), (eva alpha t); easy.
+    + apply IH. intuition.
+Qed.
+
+(*** Refutation *)
+
+Reserved Notation "A |- s" (at level 70).
+Inductive nd A : form -> Type :=
+| ndA s:                    s el A  ->  A |- s
+| ndE s:                  A |- bot  ->  A |- s
+| ndII s t:              s::A |- t  ->  A |- s ~> t
+| ndIE s t:  A |- s ~> t  ->  A |- s  ->  A |- t
+where "A |- s" := (nd A s).
+
+Ltac ndA := (apply ndA; list).
+
+Fact Weak A B s :
+  A |- s -> A <<= B -> B |- s.
+Proof.
+  induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2] in B |-*.
+  all:intros H.
+  - ndA.
+  - apply ndE. apply IH, H.
+  - apply ndII. apply IH. list.
+  - eapply ndIE. apply IH1, H. apply IH2, H.
+Qed.
+
+Fact ImpL A s t :
+  A |- s~>t -> s::A |- t.
+Proof.
+  intros H. eapply ndIE. 2:ndA. eapply Weak. exact H. list.
+Qed.
+
+Fact rho_refut A :
+  rho A -> (A |- bot).
+Proof.
+  induction 1 as [A H|s A _ IH|s t A H _ IH1 _ IH2|s t A  _ IH1].
+  - apply clashed_exists in H as [H|(x&H1&H2)].
+    + ndA.
+    + eapply ndIE with (s:=var x); ndA.
+  - eapply Weak. exact IH. intros u.
+    intros [H|H] %in_app_or; list.
+  - apply ndII in IH1. apply ndII in IH2. apply ImpL.
+    enough (H1: A |- --s ~> -t ~> -(s ~> t)).
+    +  eapply ndIE. 2:exact IH2.
+       eapply ndIE; eassumption.
+    + do 3 apply ndII.
+      apply ndIE with (s:=-s). ndA.
+      apply ndII. apply ndIE with (s:=t). ndA.
+      apply ndIE with (s:=s); ndA.
+  - do 2 apply ndII in IH1. apply ImpL.
+    enough (H1: A |- (-t ~> -s) ~> --(s ~> t)).
+    + eapply ndIE. exact H1. exact IH1.
+    + do 2 apply ndII.
+      eapply ndIE with (s:=s~>t). ndA.
+      apply ndII.  apply ndE.
+      apply ndIE with (s:=s). 2:ndA.
+      apply ndIE with (s:=-t). ndA.
+      apply ndII. apply ndIE with (s:=s~>t). ndA.
+      apply ndII. ndA.
+Qed.
+
+Fact solver :
+  forall A, sat A + (A |- bot).
+Proof.
+  intros A.
+  destruct (solver' A) as [H %sigma_sat| H %rho_refut]; auto.
+Qed.
 
