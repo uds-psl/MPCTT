@@ -29,7 +29,7 @@ Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
-Ltac list := unfold In in *; cbn; auto; (intuition congruence || firstorder); fail.
+Ltac list := cbn; firstorder; intuition congruence.
 
 (*** Formulas *)
 
@@ -49,8 +49,8 @@ Lemma form_eqdec :
 Proof.
   intros s t. revert t.
   induction s as [x| |s1 IH1 s2 IH2];
-    destruct t as [y| |t1 t2]; 
-    try (unfold dec; intuition congruence).
+    destruct t as [y| |t1 t2];
+    unfold dec; try intuition congruence.
   - destruct (nat_eqdec x y) as [H|H];
       unfold dec; intuition congruence.
   - destruct (IH1 t1) as [H1|H1],
@@ -64,7 +64,7 @@ Proof.
   unfold dec.
   induction A as [|t A IH]; cbn.
   - auto.
-  - destruct (form_eqdec t s) as [->|H]; intuition.
+  - destruct (form_eqdec t s) as [->|H]; list.
 Qed.
 
 (*** Presolver *)
@@ -287,24 +287,24 @@ Proof.
   - apply solved_sat, H.
   - exists alpha. intros u H1. apply IH.
     apply in_or_app.
-    destruct H1 as [<- | H1]; intuition.
+    destruct H1 as [<- | H1]; list.
    - exists alpha. intros u [<- |H1]; cbn.
     + specialize (IH (-s)). cbn in IH.
       destruct (eva alpha s). 2:reflexivity.
       enough (false = true) by easy.
       auto.
-    + intuition.
+    + list.
   - exists alpha. intros u [<- |H1]; cbn.
-    + destruct (eva alpha s);intuition.
-    + intuition.
+    + destruct (eva alpha s);list.
+    + list.
   - exists alpha. intros u [<- |H1]; cbn.
     + assert (H1: eva alpha s = true).
-      { apply IH. intuition. }
+      { apply IH. list. }
       assert (H2: eva alpha (-t) = true).
-      { apply IH. intuition. }
+      { apply IH. list. }
       cbn in H2.
       destruct (eva alpha s), (eva alpha t); easy.
-    + apply IH. intuition.
+    + apply IH. list.
 Qed.
 
 (*** Refutation *)
@@ -371,4 +371,3 @@ Proof.
   intros A.
   destruct (solver' A) as [H %sigma_sat| H %rho_refut]; auto.
 Qed.
-
