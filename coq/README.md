@@ -25,7 +25,7 @@
 -  Vectors [vector.v](vector.v) 
 -  Well-Founded Recursion [wfrec.v](wfrec.v)
 -  Aczel Trees and Hierarchy Theorems [aczel.v](aczel.v) 
--  Propositional Deduction Systems [pds.v](pds.v), [refut.v](refut.v)
+-  Propositional Deduction Systems [pds.v](pds.v), [solver.v](solver.v)
 -  Boolean Satisfiability [bsat.v](bsat.v)
 -  Semi-Decidability and Markov's Principle [sdec.v](sdec.v) 
 -  Abstract Reduction Systems [ars.v](ars.v)
