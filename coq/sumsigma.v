@@ -28,7 +28,7 @@ End SumTypes.
 Locate "+".
 Print sum.
 
-Definition dec (X: Type) := sum X (X -> False).
+Definition dec (X: Type) : Type := X + (X -> False).
 
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
@@ -258,7 +258,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
@@ -266,8 +266,9 @@ Notation "'Sigma' x .. y , p" :=
 (** Certifying Distance *)
 
 Definition distance :
-  forall x y: nat, Sigma z, sum (x + z = y) (y + z = x).
+  forall x y: nat, Sigma z:nat, (x + z = y)%nat + (y + z = x)%nat.
 Proof.
+  (* Coq's overloading of "+" doesn't work well here *)
   induction x as [|x IH]; cbn. 
   - intros y. exists y. auto.
   - destruct y; cbn.
@@ -283,7 +284,7 @@ Compute
 From Coq Require Import Lia.
 
 Section Distance.
-  Variable D: forall x y: nat, Sigma z, sum (x + z = y) (y + z = x).
+  Variable D: forall x y: nat, Sigma z, (x + z = y)%nat + (y + z = x)%nat.
   
   Fact D_sub x y :
       x - y = if pi2 (D x y) then 0 else pi1 (D x y).

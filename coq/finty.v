@@ -9,7 +9,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
@@ -362,7 +362,7 @@ Section CoveringListing.
   Implicit Types A B : list X.
 
   Fact covering_listing A :
-    covering A -> Sigma B, ((length B <= length A) * listing B)%type.
+    covering A -> Sigma B, (length B <= length A) * listing B.
   Proof.
     intros H.
     destruct (nrep_equiv X_eqdec A) as (B&H1&H2&H3).
@@ -508,7 +508,7 @@ Qed.
 
 
 Fact injection_fin_sigma {X Y n} :
-  injection X Y -> fin n Y -> Sigma m, ((fin m X) * (m <= n))%type.
+  injection X Y -> fin n Y -> Sigma m, (fin m X) * (m <= n).
 Proof.
   intros H (H1&B&H2&H3).
   assert (eqdec X) as H6.

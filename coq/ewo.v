@@ -7,7 +7,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.

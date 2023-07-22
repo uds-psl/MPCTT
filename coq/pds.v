@@ -1,13 +1,25 @@
 From Coq Require Import List.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-Definition dec (X: Type) := sum X (X -> False).
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+    : type_scope.
+Definition dec (X: Type) : Type := X + (X -> False).
+Definition eqdec X := forall x y: X, dec (x = y).
+Lemma nat_eqdec : eqdec nat.
+Proof.
+  hnf; unfold dec.
+  induction x; destruct y; try intuition easy.
+  specialize (IHx y). intuition congruence.
+Qed.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
-Ltac list := cbn; auto; firstorder; fail.
+Ltac close := cbn; auto; firstorder; intuition congruence.
 
-(*** Intuitionistic ND *)
+(*** Formulas *)
 
 Inductive form: Type :=
 | var (x: nat)
@@ -20,6 +32,40 @@ Notation "- s" := (s ~> bot) (at level 35, right associativity).
 Implicit Types s t u v: form.
 Implicit Types A B C: list form.
 
+Lemma form_eqdec :
+  eqdec form.
+Proof.
+  intros s t. unfold dec. revert t.
+  induction s as [x| |s1 IH1 s2 IH2];
+    destruct t as [y| |t1 t2];
+    unfold dec; try intuition congruence.
+  - destruct (nat_eqdec x y) as [H|H];
+      unfold dec; intuition congruence.
+  - destruct (IH1 t1) as [H1|H1],
+        (IH2 t2) as [H2|H2];
+      unfold dec; intuition congruence.
+Qed.
+
+Lemma el_sum s t A :
+  s el t::A -> (s = t) + (s el A).
+Proof.
+  destruct (form_eqdec s t) as [->|H].
+  - auto.
+  - intros H1. right. close.
+Qed.
+
+(*** Intuitionistic ND *)
+
+Lemma form_memdec s A :
+  dec (s el A).
+Proof.
+  unfold dec.
+  induction A as [|t A IH]; cbn.
+  - auto.
+  - destruct (form_eqdec t s) as [->|H]; close.
+Qed.
+
+
 Reserved Notation "A |- s" (at level 70).
 Inductive nd A : form -> Type :=
 | ndA s:                    s el A  ->  A |- s
@@ -28,7 +74,7 @@ Inductive nd A : form -> Type :=
 | ndIE s t:  A |- s ~> t  ->  A |- s  ->  A |- t
 where "A |- s" := (nd A s).
 
-Ltac ndA := apply ndA; list.
+Ltac ndA := apply ndA; close.
 
 Definition  elim_nd
   : forall p: list form -> form -> Type,
@@ -137,15 +183,21 @@ Proof.
   all:intros H.
   - ndA.
   - apply ndE. apply IH, H.
-  - apply ndII. apply IH. list.
+  - apply ndII. apply IH. close.
   - eapply ndIE. apply IH1, H. apply IH2, H.
+Qed.
+
+Fact ImpL A s t :
+  A |- s~>t -> s::A |- t.
+Proof.
+  intros H. eapply ndIE. 2:ndA. eapply Weak. exact H. close.
 Qed.
 
 Fact Imp A s t :
   A |- s~>t <=> s::A |- t.
 Proof.
   split.
-  - intros H. eapply ndIE. 2:ndA. eapply Weak. exact H. list.
+  - apply ImpL.
   - apply ndII.
 Qed.
 
@@ -179,14 +231,14 @@ Proof.
   - intros [].
   - intros _. right. apply ndII. ndA.
   - intros [[H1|H1]%IH1 [H2|H2]%IH2].
-    + left. apply ndII. eapply Weak. exact H2. list.
+    + left. apply ndII. eapply Weak. exact H2. close.
     + right. apply ndII.
-      assert (H3: [] <<= [s1 ~> s2]) by list.
+      assert (H3: [] <<= [s1 ~> s2]) by close.
       eapply Weak in H1. 2:exact H3.
       eapply Weak in H2. 2:exact H3.
       eapply ndIE. exact H2.
       eapply ndIE. 2:exact H1. ndA.
-    + left. apply ndII. eapply Weak. exact H2. list.
+    + left. apply ndII. eapply Weak. exact H2. close.
     + left. apply ndII, ndE, Imp, H1.
 Qed.
 
@@ -200,7 +252,7 @@ Inductive ndc A : form -> Type :=
 | ndcIE s t :  A |-c s ~> t -> A |-c s  ->  A |-c t
 where "A |-c s" := (ndc A s).
 
-Ltac ndcA := apply ndcA; list.
+Ltac ndcA := apply ndcA; close.
 
 Fact DN A s :
   A |-c --s ~> s.
@@ -220,15 +272,15 @@ Proof.
   induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2] in B |-*.
   all:intros H.
   - ndcA.
-  - apply ndcC. apply IH. list.
-  - apply ndcII. apply IH. list.
+  - apply ndcC. apply IH. close.
+  - apply ndcII. apply IH. close.
   - eapply ndcIE. apply IH1, H. apply IH2, H.
 Defined.
 
 Lemma Explosion A s :
   A |-c bot -> A |-c s.
 Proof.
-  intros H. apply ndcC. eapply Weakc. exact H. list.
+  intros H. apply ndcC. eapply Weakc. exact H. close.
 Defined.
 
 Lemma Translation A s :
@@ -245,7 +297,7 @@ Fact Impc A s t :
   A |-c s~>t <=> s::A |-c t.
 Proof.
   split.
-  - intros H. eapply ndcIE. 2:ndcA. eapply Weakc. exact H. list.
+  - intros H. eapply ndcIE. 2:ndcA. eapply Weakc. exact H. close.
   - apply ndcII.
 Qed.
 
@@ -253,7 +305,7 @@ Fact ndc_refute A s :
   A |-c s <=> -s::A |-c bot.
 Proof.
   split.
-  - intros H. eapply ndcIE. ndcA. eapply Weakc. exact H. list.
+  - intros H. eapply ndcIE. ndcA. eapply Weakc. exact H. close.
   - apply ndcC.
 Qed.
 
@@ -341,21 +393,11 @@ Proof.
   apply hilMP, hilF.
 Defined.
 
-Fact mem_sum s t A :
-  s el t::A -> (s = t) + (s el A).
-Proof.
-  enough (forall s t, {s = t} + {s <> t}) as d.
-  { destruct (d s t) as [<-|H1].
-    - auto.
-    - intros H2. right. destruct H2 as [<-|H2]; easy. }
-  do 2 decide equality.
-Defined.
-
 Fact hilD s A t :
   hil (s::A) t -> hil A (s ~> t).
 Proof.
   induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
-  - apply mem_sum in H as [->|H].
+  - apply el_sum in H as [->|H].
     + apply hilI.
     + apply hilAK. apply hilA, H.
   - eapply hilAS. exact IH1. exact IH2.
@@ -637,7 +679,7 @@ Qed.
 (*** Certifying Boolean Solver *)
 
 Section CBS.
-  Variable CBS: forall A, { alpha | evac alpha A = true } + (A |-c bot).
+  Variable CBS: forall A, (Sigma alpha, evac alpha A = true)  + (A |-c bot).
 
   Fact ben_complete A s :
     A |= s -> A |-c s.
@@ -744,18 +786,18 @@ Section Sandwich.
   Proof.
     induction s as [n| |s1 IH1 s2 IH2]; cbn.
     - unfold hat. destruct alpha.
-      + apply Eimpl, Eassu. list.
-      + apply Eimpl, Eassu. list.
-    - apply Eimpl, Eassu. list.
+      + apply Eimpl, Eassu. close.
+      + apply Eimpl, Eassu. close.
+    - apply Eimpl, Eassu. close.
     - set (sigma := subst (hat alpha)) in *.
       destruct (eva alpha s1).
       + destruct eva.
-        * apply Eimpl. eapply Eweak. exact IH2. list.
+        * apply Eimpl. eapply Eweak. exact IH2. close.
         * apply Eimpl. apply EIE with (sigma s2).
-          -- eapply Eweak. exact IH2. list.
+          -- eapply Eweak. exact IH2. close.
           -- apply EIE with (sigma s1).
-             ++ apply Eassu. list.
-             ++ eapply Eweak. exact IH1. list.
+             ++ apply Eassu. close.
+             ++ eapply Eweak. exact IH1. close.
       + apply Eimpl, Eexfalso, Eimpl. exact IH1.
   Qed.
   

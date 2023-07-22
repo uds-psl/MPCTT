@@ -1,11 +1,11 @@
 From Coq Require Import Arith Lia.
 Unset Elimination Schemes.
-Definition dec (X: Type) := sum X (X -> False).
+Definition dec (X: Type) : Type :=  X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition nat_eqdec : eqdec nat :=
   fun x y => match Nat.eq_dec x y with left H => inl H | right H => inr H end.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
@@ -504,7 +504,6 @@ Section List.
       eapply equi_trans. exact H4. apply equi_symm, H1.
   Qed.
       
-
   Fact card_length A :
     card A <= length A.
   Proof.
@@ -589,7 +588,6 @@ Section List.
           -- exact IH.
         * exact IH.
     Qed.
-
 
   (*** Element Removal *)
   

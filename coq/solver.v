@@ -1,13 +1,6 @@
 From Coq Require Import List Lia.
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-Definition dec (X: Type) := sum X (X -> False).
+Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
-    (at level 200, x binder, right associativity,
-     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-    : type_scope.
 Lemma nat_eqdec : eqdec nat.
 Proof.
   hnf; unfold dec.
@@ -25,11 +18,18 @@ Proof.
   - exfalso. lia.
   - apply F. intros y H1. apply IH. lia.
 Qed.
+Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
+Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+    : type_scope.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
-Notation "x 'nel' A" := (~ In x A) (at level 70).
+Notation "x 'nel' A" := (~In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
-Ltac list := cbn; firstorder; intuition congruence.
+Ltac close := cbn; auto; firstorder; intuition congruence.
 
 (*** Formulas *)
 
@@ -47,7 +47,7 @@ Implicit Types A B C: list form.
 Lemma form_eqdec :
   eqdec form.
 Proof.
-  intros s t. revert t.
+  intros s t. unfold dec. revert t.
   induction s as [x| |s1 IH1 s2 IH2];
     destruct t as [y| |t1 t2];
     unfold dec; try intuition congruence.
@@ -58,12 +58,12 @@ Proof.
       unfold dec; intuition congruence.
 Qed.
 
-Lemma el_sum s t A :
+Lemma mem_sum s t A :
   s el t::A -> (s = t) + (s el A).
 Proof.
   destruct (form_eqdec s t) as [->|H].
   - auto.
-  - intros H1. right. list.
+  - intros H1. right. close.
 Qed.
 
 Lemma form_memdec s A :
@@ -72,7 +72,7 @@ Proof.
   unfold dec.
   induction A as [|t A IH]; cbn.
   - auto.
-  - destruct (form_eqdec t s) as [->|H]; list.
+  - destruct (form_eqdec t s) as [->|H]; close.
 Qed.
 
 (*** Presolver *)
@@ -111,29 +111,29 @@ Proof.
   - right. left. easy. (* solved *)
   - destruct IH as [IH|[IH|IH]].
     + left. destruct IH as (B&u&C&IH1&IH2). (* decomp *)
-      hnf. exists (s::B), u, C. subst A. list.      
+      hnf. exists (s::B), u, C. subst A. close.      
     + destruct (analyze s) as [[-> |[x [-> | ->]]]|H].
-      * right. right. list. (* clashed *)
+      * right. right. close. (* clashed *)
       * right. destruct (form_memdec (-var x) A) as [H|H].
-        -- right. list. (* clashed *)
-        -- left. intros s [-> |H1] %el_sum. (* solved *)
-           ++ exists x. list.
+        -- right. close. (* clashed *)
+        -- left. intros s [-> |H1] %mem_sum. (* solved *)
+           ++ exists x. close.
            ++ specialize (IH s H1) as [y [[IH1 IH2]|[IH1 IH2]]]; subst s.
               ** destruct (nat_eqdec x y) as [<- |H2].
-                 --- exists x. list.
-                 --- exists y. list.
-              ** exists y. list.
+                 --- exists x. close.
+                 --- exists y. close.
+              ** exists y. close.
       * right. destruct (form_memdec (var x) A) as [H|H].
-        -- right. list. (* clashed *)
-        -- left. intros s [-> |H1] %el_sum. (* solved *)
-           ++ exists x. list.
+        -- right. close. (* clashed *)
+        -- left. intros s [-> |H1] %mem_sum. (* solved *)
+           ++ exists x. close.
            ++ specialize (IH s H1) as [y [[IH1 IH2]|[IH1 IH2]]]; subst s.
                ** destruct (nat_eqdec x y) as [<- |H2].
-                 --- exists x. list.
-                 --- exists y. list.
-              ** exists y. list.
+                 --- exists x. close.
+                 --- exists y. close.
+              ** exists y. close.
       * left. exists [], s, A. easy.
-    + right. right. list. (* clashed *)
+    + right. right. close. (* clashed *)
 Qed.
 
 (*** Solver *)
@@ -297,14 +297,14 @@ Proof.
   induction 1 as
     [A H|s A _ [alpha IH]|A _ [alpha IH]|s t A _ [alpha IH]|s t A _ [alpha IH]|s t A _ [alpha IH]].
   - apply solved_sat, H.
-  - exists alpha. intros u H1. apply IH. apply in_or_app. list.
-  - exists alpha. intros u [<-|H1]; list.
-  - exists alpha. intros u [<-|H1]. 2:list.
-    specialize (IH (-s)). cbn in *. destruct (eva alpha s); list.
-  - exists alpha. intros u [<- |H1]. 2:list.
-    specialize (IH t). cbn in *. destruct (eva alpha s); list.
-  - exists alpha. intros u [<- |H1]. 2:list.
-    assert (IHs:= IH s). specialize (IH (-t)). cbn in *. destruct (eva alpha s); list.
+  - exists alpha. intros u H1. apply IH. apply in_or_app. close.
+  - exists alpha. intros u [<-|H1]; close.
+  - exists alpha. intros u [<-|H1]. 2:close.
+    specialize (IH (-s)). cbn in *. destruct (eva alpha s); close.
+  - exists alpha. intros u [<- |H1]. 2:close.
+    specialize (IH t). cbn in *. destruct (eva alpha s); close.
+  - exists alpha. intros u [<- |H1]. 2:close.
+    assert (IHs:= IH s). specialize (IH (-t)). cbn in *. destruct (eva alpha s); close.
 Qed.
 
 (*** Refutation *)
@@ -317,7 +317,7 @@ Inductive nd A : form -> Type :=
 | ndIE s t:  A |- s ~> t  ->  A |- s  ->  A |- t
 where "A |- s" := (nd A s).
 
-Ltac ndA := (apply ndA; list).
+Ltac ndA := (apply ndA; close).
 
 Fact Weak A B s :
   A |- s -> A <<= B -> B |- s.
@@ -326,14 +326,14 @@ Proof.
   all:intros H.
   - ndA.
   - apply ndE. apply IH, H.
-  - apply ndII. apply IH. list.
+  - apply ndII. apply IH. close.
   - eapply ndIE. apply IH1,H. apply IH2,H.
 Qed.
 
 Fact ImpL A s t :
   A |- s~>t -> s::A |- t.
 Proof.
-  intros H. eapply ndIE. 2:ndA. eapply Weak. exact H. list.
+  intros H. eapply ndIE. 2:ndA. eapply Weak. exact H. close.
 Qed.
 
 Fact rho_refut A :
@@ -344,8 +344,8 @@ Proof.
     + ndA.
     + eapply ndIE with (s:=s); ndA.
   - eapply Weak. exact IH. intros u.
-    intros [H|H] %in_app_or; list.
-  - eapply Weak. exact IH. list.
+    intros [H|H] %in_app_or; close.
+  - eapply Weak. exact IH. close.
   - apply ndII in IH1. apply ndII in IH2. apply ImpL.
     enough (H1: A |- --s ~> -t ~> -(s ~> t)).
     +  eapply ndIE. 2:exact IH2.

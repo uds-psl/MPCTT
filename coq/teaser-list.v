@@ -1,15 +1,6 @@
-From Coq Require Import Arith Lia.
+From Coq Require Import Arith Lia List.
 Definition dec (X: Type) := sum X (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Definition decidable X p := forall x:X, dec (p x).
-Notation sig := sigT.
-Notation Sig := existT.
-Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
-    (at level 200, x binder, right associativity,
-     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-  : type_scope.
-From Coq Require Import List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 
