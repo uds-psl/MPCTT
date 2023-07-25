@@ -240,7 +240,7 @@ Proof.
     + right. exists s, (t1 ~> t2). right. easy.
 Qed.
 
-Lemma solver_sigma_rho :
+Lemma solver :
   forall A, sigma A + rho A.
 Proof.
   apply (size_rec gamma).
@@ -367,28 +367,39 @@ Proof.
       apply ndIE with (s:=-t); ndA.
 Qed.
 
-Fact solver :
+Fact nd_solver :
   forall A, sat A + (A |- bot).
 Proof.
   intros A.
-  destruct (solver_sigma_rho A) as [H %sigma_sat| H %rho_refut]; auto.
+  destruct (solver A) as [H %sigma_sat| H %rho_refut]; auto.
 Qed.
 
 (** Agreement and Decidability *)
 
 Definition entails A s := forall alpha, satL alpha A -> satF alpha s.
 
+Fact entails_sat A s :
+  entails A s <-> (sat (-s::A) -> False).
+Proof.
+  split; intros H.
+  - intros [alpha H1].
+    enough (eva alpha s = true /\ eva alpha s = false) by close.
+    split.
+    + apply H. close.
+    + specialize (H1 (-s)). cbn in H1.
+      destruct (eva alpha s); close.
+  - intros alpha H1. destruct (eva alpha s) eqn:E. reflexivity.
+    exfalso. apply H. exists alpha. intros u [<-|H2].
+    + cbn. rewrite E. reflexivity.
+    + apply H1, H2.
+Qed.
+
 Fact nd_complete A s :
   entails A s -> A |- s.
 Proof.
-  intros H.
-  destruct (solver (-s::A)) as [[alpha H1]|H1].
-    + enough (eva alpha s = true /\ eva alpha s = false) by close.
-      split.
-      * apply H. close.
-      * specialize (H1 (-s)). cbn in H1.
-        destruct (eva alpha s); close.
-    +  apply ndC. exact H1.
+  intros H. destruct (nd_solver (-s::A)) as [H1|H1].
+  - exfalso. revert H1. apply entails_sat, H.
+  - apply ndC. exact H1.
 Qed.
 
 Fact nd_sound {A s} :
@@ -407,16 +418,12 @@ Proof.
   - specialize (IH1 alpha H). specialize (IH2 alpha H).
     cbn in IH1. rewrite IH2 in IH1. exact IH1.
 Qed.
-    
+
 Fact nd_dec :
   forall A s, dec (A |- s).
 Proof.
   intros A s.
-  destruct (solver (-s::A)) as [[alpha H]|H].
-  - right. intros H1.
-    enough (eva alpha s = true /\ eva alpha s = false) by close.
-    split.
-    + apply nd_sound in H1. close.
-    + specialize (H (-s)). cbn in H. destruct (eva alpha s); close.
+  destruct (nd_solver (-s::A)) as [H|H].
+  - right. intros H1. revert H. apply entails_sat, nd_sound, H1.
   - left. apply ndC. exact H.
 Qed.
