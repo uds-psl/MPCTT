@@ -240,7 +240,7 @@ Proof.
     + right. exists s, (t1 ~> t2). right. easy.
 Qed.
 
-Lemma solver' :
+Lemma solver_sigma_rho :
   forall A, sigma A + rho A.
 Proof.
   apply (size_rec gamma).
@@ -279,7 +279,9 @@ Fixpoint eva alpha s : bool :=
   | s1~>s2 => if eva alpha s1 then eva alpha s2 else true
   end.
 
-Definition sat A := Sigma alpha, forall s, s el A -> eva alpha s = true.
+Notation satF alpha s := (eva alpha s = true).
+Notation satL alpha A := (forall s, s el A -> satF alpha s).
+Definition sat A := Sigma alpha, satL alpha A.
 
 Fact solved_sat A :
   solved A -> sat A.
@@ -307,12 +309,13 @@ Proof.
     assert (IHs:= IH s). specialize (IH (-t)). cbn in *. destruct (eva alpha s); close.
 Qed.
 
-(*** Refutation *)
+(*** Clasical ND *)
 
+(* We employ a classical ND system *)
 Reserved Notation "A |- s" (at level 70).
 Inductive nd A : form -> Type :=
 | ndA s:                    s el A  ->  A |- s
-| ndE s:                  A |- bot  ->  A |- s
+| ndC s :             -s::A |- bot  ->  A |- s
 | ndII s t:              s::A |- t  ->  A |- s ~> t
 | ndIE s t:  A |- s ~> t  ->  A |- s  ->  A |- t
 where "A |- s" := (nd A s).
@@ -325,7 +328,7 @@ Proof.
   induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2] in B |-*.
   all:intros H.
   - ndA.
-  - apply ndE. apply IH, H.
+  - apply ndC. apply IH. close.
   - apply ndII. apply IH. close.
   - eapply ndIE. apply IH1,H. apply IH2,H.
 Qed.
@@ -359,16 +362,61 @@ Proof.
     + eapply ndIE. exact H1. exact IH1.
     + do 2 apply ndII.
       eapply ndIE with (s:=s~>t). ndA.
-      apply ndII.  apply ndE.
+      apply ndII.  apply ndC.
       apply ndIE with (s:=s). 2:ndA.
-      apply ndIE with (s:=-t). ndA.
-      apply ndII. apply ndIE with (s:=s~>t). ndA.
-      apply ndII. ndA.
+      apply ndIE with (s:=-t); ndA.
 Qed.
 
 Fact solver :
   forall A, sat A + (A |- bot).
 Proof.
   intros A.
-  destruct (solver' A) as [H %sigma_sat| H %rho_refut]; auto.
+  destruct (solver_sigma_rho A) as [H %sigma_sat| H %rho_refut]; auto.
+Qed.
+
+(** Agreement and Decidability *)
+
+Definition entails A s := forall alpha, satL alpha A -> satF alpha s.
+
+Fact nd_complete A s :
+  entails A s -> A |- s.
+Proof.
+  intros H.
+  destruct (solver (-s::A)) as [[alpha H1]|H1].
+    + enough (eva alpha s = true /\ eva alpha s = false) by close.
+      split.
+      * apply H. close.
+      * specialize (H1 (-s)). cbn in H1.
+        destruct (eva alpha s); close.
+    +  apply ndC. exact H1.
+Qed.
+
+Fact nd_sound {A s} :
+  A |- s -> entails A s.
+Proof.
+  induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2];
+    intros alpha H.
+  - auto.
+  - destruct (eva alpha s) eqn:E. easy.
+    enough (eva alpha bot = true) by close.
+    apply IH. intros u [<-|H1]. 
+    + cbn. rewrite E. easy.
+    + auto.
+  - cbn. destruct (eva alpha s) eqn:Es. 2:easy.
+    apply IH. close.
+  - specialize (IH1 alpha H). specialize (IH2 alpha H).
+    cbn in IH1. rewrite IH2 in IH1. exact IH1.
+Qed.
+    
+Fact nd_dec :
+  forall A s, dec (A |- s).
+Proof.
+  intros A s.
+  destruct (solver (-s::A)) as [[alpha H]|H].
+  - right. intros H1.
+    enough (eva alpha s = true /\ eva alpha s = false) by close.
+    split.
+    + apply nd_sound in H1. close.
+    + specialize (H (-s)). cbn in H. destruct (eva alpha s); close.
+  - left. apply ndC. exact H.
 Qed.
