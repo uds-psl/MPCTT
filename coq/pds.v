@@ -576,6 +576,10 @@ Module Heyting.
   Qed.
 End Heyting.
 
+(*** Certifying solvers *)
+
+(* See file solver.v *)
+
 (*** Boolean Entailment *)
 
 Implicit Types alpha : nat -> bool.
@@ -597,68 +601,6 @@ Definition ben A s : Prop :=
   forall alpha, if evac alpha A then eva alpha s = true else True.
           
 Notation "A |= s" := (ben A s) (at level 70).
-  
-Lemma evac_in A s :
-  s el A -> A |= s.
-Proof.
-  induction A as [|u A IH]; cbn.
-  + intros [].
-  + intros [<-|H] alpha; cbn.
-    * destruct eva, evac; cbn; trivial.
-    * generalize (IH H alpha). destruct evac, eva, eva; cbn; auto.
-Qed.
-
-Fact ben_sound A s :
-  A |-c s -> A |= s.
-Proof.
-  induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
-  - apply evac_in, H.
-  - intros alpha. generalize (IH alpha). cbn. destruct evac, eva; auto.
-  - intros alpha. generalize (IH alpha). cbn. destruct evac, eva, eva; auto.
-  - intros alpha. generalize (IH1 alpha) (IH2 alpha). cbn. destruct evac, eva, eva; cbn; auto.
-Qed.
-
-Corollary consistency :
-  (nil |-c bot) -> False.
-Proof.
-  intros H%ben_sound. generalize (H (fun _ => true)). cbn. discriminate.
-Qed.
-
-Fact ben_equiv A s :
-  A |= s <-> forall alpha, evac alpha A = true -> eva alpha s = true.
-Proof.
-  split.
-  - intros H alpha H1. generalize (H alpha). rewrite H1. trivial.
-  - intros H alpha. generalize (H alpha). destruct evac; auto.
-Qed.
-
-Fact ben_bot_equiv A :
-  A |= bot <-> forall alpha, evac alpha A = false.
-Proof.
-  split.
-  - intros H alpha. generalize (H alpha). destruct evac; auto.
-  - intros H alpha. rewrite H. trivial.
-Qed.
-
-Fact evac_true alpha A :
-  evac alpha A = true <-> forall s, s el A -> eva alpha s = true.
-Proof.
-  induction A as [|u A IH]; cbn.
-   - intuition.
-  - destruct (eva alpha u) eqn:H; split.
-    + intros H1 s [->|H2]. exact H. apply IH; assumption.
-    + intros H1. apply IH. intros s H2. apply H1. auto.
-    + intros [=].
-    + intros H1. specialize (H1 u). rewrite <-H. auto.
-Qed.
-
-Fact ben_refute A s :
-  A |= s <-> -s::A |= bot.
-Proof.
-  split.
-  - intros H alpha. generalize (H alpha). cbn. destruct evac, eva; trivial.
-  - intros H alpha. generalize (H alpha). cbn. destruct evac, eva; trivial.
-Qed.
 
 Fact ben_impl A s t :
   A |= s ~> t  <->  s::A |= t.
@@ -675,43 +617,6 @@ Proof.
     + intros H. apply IH, ben_impl, H.
     + intros H. apply ben_impl, IH, H.
 Qed.
-
-(*** Certifying Boolean Solver *)
-
-Section CBS.
-  Variable CBS: forall A, (Sigma alpha, evac alpha A = true)  + (A |-c bot).
-
-  Fact ben_complete A s :
-    A |= s -> A |-c s.
-  Proof.
-    intros H %ben_refute. apply ndc_refute.
-    destruct (CBS (-s::A)) as [[alpha H1]|H1]. 2:exact H1.
-    exfalso. apply ben_bot_equiv with (alpha:= alpha) in H. congruence.
-  Qed.
-
-  Fact ndc_dec A s :
-    dec (A |-c s).
-  Proof.
-    destruct (CBS (-s::A)) as [[alpha H1]|H1].
-    - right. intros H %ben_sound %ben_refute.
-      apply ben_bot_equiv with (alpha:= alpha) in H. congruence.
-    - left. apply ndcC, H1.
-  Qed.
-
-  Fact ben_agree A s :
-    A |-c s <=> A |= s.
-  Proof.
-    split. apply ben_sound. apply ben_complete.
-  Qed.
-  
-  Fact ben_dec A s :
-    dec (A |= s).
-  Proof.
-    destruct (ndc_dec A s) as [H|H].
-    - left. apply ben_sound, H.
-    - right. contradict H. apply ben_complete, H.
-  Qed.
-End CBS.
 
 (*** Substitution *)
 
@@ -749,6 +654,7 @@ Proof.
   - eapply ndIE. exact IH1. exact IH2.
 Qed. 
 
+
 (*** Entailment Predicates *)
 
 Section Sandwich.
@@ -778,6 +684,16 @@ Section Sandwich.
     eapply EIE; eassumption.
   Qed.
 
+  Fact nd2E A s :
+    A |- s -> A ||- s.
+  Proof.
+    induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
+    - apply Eassu, H.
+    - apply Eexfalso, IH.
+    - apply Eimpl, IH.
+    - eapply EIE; eassumption.
+  Qed.
+ 
   Definition hat alpha n := if alpha n then -bot else bot.
 
   Lemma Tebbi alpha s :
@@ -829,6 +745,6 @@ Section Sandwich.
      intros H. apply ben_revert, E2BE'.
     apply ereversion with (A:= A), H.
   Qed.
-   
+  
 End Sandwich.
   

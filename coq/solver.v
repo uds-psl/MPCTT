@@ -374,7 +374,7 @@ Proof.
   destruct (solver A) as [H %sigma_sat| H %rho_refut]; auto.
 Qed.
 
-(** Agreement and Decidability *)
+(** Boolean entailment *)
 
 Definition entails A s := forall alpha, satL alpha A -> satF alpha s.
 
