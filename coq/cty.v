@@ -11,10 +11,37 @@ Notation "'Sigma' x .. y , p" :=
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
+
+(*** Injections *)
+
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
 
+From Coq Require Import Arith.Cantor.
+
+Definition injection_nat_x_nat : injection (nat * nat) nat.
+Proof.
+  exists to_nat of_nat. exact cancel_of_to.
+Qed.
+
+Fact injection_nat_option X :
+  injection X nat -> injection (option X) nat.
+Proof.
+  intros [f g H].
+  exists (fun a => match a with Some x => S (f x) | None => 0 end)
+    (fun n => match n with 0 => None | S n => Some ( g n) end).
+  intros [x|]; congruence.
+Qed.
+
+Fact injection_option X Y :
+  injection (option X) Y -> X -> injection X Y.
+Proof.
+  intros [f g H] x0.
+  exists (fun x => f (Some x))
+    (fun y => match g y with Some x => x | None => x0 end).
+  intros x. rewrite H. reflexivity.
+Qed.
 
 (*** Equality deciders *)
 
@@ -53,6 +80,30 @@ Proof.
     unfold dec in *; intuition congruence.
 Qed.
 
+Definition eqdec_sum X Y :
+  eqdec X * eqdec Y <=> eqdec (X + Y).
+Proof.
+  split.
+  - intros [dX dY] [x1|y1] [x2|y2].
+    + destruct (dX x1 x2); unfold dec in *; intuition congruence.
+    + unfold dec in *; intuition congruence.
+    + unfold dec in *; intuition congruence.
+    + destruct (dY y1 y2); unfold dec in *; intuition congruence.
+  - intros d; split.
+    + intros x1 x2.
+      destruct (d (inl x1) (inl x2)); unfold dec in *; intuition congruence.
+    + intros y1 y2.
+      destruct (d (inr y1) (inr y2)); unfold dec in *; intuition congruence.
+Qed.
+
+Definition eqdec_prod X Y :
+  eqdec X -> eqdec Y -> eqdec (X * Y).
+Proof.
+  intros dX dY [x1 y1] [x2 y2].
+  destruct (dX x1 x2), (dY y1 y2);
+    unfold dec in *; intuition congruence.
+Qed.
+
 (*** Enumerators *)
 
 Definition enum X := Sigma f: nat -> option X, forall x, exists n, f n = Some x.
@@ -88,6 +139,36 @@ Proof.
     intros x.
     specialize (H (Some x)) as [n H].
     exists n. rewrite H. reflexivity.
+Qed.
+
+Definition enum_sum X Y :
+  enum X * enum Y <=> enum (X + Y).
+Proof.
+  split.
+  - intros [[eX HX] [eY HY]].
+    exists (fun n => match of_nat n with
+             | (0,n) => match eX n with
+                       | Some x => Some (inl x)
+                       | None => None
+                       end
+             | (1,n) => match eY n with
+                       | Some y => Some (inr y)
+                       | None => None
+                       end
+             | _ => None
+             end).
+    intros [x|y].
+    + specialize (HX x) as [n HX].
+      exists (to_nat (0,n)). rewrite cancel_of_to, HX. reflexivity.
+    + specialize (HY y) as [n HY].
+      exists (to_nat (1,n)). rewrite cancel_of_to, HY. reflexivity.
+  - intros [e H]. split.
+    + exists (fun n => match e n with Some (inl x) => Some x | _ => None end).
+      intros x. specialize (H (inl x)) as [n H].
+      exists n. rewrite H. reflexivity.
+    + exists (fun n => match e n with Some (inr y) => Some y | _ => None end).
+      intros y. specialize (H (inr y)) as [n H].
+      exists n. rewrite H. reflexivity.
 Qed.
 
 (*** EWOs *)
@@ -159,6 +240,13 @@ Proof.
   - apply enum_injection in H; assumption.
 Qed.
 
+Definition cty_nat_x_nat : cty (nat * nat).
+Proof.
+  eapply cty_injection.
+  exact injection_nat_x_nat.
+  exact cty_nat.
+Qed.
+
 Definition cty_option X :
   cty X <=> cty (option X).
 Proof.
@@ -199,28 +287,10 @@ Proof.
   - apply ewo_nat.
 Qed.
 
-Fact injection_nat_option X :
-  injection X nat -> injection (option X) nat.
-Proof.
-  intros [f g H].
-  exists (fun a => match a with Some x => S (f x) | None => 0 end)
-    (fun n => match n with 0 => None | S n => Some ( g n) end).
-  intros [x|]; congruence.
-Qed.
-
 Fact cty_injection_nat X :
   injection X nat -> cty X.
 Proof.
   intros H. apply cty_equiv, injection_nat_option, H.
-Qed.
-
-Fact injection_option X Y :
-  injection (option X) Y -> X -> injection X Y.
-Proof.
-  intros [f g H] x0.
-  exists (fun x => f (Some x))
-    (fun y => match g y with Some x => x | None => x0 end).
-  intros x. rewrite H. reflexivity.
 Qed.
 
 Fact cty_flat_injection X :
@@ -228,4 +298,4 @@ Fact cty_flat_injection X :
 Proof.
   intros H %cty_equiv. apply injection_option, H.
 Qed.
-g
+
