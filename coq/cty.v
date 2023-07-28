@@ -16,7 +16,6 @@ Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
 
 
-
 (*** Equality deciders *)
 
 Definition eqdec X := forall x y: X, dec (x = y).
