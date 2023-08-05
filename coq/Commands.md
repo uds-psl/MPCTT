@@ -2,7 +2,7 @@
 ## Definitions
 Definition, Fixpoint  
 Fact, Lemma, Theorem, Corollary, Example, Goal  
-Proof, Qed, Defined, Admitted, Abort, Restart, Show Proof
+Proof, Qed, Defined, Admitted, Abort, Show Proof
 ## Implicit arguments, implicit types, simplification
 Arguments, Implicit Types, Opaque
 ## Sections
@@ -21,6 +21,6 @@ Set Printing All, Implicit, Universes
 Unset Printing ...   
 Unset Elimination Schemes
 ## Demo
-Fail
+Fail, Restart
 
 
