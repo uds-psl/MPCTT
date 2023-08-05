@@ -13,11 +13,20 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 
+Definition injective {X Y} (f: X -> Y) :=
+  forall x x', f x = f x' -> x = x'.
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
+Definition bijective {X Y} (f: X -> Y) :=
+  injective f /\ surjective f.
+
 (*** Injections *)
 
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+Inductive bijection (X Y: Type) : Type :=
+| Bijection {f: X -> Y} {g: Y -> X} (_: inv g f) (_: inv f g).
 
 From Coq Require Import Arith.Cantor.
 
@@ -58,6 +67,14 @@ Proof.
   hnf; induction x as [|x IH]; destruct y as [|y]; unfold dec in *.
   1-3: intuition congruence.
   destruct (IH y); intuition congruence.
+Qed.
+
+Fact eqdec_injective {X Y f} :
+  @injective X Y f -> eqdec Y -> eqdec X.
+Proof.
+  intros H d x x'. specialize (H x x').
+  destruct (d (f x) (f x')) as [H1|H1];
+    unfold dec in *; intuition  congruence.
 Qed.
 
 Definition eqdec_injection X Y :
@@ -193,6 +210,30 @@ Proof.
   reflexivity.
 Qed.
 
+(*** Co_Enumerators *)
+
+Definition co_enum {X} (g: X -> nat) f :=
+  forall x, f (g x) = Some x.
+
+Fact co_enum_enum X f g :
+  co_enum g f -> enum' X f.
+Proof.
+  intros H x. exists (g x). congruence.
+Qed.
+
+Fact co_enum_injective X f g :
+  @co_enum X g f -> injective g.
+Proof.
+  intros H x y H1 %(f_equal f). congruence.
+Qed.
+
+Fact co_enum_eqdec X f g :
+  @co_enum X g f -> eqdec X.
+Proof.
+  intros H %co_enum_injective.
+  generalize H eqdec_nat. apply eqdec_injective.
+Qed.
+
 (*** EWOs *)
 
 Definition ewo X := forall (p: X -> Prop), decider p -> ex p -> sig p.
@@ -242,14 +283,7 @@ Qed.
 
 (*** Inverse functions via EWOs *)
 
-Definition injective {X Y} (f: X -> Y) :=
-  forall x x', f x = f x' -> x = x'.
-Definition surjective {X Y} (f: X -> Y) :=
-  forall y, exists x, f x = y.
-Definition bijective {X Y} (f: X -> Y) :=
-  injective f /\ surjective f.
-
-Fact surjective_inv {X Y f} :
+Fact co_inv_ex {X Y f} :
   @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
 Proof.
   intros H e d.
@@ -260,30 +294,24 @@ Proof.
   - apply H. 
 Qed.
 
-Fact bijective_inv X Y f :
+Fact bijection_ex X Y f :
   @bijective X Y f -> ewo X -> eqdec Y -> Sigma g, inv g f /\ inv f g.
 Proof.
   intros [H1 H2] e d.
-  destruct (surjective_inv H2 e d) as [g H3].
+  destruct (co_inv_ex H2 e d) as [g H3].
   exists g. split. 2:exact H3.
   intros x. apply H1. congruence.
 Qed.
 
-
-Fact enum_co_inv {X f} :
-  eqdec X -> enum' X f ->
-  Sigma g, injective g /\  forall x, f (g x) = Some x.
+Fact co_enum_ex {X f} :
+  eqdec X -> enum' X f -> Sigma g, co_enum g f.
 Proof.
   intros d H.
   assert (F: forall x, Sigma n, f n = Some x).
   { intros x. apply ewo_nat.
     - intros n. apply eqdec_option in d. apply d.
     - apply H. }
-  exists (fun x => pi1 (F x)). split.
-  - intros x y.
-    destruct (F x) as [nx Hx], (F y) as [ny Hxy]; cbn.
-    congruence.
-  - intros x. apply (pi2 (F x)).
+  exists (fun x => pi1 (F x)). intros x. apply (pi2 (F x)).
 Qed.
 
 (*** Countable Types *)
@@ -339,12 +367,22 @@ Proof.
   - revert e. apply enum_option.
 Qed.
 
-Fact cty_equiv X :
-  cty X <=> injection (option X) nat.
+Fact cty_char_co_enum X :
+  cty X <=> Sigma g f, @co_enum X g f.
 Proof.
   split.
   - intros (d&f&H).
-    destruct (enum_co_inv d H) as (g&_&Hg).   
+    destruct (co_enum_ex d H) as [g Hg]. exists g, f. exact Hg.
+  - intros (g&f&H). split.
+    + eapply co_enum_eqdec, H.
+    + exists f. eapply co_enum_enum, H.
+Qed.
+
+Fact cty_char_retract X :
+  cty X <=> injection (option X) nat.
+Proof.
+  split.
+  - intros (g&f&H) %cty_char_co_enum.
     exists (fun a => match a with Some x => S (g x) | None => 0 end)
       (fun n => match n with 0 => None | S n => f n end).
     intros [x|]; easy.
@@ -356,7 +394,7 @@ Qed.
 Fact cty_ewo X :
   cty X -> ewo X.
 Proof.
-  intros H %cty_equiv %ewo_injection.
+  intros H %cty_char_retract %ewo_injection.
   - revert H. apply ewo_option.
   - apply ewo_nat.
 Qed.
@@ -364,13 +402,13 @@ Qed.
 Fact cty_injection_nat X :
   injection X nat -> cty X.
 Proof.
-  intros H. apply cty_equiv, injection_nat_option, H.
+  intros H. apply cty_char_retract, injection_nat_option, H.
 Qed.
 
 Fact cty_flat_injection X :
   cty X -> X -> injection X nat.
 Proof.
-  intros H %cty_equiv. apply injection_option, H.
+  intros H %cty_char_retract. apply injection_option, H.
 Qed.
 
 (*** Least *)
@@ -462,12 +500,22 @@ Proof.
     intros [= ->] _. eapply least_unique; eassumption.
 Qed.
 
-(*** Alignment *)
+(*** Alignments *)
 
 Definition serial {X} (g: X -> nat) : Type :=
   forall x n, g x = S n -> Sigma y, g y = n.
 Definition alignment X (g: X -> nat) : Type :=
   serial g * injective g.
+
+Fact alignment_surjective X g :
+  cty X -> alignment X g -> surjective g -> bijection X nat.
+Proof.
+  intros H1 [Hg1 Hg2] H2.
+  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
+  { exists g f; easy. }
+  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
+Qed.
+  
 
 Definition cty_alignment X :
   cty X -> sig (alignment X).
@@ -475,7 +523,7 @@ Proof.
   intros H.
   destruct (cty_enum_fnrep H) as (f&H1&H2).
   destruct H as [d _].
-  destruct (enum_co_inv d H1) as (g&Hg1&Hg2).
+  destruct (co_enum_ex d H1) as [g Hg].
   (* hn = # hits f has below n *)
   pose (h := fix h n := match n with
                         | 0 => 0
@@ -499,10 +547,8 @@ Proof.
   - intros x n (m&y&H3&H4&<-)%h_serial.
     enough (g y = m) as <- by eauto.
     apply H2; congruence.
-  - intros x y H. apply Hg1.
+  - intros x y H.
+    eapply co_enum_injective. exact Hg.
     enough (g x < g y \/ g y < g x -> False) by lia.
-    intros [H3|H3]; eapply h_increasing in H3; try lia;  apply Hg2.
+    intros [H3|H3]; eapply h_increasing in H3; try lia;  apply Hg.
 Qed.
-
-(*** Infinite Countable Types *)
-
