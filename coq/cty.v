@@ -1,3 +1,4 @@
+From Coq Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition decider {X} (p: X -> Prop) := forall x, dec (p x).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
@@ -7,7 +8,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sig (fun x => .. (sigT (fun y => p)) ..))
+  (sig (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
@@ -106,7 +107,9 @@ Qed.
 
 (*** Enumerators *)
 
-Definition enum X := Sigma f: nat -> option X, forall x, exists n, f n = Some x.
+Definition enum' X (f: nat -> option X) := forall x, exists n, f n = Some x.
+
+Definition enum X := sig (enum' X).
 
 Definition enum_bot : enum False.
 Proof.
@@ -115,7 +118,7 @@ Qed.
 
 Definition enum_nat : enum nat.
 Proof.
-  exists Some. eauto.
+  exists Some. hnf; eauto.
 Qed.
 
 Definition enum_injection X Y :
@@ -146,7 +149,8 @@ Definition enum_sum X Y :
 Proof.
   split.
   - intros [[eX HX] [eY HY]].
-    exists (fun n => match of_nat n with
+    destruct injection_nat_x_nat as [f g H].
+    exists (fun n => match g n with
              | (0,n) => match eX n with
                        | Some x => Some (inl x)
                        | None => None
@@ -159,16 +163,34 @@ Proof.
              end).
     intros [x|y].
     + specialize (HX x) as [n HX].
-      exists (to_nat (0,n)). rewrite cancel_of_to, HX. reflexivity.
+      exists (f (0,n)). rewrite H, HX. reflexivity.
     + specialize (HY y) as [n HY].
-      exists (to_nat (1,n)). rewrite cancel_of_to, HY. reflexivity.
-  - intros [e H]. split.
+      exists (f (1,n)). rewrite H, HY. reflexivity.
+  - intros [e He]. split.
     + exists (fun n => match e n with Some (inl x) => Some x | _ => None end).
-      intros x. specialize (H (inl x)) as [n H].
-      exists n. rewrite H. reflexivity.
+      intros x. specialize (He (inl x)) as [n He].
+      exists n. rewrite He. reflexivity.
     + exists (fun n => match e n with Some (inr y) => Some y | _ => None end).
-      intros y. specialize (H (inr y)) as [n H].
-      exists n. rewrite H. reflexivity.
+      intros y. specialize (He (inr y)) as [n He].
+      exists n. rewrite He. reflexivity.
+Qed.
+
+Definition enum_prod X Y :
+  enum X -> enum Y -> enum (X * Y).
+Proof.
+  intros [eX HX] [eY HY].
+  destruct injection_nat_x_nat as [f g H].
+  exists (fun n => let (nx,ny) := g n in
+           match eX nx, eY ny with
+           | Some x, Some y => Some (x,y)
+           | _, _ => None
+           end).
+  intros (x,y).
+  destruct (HX x) as [nx Hx].
+  destruct (HY y) as [ny Hy].
+  exists (f (nx,ny)).
+  rewrite H, Hx, Hy.
+  reflexivity.
 Qed.
 
 (*** EWOs *)
@@ -218,6 +240,52 @@ Proof.
     + contradict H1.
 Qed.
 
+(*** Inverse functions via EWOs *)
+
+Definition injective {X Y} (f: X -> Y) :=
+  forall x x', f x = f x' -> x = x'.
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
+Definition bijective {X Y} (f: X -> Y) :=
+  injective f /\ surjective f.
+
+Fact surjective_inv {X Y f} :
+  @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
+Proof.
+  intros H e d.
+  enough (G: forall y, Sigma x, f x = y).
+  { exists (fun y => pi1 (G y)). intros y. apply (pi2 (G y)). }
+  intros y. apply e.
+  - intros x. apply d.
+  - apply H. 
+Qed.
+
+Fact bijective_inv X Y f :
+  @bijective X Y f -> ewo X -> eqdec Y -> Sigma g, inv g f /\ inv f g.
+Proof.
+  intros [H1 H2] e d.
+  destruct (surjective_inv H2 e d) as [g H3].
+  exists g. split. 2:exact H3.
+  intros x. apply H1. congruence.
+Qed.
+
+
+Fact enum_co_inv {X f} :
+  eqdec X -> enum' X f ->
+  Sigma g, injective g /\  forall x, f (g x) = Some x.
+Proof.
+  intros d H.
+  assert (F: forall x, Sigma n, f n = Some x).
+  { intros x. apply ewo_nat.
+    - intros n. apply eqdec_option in d. apply d.
+    - apply H. }
+  exists (fun x => pi1 (F x)). split.
+  - intros x y.
+    destruct (F x) as [nx Hx], (F y) as [ny Hxy]; cbn.
+    congruence.
+  - intros x. apply (pi2 (F x)).
+Qed.
+
 (*** Countable Types *)
 
 Definition cty X := (eqdec X * enum X) %type.
@@ -240,11 +308,25 @@ Proof.
   - apply enum_injection in H; assumption.
 Qed.
 
+Definition cty_sum X Y :
+  cty X -> cty Y -> cty (X + Y).
+Proof.
+  intros [dX eX] [dY eY]. split.
+  - apply eqdec_sum. split; assumption.
+  - apply enum_sum. split; assumption.
+Qed.
+
+Definition cty_prod X Y :
+  cty X -> cty Y -> cty (X * Y).
+Proof.
+  intros [dX eX] [dY eY]. split.
+  - apply eqdec_prod; assumption.
+  - apply enum_prod; assumption.
+Qed.
+
 Definition cty_nat_x_nat : cty (nat * nat).
 Proof.
-  eapply cty_injection.
-  exact injection_nat_x_nat.
-  exact cty_nat.
+  apply cty_prod; apply cty_nat.
 Qed.
 
 Definition cty_option X :
@@ -257,23 +339,15 @@ Proof.
   - revert e. apply enum_option.
 Qed.
 
-Fact cty_enum_sigma {X} :
-  cty X -> Sigma f: nat -> option X, forall x, Sigma n, f n = Some x.
-Proof.
-  intros (d&e&H).
-  exists e. intros x. apply ewo_nat.
-  - intros n. apply eqdec_option in d. apply d.
-  - apply H.
-Qed.
- 
 Fact cty_equiv X :
   cty X <=> injection (option X) nat.
 Proof.
   split.
-  - intros [h G] %cty_enum_sigma.
-    exists (fun a => match a with Some x => S (pi1 (G x)) | None => 0 end)
-      (fun n => match n with 0 => None | S n => h n end).
-    intros [x|]. apply (pi2 (G x)). reflexivity.
+  - intros (d&f&H).
+    destruct (enum_co_inv d H) as (g&_&Hg).   
+    exists (fun a => match a with Some x => S (g x) | None => 0 end)
+      (fun n => match n with 0 => None | S n => f n end).
+    intros [x|]; easy.
   - intros H. apply cty_injection in H.
     + revert H. apply cty_option.
     + apply cty_nat.
@@ -298,4 +372,137 @@ Fact cty_flat_injection X :
 Proof.
   intros H %cty_equiv. apply injection_option, H.
 Qed.
+
+(*** Least *)
+
+Definition safe (p: nat -> Prop) n := forall k, p k -> k >= n.
+Definition least (p: nat -> Prop) n := p n /\ safe p n.
+Notation unique p := (forall x x', p x -> p x' -> x = x').
+
+Fact least_unique (p: nat -> Prop) :
+  unique (least p).
+Proof.
+  intros x y [H1 H2] [H3 H4].
+  enough (x <= y /\ y <= x) by lia. split.
+  - apply H2, H3.
+  - apply H4, H1.
+Qed.
+
+Definition least_sigma (p: nat -> Prop) :
+  decider p -> sig p -> sig (least p).
+Proof.
+  intros d.
+  enough (forall n, sig (least p) + safe p n) as F.
+  { intros [n Hn]. destruct (F n) as [H|H]. easy. exists n. easy. }
+  induction n as [|n [IH|IH]].
+  - right. hnf. lia.
+  - eauto.
+  - destruct (d n).
+    + left. exists n. easy.
+    + right. intros k H. specialize (IH k H).
+      enough (k <> n) by lia.
+      congruence.
+Qed.
+
+Fact least_exists (p: nat -> Prop) :
+  decider p -> ex p -> ex (least p).
+Proof.
+  intros d [n Hn].
+  destruct (least_sigma p d) as [x H]; eauto.
+Qed.
+
+Definition least_dec p :
+  decider p -> decider (least p).
+Proof.
+  intros d n.
+  destruct (d n) as [H|H].
+  2:{ right. intros [H2 _]. easy. }
+  destruct (least_sigma p d) as [x Hx]. {eauto.}
+  destruct (eqdec_nat x n) as [->|H1]. {left. exact Hx.}
+  right. intros H2. contradict H1.
+  eapply least_unique; eassumption.
+Qed.
+
+Definition least_ewo (p: nat -> Prop) :
+  decider p -> ex p -> sig (least p).
+Proof.
+  intros d H. apply least_sigma. exact d.
+  apply ewo_nat; assumption.
+Qed.
+
+(*** Nonrepeating Enumerators *)
+
+Definition fnrep {X} (f: nat -> option X) : Prop :=
+  forall m n, f m = f n -> f m <> None -> m = n.
+
+Definition cty_enum_fnrep {X} :
+  cty X -> Sigma f, enum' X f /\ fnrep f.
+Proof.
+  intros (d&f&Hf).
+  assert (D: forall x, decider (fun n => f n = Some x)).
+  { intros x n. apply (eqdec_option X). exact d. }
+  exists (fun n => match f n with
+           | None => None
+           | Some x => if least_dec (fun n => f n = Some x) (D x) n
+                      then Some x
+                      else None
+           end).
+  split.
+  - intros x.
+    destruct (least_exists _ (D x) (Hf x)) as (k&Hk).
+    assert (Hx: f k = Some x). {apply Hk.}
+    exists k. destruct (f k) as [y|]. 2:easy.
+    assert (x=y) as <- by congruence.
+    destruct least_dec as [H|H]; easy.
+  - intros m n.
+    destruct (f m) as [xm|] eqn:Em. 2:easy.
+    destruct (f n) as [xn|] eqn:En. 2:easy.
+    destruct (least_dec _ _ m) as [H1|H1]. 2:easy.
+    destruct (least_dec _ _ n) as [H2|H2]. 2:easy.
+    intros [= ->] _. eapply least_unique; eassumption.
+Qed.
+
+(*** Alignment *)
+
+Definition serial {X} (g: X -> nat) : Type :=
+  forall x n, g x = S n -> Sigma y, g y = n.
+Definition alignment X (g: X -> nat) : Type :=
+  serial g * injective g.
+
+Definition cty_alignment X :
+  cty X -> sig (alignment X).
+Proof.
+  intros H.
+  destruct (cty_enum_fnrep H) as (f&H1&H2).
+  destruct H as [d _].
+  destruct (enum_co_inv d H1) as (g&Hg1&Hg2).
+  (* hn = # hits f has below n *)
+  pose (h := fix h n := match n with
+                        | 0 => 0
+                        | S n => if f n then S (h n) else h n
+                        end).
+  assert (h_serial: forall k n, h n = S k -> Sigma m y, m < n /\ f m = Some y /\ h m = k).
+  { intros k; induction n as [|n IH]; cbn. lia.
+    destruct (f n) as [y|] eqn:E.
+    - intros [= <-]. exists n, y. intuition lia.
+    - intros (m&y&H)%IH. exists m, y. intuition lia. }
+  assert (h_increasing: forall m x n, f m = Some x -> m < n -> h m < h n).
+  { intros m x. induction n as [|n IH].
+    - lia.
+    - intros H3 H4. cbn.
+      assert (m = n \/ m < n) as [->|H5] by lia.
+      + rewrite H3. lia.
+      + destruct (f n) as [y|].
+        * specialize (IH H3 H5). lia.
+        * auto. }
+  exists (fun x => h (g x)). split.
+  - intros x n (m&y&H3&H4&<-)%h_serial.
+    enough (g y = m) as <- by eauto.
+    apply H2; congruence.
+  - intros x y H. apply Hg1.
+    enough (g x < g y \/ g y < g x -> False) by lia.
+    intros [H3|H3]; eapply h_increasing in H3; try lia;  apply Hg2.
+Qed.
+
+(*** Infinite Countable Types *)
 

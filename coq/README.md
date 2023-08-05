@@ -30,7 +30,6 @@
 -  Aczel Trees and Hierarchy Theorems [aczel.v](aczel.v) 
 -  Semi-Decidability and Markov's Principle [sdec.v](sdec.v) 
 -  Abstract Reduction Systems [ars.v](ars.v)
--  Data Types [dat.v](dat.v)
 - [List of tactics used](Tactics.md)
 - [List of commands used](Commands.md)
 
