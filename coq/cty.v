@@ -560,8 +560,8 @@ Qed.
 
 (*** Cutoffs *)
 
-Notation hit f n := (exists x, f x = n).
-Notation miss f n := (~hit f n).
+Definition hit {X} (f: X -> nat) n := exists x, f x = n.
+Definition miss {X} (f: X -> nat) n := ~hit f n.
 Definition cutoff {X} (f: X -> nat) n :=
   forall k, (k < n -> hit f k) /\ (n <= k -> miss f k).
 
@@ -611,7 +611,7 @@ Proof.
   split. {apply H1.}
   destruct n.
   - exists []. split. 2:easy. split. 2:easy.
-    intros x. cbn. apply (H5 (f x)). lia. cbn; eauto.
+    intros x. cbn. apply (H5 (f x)). lia. exists x; easy.
   - assert (Sigma x, f x = n) as [x H6].
     { apply cty_ewo. exact H1.
       - intros x. apply eqdec_nat.
@@ -621,7 +621,7 @@ Proof.
     intros y. assert (f y <= n \/ f y > n) as [H10|H10] by lia.
     + apply H9 in H10. apply in_map_iff in H10 as (z&H10&H11).
       apply H4 in H10. congruence.
-    + exfalso. apply (H5 (f y)). lia. eauto.
+    + exfalso. apply (H5 (f y)). lia. exists y; easy.
 Qed.
 
 (*** Finite or Infinite *)
@@ -657,7 +657,7 @@ Fact XM_cutoff_or_surjective X f :
 Proof.
   intros xm H.
   destruct (xm (surjective f)) as [H1|H1]. {auto.} left.
-  enough (ex (least (fun n => miss f n))) as [n H2].
+  enough (ex (least (miss f))) as [n H2].
   - exists n. intros k; split; intros H3.
     + destruct (xm (hit f k)) as [H4|H4]. {auto.} exfalso.
       enough (n <= k) by lia. apply H2. easy.
@@ -665,7 +665,7 @@ Proof.
       enough (hit f n) as H5. {apply H2,H5.}
       revert H H4 H3. apply serial_hit_le.
   - apply least_xm_exists. exact xm.
-    destruct (xm (exists k, miss f k)) as [H2|H2]. {auto.} exfalso.
+    destruct (xm (ex (miss f))) as [H2|H2]. {auto.} exfalso.
     apply H1. intros n.
     destruct (xm (hit f n)) as [H3|H3]. {auto.} exfalso.
     eauto.
