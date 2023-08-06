@@ -426,6 +426,14 @@ Proof.
   - apply H4, H1.
 Qed.
 
+Fact safe_S p n :
+  safe p n -> ~p n -> safe p (S n).
+Proof.
+  intros H1 H2 k H3. specialize (H1 k H3).
+  enough (k <> n) by lia. congruence.
+Qed.
+
+
 Definition least_sigma (p: nat -> Prop) :
   decider p -> sig p -> sig (least p).
 Proof.
@@ -433,13 +441,11 @@ Proof.
   enough (forall n, sig (least p) + safe p n) as F.
   { intros [n Hn]. destruct (F n) as [H|H]. easy. exists n. easy. }
   induction n as [|n [IH|IH]].
-  - right. hnf. lia.
+  - right. hnf; lia.
   - eauto.
-  - destruct (d n).
+  - destruct (d n) as [H|H].
     + left. exists n. easy.
-    + right. intros k H. specialize (IH k H).
-      enough (k <> n) by lia.
-      congruence.
+    + right. apply safe_S; easy.
 Qed.
 
 Fact least_exists (p: nat -> Prop) :
@@ -502,23 +508,13 @@ Qed.
 
 (*** Alignments *)
 
-Definition serial {X} (g: X -> nat) : Type :=
-  forall x n, g x = S n -> Sigma y, g y = n.
-Definition alignment X (g: X -> nat) : Type :=
-  serial g * injective g.
+Definition serial {X} (f: X -> nat) : Type :=
+  forall x n, f x = S n -> Sigma y, f y = n.
+Definition alignment {X} (f: X -> nat) : Type :=
+  serial f * injective f.
 
-Fact alignment_surjective X g :
-  cty X -> alignment X g -> surjective g -> bijection X nat.
-Proof.
-  intros H1 [Hg1 Hg2] H2.
-  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
-  { exists g f; easy. }
-  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
-Qed.
-  
-
-Definition cty_alignment X :
-  cty X -> sig (alignment X).
+Definition cty_alignment {X} :
+  cty X -> sig (@alignment X).
 Proof.
   intros H.
   destruct (cty_enum_fnrep H) as (f&H1&H2).
@@ -552,3 +548,140 @@ Proof.
     enough (g x < g y \/ g y < g x -> False) by lia.
     intros [H3|H3]; eapply h_increasing in H3; try lia;  apply Hg.
 Qed.
+
+Fact cty_alignment_bijection X g :
+  cty X -> @alignment X g -> surjective g -> bijection X nat.
+Proof.
+  intros H1 [Hg1 Hg2] H2.
+  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
+  { exists g f; easy. }
+  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
+Qed.
+
+(*** Cutoffs *)
+
+Notation hit f n := (exists x, f x = n).
+Notation miss f n := (~hit f n).
+Definition cutoff {X} (f: X -> nat) n :=
+  forall k, (k < n -> hit f k) /\ (n <= k -> miss f k).
+
+From Coq Require Import List.
+Import ListNotations.
+Notation "x 'el' A" := (In x A) (at level 70).
+Notation "x 'nel' A" := (~ In x A) (at level 70).
+Fixpoint nrep {X} (A: list X) : Prop :=
+  match A with
+  | [] => True
+  | x::A => x nel A /\ nrep A
+  end.
+
+Definition serial_list {X f x n} :
+  @serial X f -> f x = n ->
+  Sigma A, nrep A /\ length A = S n /\
+         forall k, k <= n <-> k el map f A.
+Proof.
+  intros H2 H4.
+  induction n as [|n IH] in x, H4 |-*.
+  - exists [x]. split; cbn. easy. split. easy. intuition lia.
+  - specialize (H2 x n H4) as [y H2].
+    specialize (IH y H2) as (A&IH1&IH2&IH3).
+    exists (x::A). split; cbn.
+    + split. 2:easy.
+      intros H5. enough (S n <= n) by lia.
+      apply IH3. rewrite <-H4. apply in_map, H5. 
+    + split. congruence.
+      intros k. split.
+      * intros H5.
+        assert (k = S n \/ k <= n) as [->|H6] by lia. {auto.}
+        right. apply IH3, H6.
+      * intros [<-|H5]. lia. apply IH3 in H5. lia.
+Qed.
+
+Definition covering {X} (A: list X) :=
+  forall x, x el A.
+Definition listing {X} (A: list X) :=
+  covering A /\ nrep A.
+Definition fin n X : Type :=
+  eqdec X * Sigma A,  @listing X A /\ length A = n.
+
+Definition alignment_cutoff_fin X f n :
+  cty X -> @alignment X f -> cutoff f n -> fin n X.
+Proof.
+  intros H1 [H3 H4] H5.
+  split. {apply H1.}
+  destruct n.
+  - exists []. split. 2:easy. split. 2:easy.
+    intros x. cbn. apply (H5 (f x)). lia. cbn; eauto.
+  - assert (Sigma x, f x = n) as [x H6].
+    { apply cty_ewo. exact H1.
+      - intros x. apply eqdec_nat.
+      - apply H5. lia. }
+    destruct (serial_list H3 H6) as (A&H7&H8&H9).
+    exists A. split. 2:easy. split. 2:easy.
+    intros y. assert (f y <= n \/ f y > n) as [H10|H10] by lia.
+    + apply H9 in H10. apply in_map_iff in H10 as (z&H10&H11).
+      apply H4 in H10. congruence.
+    + exfalso. apply (H5 (f y)). lia. eauto.
+Qed.
+
+(*** Finite or Infinite *)
+
+Fact serial_hit_le X f n k :
+  @serial X f -> hit f n -> k <= n -> hit f k.
+Proof.
+  intros H. induction n as [|n IH]; intros H1 H2.
+  - assert (k=0) as -> by lia. exact H1.
+  - assert (k=S n \/ k <= n) as [->|H3] by lia.
+    exact H1.
+    firstorder.
+Qed.
+
+Definition XM : Prop := forall X: Prop, X \/ ~X.
+
+Fact least_xm_exists (p: nat -> Prop) :
+  XM -> ex p -> ex (least p).
+Proof.
+  intros xm.
+  enough (forall n, ex (least p) \/ safe p n) as H1.
+  { intros [n H]. specialize (H1 n) as [H1|H1]. easy. exists n; easy. }
+  induction n as [|n [IH|IH]].
+  - right. hnf; lia.
+  - left. exact IH.
+  - destruct (xm (p n)) as [H|H].
+    + left. exists n. easy.
+    + right. apply safe_S; easy.
+Qed.
+
+Fact XM_cutoff_or_surjective X f :
+  XM -> @serial X f -> ex (cutoff f) \/ surjective f.
+Proof.
+  intros xm H.
+  destruct (xm (surjective f)) as [H1|H1]. {auto.} left.
+  enough (ex (least (fun n => miss f n))) as [n H2].
+  - exists n. intros k; split; intros H3.
+    + destruct (xm (hit f k)) as [H4|H4]. {auto.} exfalso.
+      enough (n <= k) by lia. apply H2. easy.
+    + destruct (xm (hit f k)) as [H4|H4]. 2:easy. exfalso.
+      enough (hit f n) as H5. {apply H2,H5.}
+      revert H H4 H3. apply serial_hit_le.
+  - apply least_xm_exists. exact xm.
+    destruct (xm (exists k, miss f k)) as [H2|H2]. {auto.} exfalso.
+    apply H1. intros n.
+    destruct (xm (hit f n)) as [H3|H3]. {auto.} exfalso.
+    eauto.
+Qed.
+
+Inductive box (X: Type) : Prop := T (x:X).
+
+Fact cty_finite_or_infinite X :
+  XM -> cty X -> box ((Sigma n, fin n X) + bijection X nat).
+Proof.
+  intros xm H.
+  destruct (cty_alignment H) as [f H1].
+  edestruct XM_cutoff_or_surjective as [H2|H2]. exact xm. now apply H1.
+  - destruct H2 as [n H2]. constructor. left. exists n.
+    eapply alignment_cutoff_fin; eassumption.
+  - constructor. right.
+    eapply cty_alignment_bijection; eassumption.
+Qed.
+
