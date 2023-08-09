@@ -665,7 +665,7 @@ Proof.
     apply H6, H9.
   + apply nrep_map. apply H5. exact H3.
 Qed.
- 
+
 (*** Finite or Infinite *)
 
 Fact serial_hit_le X f n k :
@@ -702,11 +702,11 @@ Proof.
   pose (miss n := ~hit f n).
   enough (ex (least miss)) as [n H2].
   - exists n. intros k. split; intros H3.
-    + destruct (xm (hit f k)) as [H4|H4]. {auto.} exfalso.
-      apply H2 in H4. lia.
     + enough (~ n <= k) by lia. intros H4.
       destruct H2 as [H2 _]. enough (hit f n) by easy.
       revert H H3 H4. apply serial_hit_le.
+    + destruct (xm (hit f k)) as [H4|H4]. {auto.} exfalso.
+      apply H2 in H4. lia.
   - apply least_xm_exists. exact xm.
     destruct (xm (ex miss)) as [H2|H2]. {auto.} exfalso.
     apply H1. intros n.
