@@ -627,6 +627,26 @@ Qed.
 
 Definition cutoff {X} (f: X -> nat) n :=  forall k, hit f k <-> k < n.
 
+Fact cutoff_unique X (f: X -> nat) n1 n2 :
+  cutoff f n1 -> cutoff f n2 -> n1 = n2.
+Proof.
+  intros H1 H2.
+  destruct n1, n2.
+  - easy.
+  - exfalso.
+    enough (hit f n2) by firstorder lia.
+    apply H2. lia.
+  - exfalso.
+    enough (hit f n1) by firstorder lia.
+    apply H1. lia.
+  - enough (~(n1 < n2) /\ ~(n2 < n1)) by lia.
+    split; intros H3.
+    + enough (hit f (S n1)) by firstorder lia.
+      apply H2. lia.
+    + enough (hit f (S n2)) by firstorder lia.
+      apply H1. lia.
+Qed.
+
 Definition alignment_cutoff_fin X f n :
   cty X -> @alignment X f -> cutoff f n -> fin n X.
 Proof.
