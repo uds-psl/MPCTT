@@ -729,8 +729,6 @@ Section List.
   Qed.
   End SubPos.
 
-  (*** Disjointness *)
-
   Fixpoint disjoint A B : Prop :=
     match A with
       [] => True
@@ -755,20 +753,26 @@ Arguments mem_sum {X}.
 Arguments nrep {X}.
 Arguments rep {X}.
 
+(*** Map *)
+
 Definition injective {X Y} (f: X -> Y) :=
   forall x x', f x = f x' -> x = x'.
 
-Fact nrep_map X Y (f: X -> Y) A :
-  injective f -> nrep A -> nrep (map f A).
+Fact map_injective {X Y f x A} :
+  @injective X Y f -> f x el map f A -> x el A.
 Proof.
-  intros H1.
+  intros H (?&->%H&H2) %in_map_iff. exact H2.
+Qed.
+
+Fact nrep_map X Y f A :
+  @injective X Y f -> nrep A -> nrep (map f A).
+Proof.
+  intros H.
   induction A as [|x A IH]; cbn.
   - auto.
-  - intros [H2 H3].
-    split. 2:{ apply IH, H3. }
-    intros (x'&H4&H5)%in_map_iff.
-    apply H1 in H4 as ->.
-    auto.
+  - intros [H2 H3]. split. 
+    + contradict H2. eapply map_injective; eassumption.
+    + auto.
 Qed.
 
 Lemma nrep_injective X Y (f: X -> Y) x x' A :
