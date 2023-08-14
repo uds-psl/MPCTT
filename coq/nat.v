@@ -8,7 +8,7 @@ Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
@@ -332,20 +332,6 @@ Proof.
   intros H1%le_contra H2%le_contra.
   eapply le_anti; eassumption.
 Qed.
-  
-Lemma bounded_forall_dec (p: nat -> Prop) k:
-  (forall x, dec (p x)) -> dec (forall x, x < k -> p x).
-Proof.
-  intros H.
-  induction k as [|k IH].
-  - left. intros x [=].
-  - destruct (H k) as [H1|H1].
-    + destruct IH as [IH|IH]; cbn.
-      * left. intros x H2.
-        apply le_lt_eq_dec in H2 as [H2| ->]; auto.
-      * right. contradict IH. intros x H2. apply IH, lt_le, H2.
-    + right. contradict H1. apply H1, le_refl.
-Qed.
 
 Fact le_sub x y :
   x - y <= x.
@@ -412,6 +398,63 @@ Proof.
   - intros [z H]. lia. 
 Qed.
 
+(*** Bounded Quantification *)
+
+Definition decider {X} (p: X -> Type) := forall x:X, dec (p x).
+
+Section Bounded.
+  Variable p: nat -> Type.
+  Variable d : decider p.
+
+  Definition bounder_sigma_forall n :
+    (Sigma k, (k <= n) * p k) + (forall k, k <= n -> p k -> False).
+  Proof.
+    induction n as [|n [(k&IH1&IH2)|IH]].
+    - destruct (d 0) as [H|H].
+      + left. exists 0. intuition lia.
+      + right. intros k H1. assert (k=0) as -> by lia. exact H.
+    - left. exists k. intuition lia.
+    - destruct (d (S n)) as [H|H].
+      + left. exists (S n). intuition lia.
+      + right. intros k H1.
+        destruct (nat_eqdec k (S n)) as [->|H2]. exact H.
+        apply IH. lia.
+  Qed.
+  
+  Lemma bounded_forall n:
+    dec (forall k, k <= n -> p k).
+  Proof.
+    induction n as [|n [IH|IH]].
+    - destruct (d 0) as [H|H].
+      + left. intros k H1. assert (k=0) as -> by lia. exact H.
+      + right. intros H1. apply H, H1. lia.
+    - destruct (d (S n)) as [H|H].
+      + left. intros k H1.
+        destruct (nat_eqdec k (S n)) as [->|H2]. exact H.
+        apply IH. lia.
+      + right. contradict H. apply H. lia.
+    - right. contradict IH. intros k H. apply IH. lia.
+  Qed.
+  
+  Lemma bounded_sigma n:
+    dec (Sigma k, (k <= n) * p k).
+  Proof.
+    induction n as [|n [(k&IH1&IH2)|IH]].
+    - destruct (d 0) as [H|H].
+      + left. exists 0. easy.
+      + right. intros (k&H1&H2).
+        apply H. assert (k=0) as -> by lia. exact H2.
+    - left. exists k. intuition lia.
+    - destruct (d (S n)) as [H|H].
+      + left. exists (S n). intuition lia.
+      + right.
+        intros (k&H1&H2).
+        destruct (nat_eqdec k (S n)) as [->|H3]. easy.
+        apply IH. exists k. intuition lia.
+  Qed.
+End Bounded.
+
+
 (*** Complete Induction  *)
 
 Definition nat_compl_ind (p: nat -> Type) :
@@ -461,7 +504,7 @@ Qed.
 
 Fact U_Sigma f y :
   (forall x, f x y = U f x y) ->
-  forall x, Sigma k, x = k * S y + f x y.
+  forall x, Sigma k, (x = k * S y + f x y)%nat.
 Proof.
   intros H.
   refine (nat_compl_ind _ _).

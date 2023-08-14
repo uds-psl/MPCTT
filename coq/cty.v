@@ -666,6 +666,19 @@ Definition serial_list A := forall n, S n el A -> n el A.
 Fact serial_list_nrep A :
   serial_list A -> nrep A ->
   forall k, k el A <-> k < length A.
+Proof.
+  intros H1 H2.
+  induction A as [|x A IH]; cbn.
+  - intuition lia.
+  - intros k. split.
+    + intros [->|H4].
+      * admit.
+      * enough (k < length A) by lia.
+        apply IH.
+        -- admit.
+        -- apply H2.
+  
+  
 Admitted.
 
 Definition fin_alignment_cutoff X f n :

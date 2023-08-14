@@ -2,13 +2,19 @@ From Coq Require Import Arith Lia.
 Unset Elimination Schemes.
 Definition dec (X: Type) : Type :=  X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Definition nat_eqdec : eqdec nat :=
-  fun x y => match Nat.eq_dec x y with left H => inl H | right H => inr H end.
+Definition decider {X} (p: X -> Type) := forall x, dec (p x).
+Definition nat_eqdec : eqdec nat.
+Proof.
+  hnf; induction x as [|x IH]; destruct y as [|y]; unfold dec in *.
+  1-3: intuition congruence.
+  destruct (IH y); intuition congruence.
+Qed.
+Notation sig := sigT.
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
+  (sigT (fun x => .. (sig (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-  : type_scope.
+    : type_scope.
 
 
 Definition XM := forall P, P \/ ~P.
@@ -160,6 +166,18 @@ Section List.
         * right. cbn. intuition.
   Defined.
 
+  Definition list_dec (p: X -> Prop) A :
+    decider p -> (Sigma x, x el A /\ p x) + (forall x, x el A -> ~p x).
+  Proof.
+    intros d.
+    induction A as [|y A [(x&IH1&IH2)|IH]]; cbn.
+    - intuition.
+    - left. exists x. auto.
+    - destruct (d y) as [H|H].
+      + left. exists y. auto.
+      + right. intros x [->|H1]; auto.
+  Qed.
+
   (*** Inclusion and Equivalence *)
 
   Definition equi A B := A <<= B /\ B <<= A.
@@ -234,7 +252,7 @@ Section List.
         * cbn. congruence.
   Qed.
 
-  (*** Non-Repeating Lists *)
+  (*** Nonrepeating Lists *)
   
   Fixpoint rep A : Prop :=
     match A with
@@ -391,7 +409,7 @@ Section List.
       apply IH. exact H2. firstorder congruence.
    Qed.
 
-  (*** Constructive Discrimination *)
+ (*** Constructive Discrimination *)
     
   Fact nrep_discriminate_ex {A B} :
     XM -> nrep A -> length B < length A -> exists x, x el A /\ x nel B.
@@ -664,7 +682,6 @@ Section List.
         * right. apply rem_el. auto.
   Qed.
 
-
   (*** Sub and Pos *)
   
   Section SubPos.
@@ -748,6 +765,9 @@ Section List.
         * apply IH. intros (z&H1&H2). eauto.
   Qed.
 End List.
+
+Arguments equi {X}.
+Arguments list_dec {X}.
 Arguments mem_dec {X}.
 Arguments mem_sum {X}.
 Arguments nrep {X}.
@@ -790,59 +810,94 @@ Qed.
 
 (*** Lists of Numbers *)
 
-Fixpoint seq n k : list nat :=
-  match k with
-    0 => []
-  | S k' => n :: seq (S n) k'
-  end.
+Definition segment A := forall k, k el A <-> k < length A.
+Definition serial (A: list nat) := forall n k, n el A -> k <= n -> k el A.
 
-Fact seq_length n k :
-  length (seq n k) = k.
+Fact segment_nil :
+  segment [].
 Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - reflexivity.
-  - f_equal. apply IH.
+  intros k. cbn; intuition; lia.
 Qed.
 
-Fact seq_in x n k :
-  x el seq n k <-> n <= x < n + k.
+Fact segment_equal A B :
+  segment A -> segment B -> length A = length B -> A <<= B.
 Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - lia.
-  - rewrite IH. lia.
+  intros H1 H2 E x H3%H1. apply H2. lia.
 Qed.
 
-Fact seq_nrep n k :
-  nrep (seq n k).
+Fact segment_serial A :
+  segment A -> serial A.
 Proof.
-  induction k as [|k IH] in n |-*; cbn.
-  - exact I.
-  - rewrite seq_in. split. lia. apply IH.
+  intros H1 n k H2 H3. apply H1. apply H1 in H2. lia.
 Qed.
 
-Fact nat_list_le (A: list nat) n :
-  (Sigma k, k el A /\ k >= n) + forall k, k el A -> k < n.
+Definition segment_sigma :
+  forall n, Sigma A, length A = n /\ nrep A /\ segment A.
 Proof.
-  induction A as [|x A IH].
-  - right. easy.
-  - destruct (le_lt_dec n x) as [H|H].
-    + left. exists x. cbn;auto.
-    + destruct IH as [(k&H1&H2)|H1].
-      * left. exists k. cbn. auto.
-      * right. intros k [<-|H3]; auto.
+  induction n as [|n (A&IH1&IH2&IH3)].
+  - exists [].  split. easy. split. easy. apply segment_nil.
+  - exists (n::A). split; cbn. lia. split.
+    + split. 2:exact IH2. intros H %IH3. lia.
+    + intros k. split; cbn.
+      * intros [<-|H %IH3]; lia.
+      * intros H.
+        destruct (nat_eqdec k n) as [->|H1]. now auto.
+        right. apply IH3. lia.
 Qed.
 
-Fact nat_list_nrep (A: list nat) n :
+Fact segment_nrep A :
+  segment A -> nrep A.
+Proof.
+  intros H1.
+  destruct (segment_sigma (length A)) as (B&H2&H3&H4).
+  eapply nrep_nrep. exact nat_eqdec. exact H3. 2:lia.
+  apply segment_equal; easy.
+Qed.
+
+Definition nrep_nat_large_el {A: list nat} {n} :
   nrep A -> length A = S n -> Sigma k, k el A /\ k >= n.
 Proof.
   intros H1 H2.
-  destruct (nat_list_le A n) as [H|H]. exact H.
-  exfalso. (* computational exfalso *)
-  enough (length A <= n) by lia.
-  rewrite <-(seq_length 0 n).
-  apply nrep_le. exact nat_eqdec. exact H1.
-  intros k H3. apply seq_in. apply H in H3. lia.
+  destruct (list_dec (fun k => k >= n) A) as [(x&H3&H4)|H].
+  - intros k.
+    destruct (n-k) eqn:?; unfold dec; intuition lia.
+  - eauto.
+  - exfalso. (* computational exfalso *)
+    destruct (segment_sigma n) as (B&H3&H4&H5).
+    enough (length A <= length B) by lia.
+    apply nrep_le. exact nat_eqdec. exact H1.
+    intros x H6%H. apply H5; lia.
 Qed.
+
+Fact serial_segment A :
+  serial A -> nrep A -> segment A.
+Proof.
+  intros H1 H2.
+  destruct (length A) as [|n] eqn:E.
+  - enough (A = []) as -> by apply segment_nil.
+    destruct A. easy. cbn in E; lia.
+  - destruct (nrep_nat_large_el H2 E) as (x&H4&H5).
+    destruct (segment_sigma (S n)) as (B&H6&H7&H8).
+    enough (equi A B) as [H9 H10].
+    { hnf. hnf in H8. replace (length A) with (length B) by congruence.
+      firstorder. }
+    assert (H9: B <<= A).
+    { intros k H9 %H8. eapply H1. exact H4. lia. }
+    split. 2:exact H9.
+    apply nrep_incl. exact nat_eqdec. exact H7. exact H9. lia.
+Qed.
+
+
+Fact nat_list_next :
+  forall A: list nat, Sigma n, forall k, k el A -> k < n.
+Proof.
+  induction A as [|x A [n IH]].
+  - exists 0. easy.
+  - exists (S x + n). intros y [-> |H].
+    + lia.
+    + apply IH in H. lia.
+Qed.
+ 
 
 (*** Exercises: List Reversal *)
 
@@ -914,5 +969,63 @@ Section Reversal.
     - exact e1.
     - apply e2, IH.
   Qed.
+
+ End Reversal.
+
+(*** Exrcise: seq *)
   
-End Reversal.
+Module Saved.
+Fixpoint seq n k : list nat :=
+  match k with
+    0 => []
+  | S k' => n :: seq (S n) k'
+  end.
+
+Fact seq_length n k :
+  length (seq n k) = k.
+Proof.
+  induction k as [|k IH] in n |-*; cbn.
+  - reflexivity.
+  - f_equal. apply IH.
+Qed.
+
+Fact seq_in x n k :
+  x el seq n k <-> n <= x < n + k.
+Proof.
+  induction k as [|k IH] in n |-*; cbn.
+  - lia.
+  - rewrite IH. lia.
+Qed.
+
+Fact seq_nrep n k :
+  nrep (seq n k).
+Proof.
+  induction k as [|k IH] in n |-*; cbn.
+  - exact I.
+  - rewrite seq_in. split. lia. apply IH.
+Qed.
+
+Fact nat_list_le (A: list nat) n :
+  (Sigma k, k el A /\ k >= n) + forall k, k el A -> k < n.
+Proof.
+  induction A as [|x A IH].
+  - right. easy.
+  - destruct (le_lt_dec n x) as [H|H].
+    + left. exists x. cbn;auto.
+    + destruct IH as [(k&H1&H2)|H1].
+      * left. exists k. cbn. auto.
+      * right. intros k [<-|H3]; auto.
+Qed.
+
+Fact nat_list_nrep (A: list nat) n :
+  nrep A -> length A = S n -> Sigma k, k el A /\ k >= n.
+Proof.
+  intros H1 H2.
+  destruct (nat_list_le A n) as [H|H]. exact H.
+  exfalso. (* computational exfalso *)
+  enough (length A <= n) by lia.
+  rewrite <-(seq_length 0 n).
+  apply nrep_le. exact nat_eqdec. exact H1.
+  intros k H3. apply seq_in. apply H in H3. lia.
+Qed.
+End Saved.
