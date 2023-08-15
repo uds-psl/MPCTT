@@ -1,6 +1,6 @@
-From Coq Require Import Lia.
+From Coq Require Import Lia List.
 Definition dec (X: Type) : Type := X + (X -> False).
-Definition decider {X} (p: X -> Prop) := forall x, dec (p x).
+Definition decider {X} (p: X -> Type) : Type := forall x, dec (p x).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.
@@ -12,13 +12,57 @@ Notation "'Sigma' x .. y , p" :=
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
-
+Definition eqdec X := forall x y: X, dec (x = y).
+Definition eqdec_nat : eqdec nat.
+Proof.
+  hnf; induction x as [|x IH]; destruct y as [|y]; unfold dec in *.
+  1-3: intuition congruence.
+  destruct (IH y); intuition congruence.
+Qed.
 Definition injective {X Y} (f: X -> Y) :=
   forall x x', f x = f x' -> x = x'.
 Definition surjective {X Y} (f: X -> Y) :=
   forall y, exists x, f x = y.
 Definition bijective {X Y} (f: X -> Y) :=
   injective f /\ surjective f.
+
+Import ListNotations.
+Notation "x 'el' A" := (In x A) (at level 70).
+Notation "x 'nel' A" := (~ In x A) (at level 70).
+Fixpoint nrep {X} (A: list X) : Prop :=
+  match A with
+  | [] => True
+  | x::A => x nel A /\ nrep A
+  end.
+Definition covering {X} (A: list X) :=
+  forall x, x el A.
+Definition listing {X} (A: list X) :=
+  covering A /\ nrep A.
+Definition fin n X : Type :=
+  eqdec X * Sigma A,  @listing X A /\ length A = n.
+Definition segment A := forall k, k el A <-> k < length A.
+Definition serial (A: list nat) := forall n k, n el A -> k <= n -> k el A.
+Fact map_injective {X Y f x A} :
+  @injective X Y f -> f x el map f A -> x el A.
+Proof.
+  intros H (?&->%H&H2) %in_map_iff. exact H2.
+Qed.
+Fact nrep_map X Y f A :
+  @injective X Y f -> nrep A -> nrep (map f A).
+Proof.
+  intros H.
+  induction A as [|x A IH]; cbn.
+  - auto.
+  - intros [H2 H3]. split. 
+    + contradict H2. eapply map_injective; eassumption.
+    + auto.
+Qed.
+Definition nrep_nat_large_el (A: list nat) n :
+  nrep A -> length A = S n -> Sigma k, k el A /\ k >= n.
+Admitted. (* Proof in file list.v *)
+Fact serial_segment A :
+  serial A -> nrep A -> segment A.
+Admitted. (* Proof is in file list.v *)
 
 (*** Injections *)
 
@@ -27,11 +71,15 @@ Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
 Inductive bijection (X Y: Type) : Type :=
 | Bijection {f: X -> Y} {g: Y -> X} (_: inv g f) (_: inv f g).
-
-From Coq Require Import Arith.Cantor.
+Fact inv_injective X Y (f: X -> Y) (g: Y -> X) :
+  inv g f -> injective f.
+Proof.
+  intros H x x' H1 %(f_equal g). rewrite !H in H1. exact H1.
+Qed.
 
 Definition injection_nat_x_nat : injection (nat * nat) nat.
 Proof.
+  From Coq Require Import Arith.Cantor.
   exists to_nat of_nat. exact cancel_of_to.
 Qed.
 
@@ -53,20 +101,70 @@ Proof.
   intros x. rewrite H. reflexivity.
 Qed.
 
-(*** Equality deciders *)
+(*** Least *)
 
-Definition eqdec X := forall x y: X, dec (x = y).
+Definition safe (p: nat -> Prop) n := forall k, p k -> k >= n.
+Definition least (p: nat -> Prop) n := p n /\ safe p n.
+Notation unique p := (forall x x', p x -> p x' -> x = x').
+
+Fact least_unique (p: nat -> Prop) :
+  unique (least p).
+Proof.
+  intros x y [H1 H2] [H3 H4].
+  enough (x <= y /\ y <= x) by lia. split.
+  - apply H2, H3.
+  - apply H4, H1.
+Qed.
+
+Fact safe_S p n :
+  safe p n -> ~p n -> safe p (S n).
+Proof.
+  intros H1 H2 k H3. specialize (H1 k H3).
+  enough (k <> n) by lia. congruence.
+Qed.
+
+Definition least_sigma (p: nat -> Prop) :
+  decider p -> sig p -> sig (least p).
+Proof.
+  intros d.
+  enough (forall n, sig (least p) + safe p n) as F.
+  { intros [n Hn]. destruct (F n) as [H|H]. easy. exists n. easy. }
+  induction n as [|n [IH|IH]].
+  - right. hnf; lia.
+  - eauto.
+  - destruct (d n) as [H|H].
+    + left. exists n. easy.
+    + right. apply safe_S; easy.
+Qed.
+
+Fact least_exists (p: nat -> Prop) :
+  decider p -> ex p -> ex (least p).
+Proof.
+  intros d [n Hn].
+  destruct (least_sigma p d) as [x H]; eauto.
+Qed.
+
+Definition XM : Prop := forall X: Prop, X \/ ~X.
+
+Fact least_xm_exists (p: nat -> Prop) :
+  XM -> ex p -> ex (least p).
+Proof.
+  intros xm.
+  enough (forall n, ex (least p) \/ safe p n) as H1.
+  { intros [n H]. specialize (H1 n) as [H1|H1]. easy. exists n; easy. }
+  induction n as [|n [IH|IH]].
+  - right. hnf; lia.
+  - left. exact IH.
+  - destruct (xm (p n)) as [H|H].
+    + left. exists n. easy.
+    + right. apply safe_S; easy.
+Qed.
+
+(*** Equality deciders *)
 
 Definition eqdec_bot : eqdec False.
 Proof.
   intros [].
-Qed.
-
-Definition eqdec_nat : eqdec nat.
-Proof.
-  hnf; induction x as [|x IH]; destruct y as [|y]; unfold dec in *.
-  1-3: intuition congruence.
-  destruct (IH y); intuition congruence.
 Qed.
 
 Fact eqdec_injective {X Y f} :
@@ -243,11 +341,11 @@ Proof.
   intros p _ [[] _].
 Qed.
 
-From Coq Require Import ConstructiveEpsilon.
 
 Definition ewo_nat : ewo nat.
 Proof.
   intros p H1 H2.
+  From Coq Require Import ConstructiveEpsilon.
   apply constructive_indefinite_ground_description_nat in H2.
   - destruct H2; eauto. 
   - intros n. destruct (H1 n); auto.
@@ -279,6 +377,25 @@ Proof.
     + destruct H as [x H]. exists (Some x). easy.
     + eauto.
     + contradict H1.
+Qed.
+
+Definition least_dec (p: nat -> Prop) :
+  decider p -> decider (least p).
+Proof.
+  intros d n.
+  destruct (d n) as [H|H].
+  2:{ right. intros [H2 _]. easy. }
+  destruct (least_sigma p d) as [x Hx]. {eauto.}
+  destruct (eqdec_nat x n) as [->|H1]. {left. exact Hx.}
+  right. intros H2. contradict H1.
+  eapply least_unique; eassumption.
+Qed.
+
+Definition least_ewo (p: nat -> Prop) :
+  decider p -> ex p -> sig (least p).
+Proof.
+  intros d H. apply least_sigma. exact d.
+  apply ewo_nat; assumption.
 Qed.
 
 (*** Inverse functions via EWOs *)
@@ -411,69 +528,6 @@ Proof.
   intros H %cty_char_retract. apply injection_option, H.
 Qed.
 
-(*** Least *)
-
-Definition safe (p: nat -> Prop) n := forall k, p k -> k >= n.
-Definition least (p: nat -> Prop) n := p n /\ safe p n.
-Notation unique p := (forall x x', p x -> p x' -> x = x').
-
-Fact least_unique (p: nat -> Prop) :
-  unique (least p).
-Proof.
-  intros x y [H1 H2] [H3 H4].
-  enough (x <= y /\ y <= x) by lia. split.
-  - apply H2, H3.
-  - apply H4, H1.
-Qed.
-
-Fact safe_S p n :
-  safe p n -> ~p n -> safe p (S n).
-Proof.
-  intros H1 H2 k H3. specialize (H1 k H3).
-  enough (k <> n) by lia. congruence.
-Qed.
-
-
-Definition least_sigma (p: nat -> Prop) :
-  decider p -> sig p -> sig (least p).
-Proof.
-  intros d.
-  enough (forall n, sig (least p) + safe p n) as F.
-  { intros [n Hn]. destruct (F n) as [H|H]. easy. exists n. easy. }
-  induction n as [|n [IH|IH]].
-  - right. hnf; lia.
-  - eauto.
-  - destruct (d n) as [H|H].
-    + left. exists n. easy.
-    + right. apply safe_S; easy.
-Qed.
-
-Fact least_exists (p: nat -> Prop) :
-  decider p -> ex p -> ex (least p).
-Proof.
-  intros d [n Hn].
-  destruct (least_sigma p d) as [x H]; eauto.
-Qed.
-
-Definition least_dec p :
-  decider p -> decider (least p).
-Proof.
-  intros d n.
-  destruct (d n) as [H|H].
-  2:{ right. intros [H2 _]. easy. }
-  destruct (least_sigma p d) as [x Hx]. {eauto.}
-  destruct (eqdec_nat x n) as [->|H1]. {left. exact Hx.}
-  right. intros H2. contradict H1.
-  eapply least_unique; eassumption.
-Qed.
-
-Definition least_ewo (p: nat -> Prop) :
-  decider p -> ex p -> sig (least p).
-Proof.
-  intros d H. apply least_sigma. exact d.
-  apply ewo_nat; assumption.
-Qed.
-
 (*** Nonrepeating Enumerators *)
 
 Definition fnrep {X} (f: nat -> option X) : Prop :=
@@ -509,8 +563,38 @@ Qed.
 (*** Alignments *)
 
 Definition hit {X} (f: X -> nat) n := exists x, f x = n.
-Definition serial {X} (f: X -> nat) := forall n, hit f (S n) -> hit f n.
-Definition alignment {X} (f: X -> nat) := serial f /\ injective f.
+Definition serial' {X} (f: X -> nat) := forall n k, hit f n -> k <= n -> hit f k.
+Definition alignment {X} (f: X -> nat) := serial' f /\ injective f.
+
+Fact hit_self X f x :
+  @hit X f (f x).
+Proof.
+  exists x. reflexivity.
+Qed.
+
+Definition cty_hit {X f n} :
+  cty X -> @hit X f n -> Sigma x, f x = n.
+Proof.
+  intros H1 H2. apply (cty_ewo H1). 2:exact H2.
+  intros x. apply eqdec_nat.
+Qed.
+
+Fact cty_alignment_bijection X g :
+  cty X -> @alignment X g -> surjective g -> bijection X nat.
+Proof.
+  intros H1 [Hg1 Hg2] H2.
+  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
+  { exists g f; easy. }
+  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
+Qed.
+
+Lemma serial'' X (f: X -> nat) :
+  (forall n, hit f (S n) -> hit f n) -> serial' f.
+Proof.
+  intros H. hnf. induction n as [|n IH]; intros k H1 H2.
+  - assert (k = 0) as -> by lia. exact H1.
+  - assert (k = S n \/ k <= n) as [->|H3] by lia; auto.
+Qed.
 
 Definition cty_alignment {X} :
   cty X -> sig (@alignment X).
@@ -539,90 +623,42 @@ Proof.
         * specialize (IH H3 H5). lia.
         * auto. }
   exists (fun x => h (g x)). split.
-  - intros n [x (m&y&H3&H4&<-)%h_serial].
+  - apply serial''.
+    intros n [x (m&y&H3&H4&<-)%h_serial].
     exists y. enough (g y = m) by congruence.
     apply H2; congruence.
   - intros x y H.
     eapply co_enum_injective. exact Hg.
-    enough (g x < g y \/ g y < g x -> False) by lia.
+    enough (g x < g y \/ g y < g x -> False) by lia. 
     intros [H3|H3]; eapply h_increasing in H3; try lia;  apply Hg.
 Qed.
-
-Fact cty_alignment_bijection X g :
-  cty X -> @alignment X g -> surjective g -> bijection X nat.
-Proof.
-  intros H1 [Hg1 Hg2] H2.
-  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
-  { exists g f; easy. }
-  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
-Qed.
-
+  
 (*** Finite Types and Cutoffs *)
 
-From Coq Require Import List.
-Import ListNotations.
-Notation "x 'el' A" := (In x A) (at level 70).
-Notation "x 'nel' A" := (~ In x A) (at level 70).
-Fixpoint nrep {X} (A: list X) : Prop :=
-  match A with
-  | [] => True
-  | x::A => x nel A /\ nrep A
-  end.
-Fact map_injective {X Y f x A} :
-  @injective X Y f -> f x el map f A -> x el A.
-Proof.
-  intros H (?&->%H&H2) %in_map_iff. exact H2.
-Qed.
-Fact nrep_map X Y f A :
-  @injective X Y f -> nrep A -> nrep (map f A).
-Proof.
-  intros H.
-  induction A as [|x A IH]; cbn.
-  - auto.
-  - intros [H2 H3]. split. 
-    + contradict H2. eapply map_injective; eassumption.
-    + auto.
-Qed.
 
-Definition covering {X} (A: list X) :=
-  forall x, x el A.
-Definition listing {X} (A: list X) :=
-  covering A /\ nrep A.
-Definition fin n X : Type :=
-  eqdec X * Sigma A,  @listing X A /\ length A = n.
-
-Definition cty_hit {X f n} :
-  cty X -> @hit X f n -> Sigma x, f x = n.
-Proof.
-  intros H1 H2. apply (cty_ewo H1). 2:exact H2.
-  intros x. apply eqdec_nat.
-Qed.
-
-Definition cty_alignment_list {X f} n :
+Definition cty_alignment_segment {X f} n :
   cty X -> @alignment X f -> hit f n ->
-  Sigma A, nrep A /\ length A = S n /\
-         forall k, k <= n <-> k el map f A.
+  Sigma A, nrep A /\ length A = S n /\ segment (map f A).
 Proof.
-  intros H1 H2 H3.
+  intros H1 [H2 _] H3. (*injevtivity of f not needed *)
   induction n as [|n IH].
   - destruct (cty_hit H1 H3) as [x H4].
-    exists [x]. split; cbn. easy. split. easy. intuition lia.
+    exists [x]. split; cbn. easy. split. easy. hnf; cbn; intuition lia.
   - destruct (cty_hit H1 H3) as [x H4].
-    destruct IH as (A&IH1&IH2&IH3). {apply H2, H3.}
+    destruct IH as (A&IH1&IH2&IH3).
+    { eapply H2. exact H3. lia. }
     exists (x::A). cbn. split. 1:split. 2:exact IH1. 2:split. 2:congruence.
-    + intros H5. enough (f x <= n) by lia.
-      apply IH3. apply in_map, H5. 
-    +  intros k. split. 
-      * intros H5. cbn.
-        assert (k = S n \/ k <= n) as [->|H6] by lia. {auto.}
-        right. apply IH3, H6.
-      * intros [<-|H5]. lia. apply IH3 in H5. lia.
-Qed.
-
-Fact hit_self X f x :
-  @hit X f (f x).
-Proof.
-  exists x. reflexivity.
+    + intros H5. enough (f x < S n) by lia.
+      specialize (IH3 (f x)).
+      rewrite map_length, IH2 in IH3.
+      apply IH3, in_map, H5.
+    + intros k. cbn. specialize (IH3 k). rewrite H4.
+      rewrite map_length, IH2. rewrite map_length, IH2 in IH3.
+      split.
+      * intros [<-|H5]; intuition lia.
+      * intros H5.
+        assert (k = S n \/ k <= n) as [->|H6] by lia;
+          intuition.
 Qed.
 
 Definition cutoff {X} (f: X -> nat) n :=  forall k, hit f k <-> k < n.
@@ -654,37 +690,18 @@ Proof.
   destruct n.
   - exists []. split. 2:easy. split. 2:easy.
     intros x. enough (f x < 0) by lia. apply H3,hit_self.
-  - destruct (cty_alignment_list n H1 H2) as (A&H7&H8&H9).
+  - destruct (cty_alignment_segment n H1 H2) as (A&H7&H8&H9).
     {apply H3. lia.} 
     exists A. split. 2:easy. split. 2:easy.
-    intros x. eapply map_injective. apply H2.
-    apply H9. enough (f x < S n) by lia. apply H3,hit_self.
+    intros x. eapply map_injective. now apply H2.
+    apply H9. rewrite map_length, H8.
+    apply H3, hit_self.
 Qed.
 
-Definition serial_list A := forall n, S n el A -> n el A.
-
-Fact serial_list_nrep A :
-  serial_list A -> nrep A ->
-  forall k, k el A <-> k < length A.
-Proof.
-  intros H1 H2.
-  induction A as [|x A IH]; cbn.
-  - intuition lia.
-  - intros k. split.
-    + intros [->|H4].
-      * admit.
-      * enough (k < length A) by lia.
-        apply IH.
-        -- admit.
-        -- apply H2.
-  
-  
-Admitted.
-
-Definition fin_alignment_cutoff X f n :
+Definition fin_alignment_cutoff {X f n} :
   fin n X -> @alignment X f -> cutoff f n.
 Proof.
-  intros (H1&A&[H2 H3]&<-) H5. hnf.
+  intros (H1&A&[H2 H3]&<-) [H51 H52]. hnf.
   assert(H6: forall k, hit f k <-> k el map f A).
   { intros k. split; intros H7.
     - apply in_map_iff. destruct H7 as [x H7].
@@ -692,43 +709,42 @@ Proof.
     - apply in_map_iff in H7 as (x&<-&H8). apply hit_self. }
   enough(forall k, k el map f A <-> k < length A). {firstorder.}
   rewrite <- map_length with (f:=f).
-  apply serial_list_nrep.
-  + intros k (x&H7&H8) %in_map_iff.
-    assert (H9: hit f k). {apply H5. exists x. exact H7.}
-    apply H6, H9.
-  + apply nrep_map. apply H5. exact H3.
+  apply serial_segment.
+  + intros n k (x&H7&H8) %in_map_iff H9.
+    apply H6. revert H9. apply H51. exists x; easy.
+  + apply nrep_map. apply H52. exact H3.
+Qed.
+
+Fact alignment_fin_not_surjective n X f :
+  fin n X -> @alignment X f -> ~surjective f.
+Proof.
+  intros H1 H2.
+  enough (~hit f n) as H. { contradict H. apply H. }
+  intros H % (fin_alignment_cutoff H1 H2). lia.
+Qed.
+
+(*** Bijection Theorem *)
+
+Lemma cty_injection_hit_transport X Y f g :
+  cty X -> cty Y -> @alignment X f -> @alignment Y g  ->
+  injection X Y -> forall n, hit f n -> hit g n.
+Proof.
+  intros H1 H2 H3 H4 [F G H5] n H6.
+  destruct (cty_alignment_segment n H1 H3 H6) as (A&H7&H8&H9).
+  destruct H3 as [H31 H32], H4 as [H41 H42].
+  destruct (nrep_nat_large_el (map g (map F A)) n) as (k&H10&H11).
+  { apply nrep_map. exact H42. apply nrep_map.
+    eapply inv_injective. exact H5. exact H7. }
+  { rewrite !map_length. exact H8. }
+  eapply H41. 2:exact H11.
+  apply in_map_iff in H10 as (x&<-&H10).
+  apply hit_self.
 Qed.
 
 (*** Finite or Infinite *)
 
-Fact serial_hit_le X f n k :
-  @serial X f -> hit f n -> k <= n -> hit f k.
-Proof.
-  intros H. induction n as [|n IH]; intros H1 H2.
-  - assert (k=0) as -> by lia. exact H1.
-  - assert (k=S n \/ k <= n) as [->|H3] by lia.
-    exact H1.
-    firstorder.
-Qed.
-
-Definition XM : Prop := forall X: Prop, X \/ ~X.
-
-Fact least_xm_exists (p: nat -> Prop) :
-  XM -> ex p -> ex (least p).
-Proof.
-  intros xm.
-  enough (forall n, ex (least p) \/ safe p n) as H1.
-  { intros [n H]. specialize (H1 n) as [H1|H1]. easy. exists n; easy. }
-  induction n as [|n [IH|IH]].
-  - right. hnf; lia.
-  - left. exact IH.
-  - destruct (xm (p n)) as [H|H].
-    + left. exists n. easy.
-    + right. apply safe_S; easy.
-Qed.
-
 Fact XM_cutoff_or_surjective X f :
-  XM -> @serial X f -> ex (cutoff f) \/ surjective f.
+  XM -> @serial' X f -> ex (cutoff f) \/ surjective f.
 Proof.
   intros xm H.
   destruct (xm (surjective f)) as [H1|H1]. {auto.} left.
@@ -737,7 +753,7 @@ Proof.
   - exists n. intros k. split; intros H3.
     + enough (~ n <= k) by lia. intros H4.
       destruct H2 as [H2 _]. enough (hit f n) by easy.
-      revert H H3 H4. apply serial_hit_le.
+      revert H3 H4. apply H.
     + destruct (xm (hit f k)) as [H4|H4]. {auto.} exfalso.
       apply H2 in H4. lia.
   - apply least_xm_exists. exact xm.
@@ -760,4 +776,3 @@ Proof.
   - constructor. right.
     eapply cty_alignment_bijection; eassumption.
 Qed.
-
