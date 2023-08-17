@@ -1,5 +1,4 @@
 From Coq Require Import Arith Lia.
-Unset Elimination Schemes.
 Definition dec (X: Type) : Type :=  X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
@@ -16,37 +15,29 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 
-
+Definition injective {X Y} (f: X -> Y) := forall x x', f x = f x' -> x = x'.
 Definition XM := forall P, P \/ ~P.
 
-Fact neg_xm (P: Prop) {Q} :
-  (P -> ~Q) -> (~P -> ~Q) -> ~Q.
-Proof.
-  tauto.
-Qed.
-Fact neg_skip (Q: Prop) :
-  Q -> ~ ~Q.
-Proof.
-  tauto.
-Qed.
-Fact neg_skip' (P: Prop) {Q} :
-  (P -> ~Q) -> ~ ~P -> ~Q.
-Proof.
-  tauto.
-Qed.
+Implicit Types (n k : nat).
 
+(*** Inductive Definition *)
 
-Module Scratch.
-Section Scratch.
+(* We develop the inductive definition of lists from first principles
+   not using Coq's automation support for inductive types. 
+   This is for demonstration, not for practical use.
+   Skip if not interested. *)       
+
+Module IndDef.
+Section IndDef.
   Variable X: Type.
 
   Inductive list: Type := nil | cons (x:X) (A: list).
 
-  Implicit Types (x y z: X) (A B C: list).
+  Implicit Types (x : X) (A B : list).
 
   Definition list_elim (p: list -> Type)
     : p nil -> (forall x A, p A -> p (cons x A)) -> forall A, p A
-    := fun a f => fix F A := match A with nil => a | cons x A' => f x A' (F A') end.
+    := fun e1 e2 => fix f A := match A with nil => e1 | cons x A' => e2 x A' (f A') end.
 
   Fact cons_nil x A :
       cons x A <> nil.
@@ -64,16 +55,69 @@ Section Scratch.
     rewrite H. auto.
   Qed.
 
-  Goal forall x A,
+  Fact progress x A :
       cons x A <> A.
   Proof.
-    intros *; revert A x.
-    refine (list_elim _ _ _).
-    - intros x. apply cons_nil.
-    - intros x A H1 x' H2. eapply H1, cons_injective, H2.
+    revert A x.
+    refine (list_elim _ _ _); intros x.
+    - apply cons_nil.
+    - intros A IH x'.
+      intros [_ E] %cons_injective.
+      eapply IH, E.
   Qed.
-End Scratch.
-End Scratch.
+
+  Fact eqdec_list :
+    eqdec X -> eqdec list.
+  Proof.
+    intros d. hnf.
+    refine (list_elim _ _ _).
+    - refine (list_elim _ _ _).
+      + left. easy.
+      + intros x B _. right.
+        intros H; symmetry in H. revert H.
+        apply cons_nil.
+    - intros x A IH.
+      refine (list_elim _ _ _).
+      + right. apply cons_nil.
+      + intros y B _.
+        destruct (d x y) as [<- |H1].
+        * specialize (IH B) as [<- |IH].
+          -- left. easy.
+          -- right. intros [_ E] %cons_injective. auto.
+        * right. intros [E _] %cons_injective. auto.
+  Qed.
+
+  (* We now use Coq's automation support for inductive types *)
+
+  Fact progress' x A :
+      cons x A <> A.
+  Proof.
+    revert x.
+    induction A as [|x A IH].
+    - intros x [=].
+    - intros x' [= -> H]. congruence. 
+  Qed.
+
+  Fact eqdec_list' :
+    eqdec X -> eqdec list.
+  Proof.
+    intros d A B.
+    induction A as [|x A IH] in B |-*;
+      destruct B as [|y B].
+    + left; easy.
+    + right; easy.
+    + right; easy.
+    + destruct (d x y) as [<- |H1].
+      * specialize (IH B) as [<- |H2].
+        -- left. easy.
+        -- right. intros [= <-]. auto.
+      * right. intros [= <-]. auto.
+  Qed.
+End IndDef.
+Check eqdec_list.
+End IndDef.
+
+(*** Membership *)
 
 (* From now on we use Coq's predefined lists *)
 From Coq Require Import List.
@@ -81,26 +125,35 @@ Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
 Notation "A <<= B" := (incl A B) (at level 70).
+Definition equi {X} (A B: list X) := A <<= B /\ B <<= A.
+Notation "A == B" := (equi A B) (at level 70).
+
+
+Fact eqdec_list X :
+  eqdec X -> eqdec (list X).
+Proof.
+  intros d A B.
+  induction A as [|x A IH] in B |-*;
+    destruct B as [|y B].
+  + left; easy.
+  + right; easy.
+  + right; easy.
+  + destruct (d x y) as [<- |H1].
+    * specialize (IH B) as [<- |H2].
+      -- left. easy.
+      -- right. intros [= <-]. auto.
+    * right. intros [= <-]. auto.
+Qed.
 
 Section List.
   Variable X : Type.
-  Implicit Types (x y z : X) (A B C : list X).
-
-  Goal forall x A,
-      x::A <> A.
-  Proof.
-    induction A as [|y A IH].
-    - intros [=].
-    - intros [= <- H]. easy. 
-  Qed.
-
+  Implicit Types (x y : X) (A B : list X).
+  
   Goal forall A B,
       length (A ++ B) = length A + length B.
   Proof.
     intros A B.
-    induction A as [|x A IH]; cbn.
-    - reflexivity.
-    - f_equal. exact IH.
+    induction A as [|x A IH]; cbn; congruence.
   Qed.
  
   Fact mem_ex x A :
@@ -126,7 +179,7 @@ Section List.
     - right. destruct H as [H|H].
       + exfalso. auto.
       + exact H.
-  Defined.
+  Qed.
  
   Fact mem_sig x A :
     x el A -> Sigma A1 A2, A = A1 ++ x::A2.
@@ -139,21 +192,7 @@ Section List.
       + destruct (IH H1) as (A1&A2&->).
         exists (y::A1), A2. reflexivity.
   Qed.
-
-  Goal eqdec (list X).
-  Proof.
-    intros A B.
-    induction A as [|x A IH] in B |-*; destruct B as [|y B].
-    - left. reflexivity.
-    - right. intros [=].
-    - right. intros [=].
-    - specialize (X_eqdec x y) as [<-|H].
-      + specialize (IH B) as [<-|IH].
-        * left. reflexivity.
-        * right. intros [= <-]. easy.
-      + right. intros [= <- _]. easy.
-  Defined.
-
+  
   Fact mem_dec x A :
     dec (x el A).
   Proof.
@@ -164,7 +203,7 @@ Section List.
       + destruct IH as [IH|IH].
         * left. cbn. auto.
         * right. cbn. intuition.
-  Defined.
+  Qed.
 
   Definition list_dec (p: X -> Prop) A :
     decider p -> (Sigma x, x el A /\ p x) + (forall x, x el A -> ~p x).
@@ -180,8 +219,6 @@ Section List.
 
   (*** Inclusion and Equivalence *)
 
-  Definition equi A B := A <<= B /\ B <<= A.
-  Notation "A == B" := (equi A B) (at level 70).
   Fact equi_refl A :
     A == A.
   Proof.
@@ -407,40 +444,6 @@ Section List.
       destruct (mem_rear_ex H) as (B'&H4&H5).
       enough (length A <= length B') by lia.
       apply IH. exact H2. firstorder congruence.
-   Qed.
-
- (*** Constructive Discrimination *)
-    
-  Fact nrep_discriminate_ex {A B} :
-    XM -> nrep A -> length B < length A -> exists x, x el A /\ x nel B.
-  Proof.
-    intros xm.
-    induction A as [|a A IH] in B |-*; cbn.
-    - lia.
-    - intros [H1 H2] H3.
-      destruct (xm (a el B)) as [H|H].
-      2: {exists a. auto. }
-      destruct (mem_rear_ex H) as (B'&H4&H5).
-      destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
-      exists x. split.
-      + auto.
-      + contradict H7. apply H4 in H7 as [->|H7]; easy.
-  Qed.
-    
-  Fact nrep_discriminate_DN_ex {A B} :
-    nrep A -> length B < length A -> ~ ~exists x, x el A /\ x nel B.
-  Proof.
-    induction A as [|a A IH] in B |-*; cbn.
-    - lia.
-    - intros [H1 H2] H3.
-      apply (neg_xm (a el B)); intros H.
-      2:{ apply neg_skip. exists a. auto. }
-      destruct (mem_rear_ex H) as (B'&H4&H5).
-      specialize (IH B' H2 ltac:(lia)).
-      revert IH. apply neg_skip'. intros (x&H6&H7).
-      apply neg_skip. exists x. split.
-      + auto.
-      + contradict H7. apply H4 in H7 as [->|H7]; easy.
   Qed.
 
   (*** Coverings and Listings *)
@@ -480,303 +483,19 @@ Section List.
     - intros x _. apply H2.
     - intros x _. apply H1.
   Qed.
-
-  (*** Cardinality *)
-
-  Fixpoint card A : nat :=
-    match A with
-      [] => 0
-    | x:: A' => if mem_dec x A' then card A' else S (card A')
-    end.
-
-  Fact card_sig :
-    forall A, Sigma B, B == A /\ nrep B /\ length B = card A.
-  Proof.
-    induction A as [|x A (B&IH1&IH2&IH3)]; cbn.
-    - exists []. cbv; auto.
-    - destruct mem_dec as [H|H].
-      + exists B.
-        enough (B == x :: A) by auto.
-        split; intros z H1.
-        * right. apply IH1, H1.
-        * apply IH1. destruct H1 as [->|H1]; assumption.
-      + exists (x::B). cbn. split. 2:split.
-        *  split; intros z [->|H1].
-           -- cbn. auto.
-           -- right. apply IH1, H1.
-           -- cbn; auto.
-           -- right. apply IH1, H1.
-        * split. 2: exact IH2. contradict H. apply IH1, H.
-        * lia.
-  Qed.
-
-  Fact  card_agree A n :
-    card A = n <-> exists B, B == A /\ nrep B /\ length B = n.
-  Proof.
-    split.
-    - intros <-.
-      destruct (card_sig A) as (B&H). exists B. exact H.
-    - intros (B&H1&H2&<-).
-      destruct (card_sig A) as (C&H4&H5&<-).
-      apply nrep_length. 1-2:assumption.
-      eapply equi_trans. exact H4. apply equi_symm, H1.
-  Qed.
-      
-  Fact card_length A :
-    card A <= length A.
-  Proof.
-    destruct (card_sig A) as (A'&H1&H2&<-).
-    apply nrep_le. exact H2. apply H1.
-  Qed.
  
-  Fact card_le A B :
-    A <<= B -> card A <= card B.
-  Proof.
-    destruct (card_sig A) as (A'&H1&H2&<-).
-    destruct (card_sig B) as (B'&H3&H4&<-).
-    intros H5. eapply nrep_le. exact H2.
-    intros z H6. apply H3, H5, H1, H6.
-  Qed.
- 
-  Fact card_eq A B :
-    A == B -> card A = card B.
-  Proof.
-    intros H.
-    enough (card A <= card B /\ card B <= card A) by lia.
-    split; apply card_le, H.
-  Qed.
- 
-  Fact rep_card_length A :
-    rep A <-> card A < length A.
-  Proof.
-    destruct (card_sig A) as (A'&H1&H2&<-).
-    split.
-    - intros H3.
-      enough (length A <= length A' -> False) by lia. intros H4.
-      eapply rep_not_nrep. exact H3.
-      eapply nrep_nrep. exact H2. apply H1. exact H4.
-    - apply rep_length_lt, H1.
-  Qed.
- 
-  Fact nrep_card_length A :
-    nrep A <-> card A = length A.
-  Proof.
-    (* Note the use of setoid rewriting *)
-    rewrite nrep_not_rep, rep_card_length.
-    generalize (card_length A). lia. 
-  Qed.
-
-  Fixpoint Card A n : Prop :=
-    match A, n with
-    | nil, 0 => True
-    | nil, S n' => False
-    | x::A', 0 => False
-    | x::A', S n' => if mem_dec x A' then Card A' (S n') else Card A' n'
-    end.
-
-  Fact Card_card A :
-    Card A (card A).
-  Proof.
-    induction A as [|x A IH].
-    - exact I.
-    - cbn. destruct mem_dec as [H|H].
-      + destruct A as [|y A].
-        * destruct H.
-        * exact IH.
-      + exact IH.
-  Qed.
-
-  Fact Card_agree A n :
-    Card A n <-> card A = n.
-  Proof.
-    split.
-    - induction A as [|x A IH] in n |-*; destruct n; cbn.
-      + auto.
-      + intros [].
-      + intros [].
-      + destruct mem_dec as [H|H].
-        * apply IH.
-        * intros <-%IH. reflexivity.
-    - intros <-.
-      induction A as [|x A IH].
-      + exact I.
-      + cbn. destruct mem_dec as [H|H].
-        * destruct A as [|y A].
-          -- destruct H.
-          -- exact IH.
-        * exact IH.
-    Qed.
-
-  (*** Element Removal *)
   
-  Fixpoint rem A x : list X :=
-    match A with
-      [] => []
-    | y::A' => if X_eqdec y x then rem A' x else y::rem A' x
-    end.
-
-  Fact rem_el A x y :
-    x el rem A y <-> x el A /\ x<> y.
-  Proof.
-    induction A as [|z A IH].
-    - cbn. tauto.
-    - cbn [rem].
-      destruct (X_eqdec z y) as [<-|H]; cbn;
-        intuition congruence.
-  Qed.
-
-  Fact rem_length_le A  x:
-    length (rem A x) <= length A.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - lia.
-    - destruct X_eqdec as [<-|H1]; cbn; lia.
-  Qed.
-  
-  Fact rem_length_lt x A :
-    x el A -> length (rem A x) < length A.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros [].
-    - destruct X_eqdec as [->|H1].
-      + generalize (rem_length_le A x). lia.
-      + intros [->|H2]; cbn.
-        * exfalso. easy.
-        * apply IH in H2. lia.
-  Qed.
-
-  Fact rem_eq_nel A x :
-    x nel A -> rem A x = A.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros _. reflexivity.
-    - destruct (X_eqdec y x) as [<-|H].
-      + intros []. auto.
-      + intros H1. f_equal. tauto.
-  Qed.
-
-  Fact rem_eq_cons x A :
-    rem (x :: A) x = rem A x.
-  Proof.
-    cbn. destruct (X_eqdec x x) as [_|H]; tauto.
-  Qed.
-
-  Fact rem_eq_cons' x y A :
-    x <> y -> rem (y::A) x = y::rem A x.
-  Proof.
-    cbn. destruct (X_eqdec y x) as [<-|H]; tauto.
-  Qed.
-
-  Fact card_rem_eq A x :
-    x el A -> card A = S (card (rem A x)).
-  Proof.
-    intros H.
-    replace (card A) with (card (x::(rem A x))).
-    - cbn. destruct mem_dec as [H1|H1].
-      + exfalso. apply rem_el in H1. apply H1. reflexivity.
-      + reflexivity.
-    - apply card_eq. split; intros z H1.
-      + destruct H1 as [->|H1%rem_el]. exact H. apply H1.
-      + cbn. destruct (X_eqdec x z) as [<-|H2].
-        * auto.
-        * right. apply rem_el. auto.
-  Qed.
-
-  (*** Sub and Pos *)
-  
-  Section SubPos.
-  Variable X_escape: X.
-  
-  Fixpoint sub A n : X :=
-    match A, n with
-      [], _ => X_escape
-    | x::A', 0 => x
-    | x::A', S n' => sub A' n'
-    end.
-
-  Fixpoint pos A x : nat :=
-    match A with
-      [] => 0
-    | y::A' => if X_eqdec y x then 0 else S (pos A' x)
-    end.
-  
-  Fact sub_pos x A :
-    x el A -> sub A (pos A x) = x.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros [].
-    - destruct X_eqdec as [<-|H]. easy.
-      intros [->|H1]. easy. auto.
-  Qed.
-
-  Fact pos_bnd A x :
-    x el A -> pos A x < length A.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros [].
-    - destruct X_eqdec as [->|H].
-      + lia.
-      + intros [->|H1].
-        * easy.
-        * apply IH in H1; lia.
-  Qed.
-
-  Fact sub_neq A n :
-    n < length A -> sub A n el A.
-  Proof.
-    induction A as [|y A IH] in n |-*; cbn.
-    - lia.
-    - destruct n.
-      + auto.
-      + intros H. right. apply IH. lia. 
-  Qed.
-
-  Fact pos_sub A n :
-    nrep A -> n < length A -> pos A (sub A n) = n.
-  Proof.
-    induction A as [|y A IH] in n |-*.
-    - cbn. lia.
-    - intros [H1 H2] H3.
-      destruct n as [|n]; cbn.
-      { destruct X_eqdec as [_|H]. reflexivity. easy. }
-      cbn in H3.
-      destruct X_eqdec as [->|_].
-      { contradict H1. apply sub_neq. lia. }
-      f_equal. apply IH. exact H2. lia.
-  Qed.
-  End SubPos.
-
-  Fixpoint disjoint A B : Prop :=
-    match A with
-      [] => True
-    | x::A' => x nel B /\ disjoint A' B
-    end.
-  
-  Goal forall A B, disjoint A B <-> ~ exists z, z el A /\ z el B.
-  Proof.
-    intros A B.
-    induction A as [|x A IH]; cbn.
-    - firstorder.
-    - split.
-      + intros [H1 H2] [z [H3 H4]].
-        apply IH. exact H2. exists z. intuition congruence.
-      + intros H. split.
-        * eauto 6.
-        * apply IH. intros (z&H1&H2). eauto.
-  Qed.
 End List.
 
 Arguments equi {X}.
 Arguments list_dec {X}.
 Arguments mem_dec {X}.
 Arguments mem_sum {X}.
+Arguments mem_rear_ex {X x A}.
 Arguments nrep {X}.
 Arguments rep {X}.
 
 (*** Map *)
-
-Definition injective {X Y} (f: X -> Y) :=
-  forall x x', f x = f x' -> x = x'.
 
 Fact map_injective {X Y f x A} :
   @injective X Y f -> f x el map f A -> x el A.
@@ -887,7 +606,6 @@ Proof.
     apply nrep_incl. exact nat_eqdec. exact H7. exact H9. lia.
 Qed.
 
-
 Fact nat_list_next :
   forall A: list nat, Sigma n, forall k, k el A -> k < n.
 Proof.
@@ -897,7 +615,355 @@ Proof.
     + lia.
     + apply IH in H. lia.
 Qed.
+
+(*** Position-Element Mappings *)
+  
+Section SubPos.
+  Variable X : Type.
+  Variable X_escape: X.
+  Variable X_eqdec : eqdec X.
+    
+  Implicit Types (x : X) (A : list X).
  
+  Fixpoint sub A n : X :=
+    match A, n with
+      [], _ => X_escape
+    | x::A', 0 => x
+    | x::A', S n' => sub A' n'
+    end.
+
+  Fixpoint pos A x : nat :=
+    match A with
+      [] => 0
+    | y::A' => if X_eqdec y x then 0 else S (pos A' x)
+    end.
+  
+  Fact sub_pos x A :
+    x el A -> sub A (pos A x) = x.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [<-|H]. easy.
+      intros [->|H1]. easy. auto.
+  Qed.
+
+  Fact pos_bnd A x :
+    x el A -> pos A x < length A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [->|H].
+      + lia.
+      + intros [->|H1].
+        * easy.
+        * apply IH in H1; lia.
+  Qed.
+
+  Fact sub_neq A n :
+    n < length A -> sub A n el A.
+  Proof.
+    induction A as [|y A IH] in n |-*; cbn.
+    - lia.
+    - destruct n.
+      + auto.
+      + intros H. right. apply IH. lia. 
+  Qed.
+
+  Fact pos_sub A n :
+    nrep A -> n < length A -> pos A (sub A n) = n.
+  Proof.
+    induction A as [|y A IH] in n |-*.
+    - cbn. lia.
+    - intros [H1 H2] H3.
+      destruct n as [|n]; cbn.
+      { destruct X_eqdec as [_|H]. reflexivity. easy. }
+      cbn in H3.
+      destruct X_eqdec as [->|_].
+      { contradict H1. apply sub_neq. lia. }
+      f_equal. apply IH. exact H2. lia.
+  Qed.
+End SubPos.
+
+(*** Constructive Discrimination *)
+
+Section Constructive.
+  Variable X : Type.
+  Implicit Types (x : X) (A : list X).
+   
+  Fact nrep_discriminate_ex {A B} :
+    XM -> nrep A -> length B < length A -> exists x, x el A /\ x nel B.
+  Proof.
+    intros xm.
+    induction A as [|a A IH] in B |-*; cbn.
+    - lia.
+    - intros [H1 H2] H3.
+      destruct (xm (a el B)) as [H|H].
+      2: {exists a. auto. }
+      destruct (mem_rear_ex H) as (B'&H4&H5).
+      destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
+      exists x. split.
+      + auto.
+      + contradict H7. apply H4 in H7 as [->|H7]; easy.
+  Qed.
+
+  Fact neg_xm (P: Prop) {Q} :
+    (P -> ~Q) -> (~P -> ~Q) -> ~Q.
+  Proof.
+    tauto.
+  Qed.
+  Fact neg_skip (Q: Prop) :
+    Q -> ~ ~Q.
+  Proof.
+    tauto.
+  Qed.
+  Fact neg_skip' (P: Prop) {Q} :
+    (P -> ~Q) -> ~ ~P -> ~Q.
+  Proof.
+    tauto.
+  Qed.
+
+  Fact nrep_discriminate_DN_ex {A B} :
+    nrep A -> length B < length A -> ~ ~exists x, x el A /\ x nel B.
+  Proof.
+    induction A as [|a A IH] in B |-*; cbn.
+    - lia.
+    - intros [H1 H2] H3.
+      apply (neg_xm (a el B)); intros H.
+      2:{ apply neg_skip. exists a. auto. }
+      destruct (mem_rear_ex H) as (B'&H4&H5).
+      specialize (IH B' H2 ltac:(lia)).
+      revert IH. apply neg_skip'. intros (x&H6&H7).
+      apply neg_skip. exists x. split.
+      + auto.
+      + contradict H7. apply H4 in H7 as [->|H7]; easy.
+  Qed.
+End Constructive.
+
+Section RemovalCard.
+  Variable X : Type.
+  Variable X_eqdec : eqdec X.
+  Implicit Types (x : X) (A : list X).
+ 
+  (*** Element Removal *)
+  
+  Fixpoint rem A x : list X :=
+    match A with
+      [] => []
+    | y::A' => if X_eqdec y x then rem A' x else y::rem A' x
+    end.
+
+  Fact rem_el A x y :
+    x el rem A y <-> x el A /\ x<> y.
+  Proof.
+    induction A as [|z A IH].
+    - cbn. tauto.
+    - cbn [rem].
+      destruct (X_eqdec z y) as [<-|H]; cbn;
+        intuition congruence.
+  Qed.
+
+  Fact rem_length_le A  x:
+    length (rem A x) <= length A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - lia.
+    - destruct X_eqdec as [<-|H1]; cbn; lia.
+  Qed.
+  
+  Fact rem_length_lt x A :
+    x el A -> length (rem A x) < length A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [->|H1].
+      + generalize (rem_length_le A x). lia.
+      + intros [->|H2]; cbn.
+        * exfalso. easy.
+        * apply IH in H2. lia.
+  Qed.
+
+  Fact rem_eq_nel A x :
+    x nel A -> rem A x = A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros _. reflexivity.
+    - destruct (X_eqdec y x) as [<-|H].
+      + intros []. auto.
+      + intros H1. f_equal. tauto.
+  Qed.
+
+  Fact rem_eq_cons x A :
+    rem (x :: A) x = rem A x.
+  Proof.
+    cbn. destruct (X_eqdec x x) as [_|H]; tauto.
+  Qed.
+
+  Fact rem_eq_cons' x y A :
+    x <> y -> rem (y::A) x = y::rem A x.
+  Proof.
+    cbn. destruct (X_eqdec y x) as [<-|H]; tauto.
+  Qed.
+
+  (*** Cardinality *)
+
+  Fixpoint card A : nat :=
+    match A with
+      [] => 0
+    | x:: A' => if mem_dec X_eqdec x A' then card A' else S (card A')
+    end.
+
+  Fact card_sig :
+    forall A, Sigma B, B == A /\ nrep B /\ length B = card A.
+  Proof.
+    induction A as [|x A (B&IH1&IH2&IH3)]; cbn.
+    - exists []. cbv; auto.
+    - destruct mem_dec as [H|H].
+      + exists B.
+        enough (B == x :: A) by auto.
+        split; intros z H1.
+        * right. apply IH1, H1.
+        * apply IH1. destruct H1 as [->|H1]; assumption.
+      + exists (x::B). cbn. split. 2:split.
+        *  split; intros z [->|H1].
+           -- cbn. auto.
+           -- right. apply IH1, H1.
+           -- cbn; auto.
+           -- right. apply IH1, H1.
+        * split. 2: exact IH2. contradict H. apply IH1, H.
+        * lia.
+  Qed.
+
+  Fact  card_agree A n :
+    card A = n <-> exists B, B == A /\ nrep B /\ length B = n.
+  Proof.
+    split.
+    - intros <-.
+      destruct (card_sig A) as (B&H). exists B. exact H.
+    - intros (B&H1&H2&<-).
+      destruct (card_sig A) as (C&H4&H5&<-).
+      apply nrep_length. 1-3:assumption.
+      eapply equi_trans. exact H4. apply equi_symm, H1.
+  Qed.
+      
+  Fact card_length A :
+    card A <= length A.
+  Proof.
+    destruct (card_sig A) as (A'&H1&H2&<-).
+    apply nrep_le. 1-2:easy. apply H1.
+  Qed.
+ 
+  Fact card_le A B :
+    A <<= B -> card A <= card B.
+  Proof.
+    destruct (card_sig A) as (A'&H1&H2&<-).
+    destruct (card_sig B) as (B'&H3&H4&<-).
+    intros H5. eapply nrep_le. 1-2:easy. 
+    intros z H6. apply H3, H5, H1, H6.
+  Qed.
+ 
+  Fact card_eq A B :
+    A == B -> card A = card B.
+  Proof.
+    intros H.
+    enough (card A <= card B /\ card B <= card A) by lia.
+    split; apply card_le, H.
+  Qed.
+ 
+  Fact rep_card_length A :
+    rep A <-> card A < length A.
+  Proof.
+    destruct (card_sig A) as (A'&H1&H2&<-).
+    split.
+    - intros H3.
+      enough (length A <= length A' -> False) by lia. intros H4.
+      eapply rep_not_nrep. easy. exact H3.
+      eapply nrep_nrep. easy. exact H2. apply H1. exact H4.
+    - apply rep_length_lt. easy. apply H1.
+  Qed.
+ 
+  Fact nrep_card_length A :
+    nrep A <-> card A = length A.
+  Proof.
+    (* Note the use of setoid rewriting *)
+    rewrite nrep_not_rep, rep_card_length.
+    generalize (card_length A). lia. easy.
+  Qed.
+
+  Fixpoint Card A n : Prop :=
+    match A, n with
+    | nil, 0 => True
+    | nil, S n' => False
+    | x::A', 0 => False
+    | x::A', S n' => if mem_dec X_eqdec x A' then Card A' (S n') else Card A' n'
+    end.
+
+  Fact Card_card A :
+    Card A (card A).
+  Proof.
+    induction A as [|x A IH].
+    - exact I.
+    - cbn. destruct mem_dec as [H|H].
+      + destruct A as [|y A].
+        * destruct H.
+        * exact IH.
+      + exact IH.
+  Qed.
+
+  Fact Card_agree A n :
+    Card A n <-> card A = n.
+  Proof.
+    split.
+    - induction A as [|x A IH] in n |-*; destruct n; cbn.
+      + auto.
+      + intros [].
+      + intros [].
+      + destruct mem_dec as [H|H].
+        * apply IH.
+        * intros <-%IH. reflexivity.
+    - intros <-.
+      induction A as [|x A IH].
+      + exact I.
+      + cbn. destruct mem_dec as [H|H].
+        * destruct A as [|y A].
+          -- destruct H.
+          -- exact IH.
+        * exact IH.
+    Qed.
+
+  Fact card_rem_eq A x :
+    x el A -> card A = S (card (rem A x)).
+  Proof.
+    intros H.
+    replace (card A) with (card (x::(rem A x))).
+    - cbn. destruct mem_dec as [H1|H1].
+      + exfalso. apply rem_el in H1. apply H1. reflexivity.
+      + reflexivity.
+    - apply card_eq. split; intros z H1.
+      + destruct H1 as [->|H1%rem_el]. exact H. apply H1.
+      + cbn. destruct (X_eqdec x z) as [<-|H2].
+        * auto.
+        * right. apply rem_el. auto.
+  Qed.
+
+  Fixpoint disjoint A B : Prop :=
+    match A with
+      [] => True
+    | x::A' => x nel B /\ disjoint A' B
+    end.
+  
+  Goal forall A B, disjoint A B <-> ~ exists z, z el A /\ z el B.
+  Proof.
+    intros A B.
+    induction A as [|x A IH]; cbn.
+    - firstorder.
+    - split.
+      + intros [H1 H2] [z [H3 H4]].
+        apply IH. exact H2. exists z. intuition congruence.
+      + intros H. split.
+        * eauto 6.
+        * apply IH. intros (z&H1&H2). eauto.
+  Qed.
+End RemovalCard.
 
 (*** Exercises: List Reversal *)
 
@@ -974,7 +1040,6 @@ Section Reversal.
 
 (*** Exrcise: seq *)
   
-Module Saved.
 Fixpoint seq n k : list nat :=
   match k with
     0 => []
@@ -1028,4 +1093,3 @@ Proof.
   apply nrep_le. exact nat_eqdec. exact H1.
   intros k H3. apply seq_in. apply H in H3. lia.
 Qed.
-End Saved.
