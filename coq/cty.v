@@ -172,7 +172,7 @@ Fact eqdec_injective {X Y f} :
 Proof.
   intros H d x x'. specialize (H x x').
   destruct (d (f x) (f x')) as [H1|H1];
-    unfold dec in *; intuition  congruence.
+    unfold dec in *; intuition congruence.
 Qed.
 
 Definition eqdec_injection X Y :
@@ -340,7 +340,6 @@ Definition ewo_bot : ewo False.
 Proof.
   intros p _ [[] _].
 Qed.
-
 
 Definition ewo_nat : ewo nat.
 Proof.
@@ -528,13 +527,92 @@ Proof.
   intros H %cty_char_retract. apply injection_option, H.
 Qed.
 
-(*** Nonrepeating Enumerators *)
+(*** Alignments *)
 
-Definition fnrep {X} (f: nat -> option X) : Prop :=
+Definition hit {X} (f: X -> nat) n := exists x, f x = n.
+Definition serial' {X} (f: X -> nat) := forall n k, hit f n -> k <= n -> hit f k.
+Definition alignment {X} (f: X -> nat) := serial' f /\ injective f.
+Definition cutoff {X} (f: X -> nat) n :=  forall k, hit f k <-> k < n.
+
+Fact cutoff_unique X (f: X -> nat) n1 n2 :
+  cutoff f n1 -> cutoff f n2 -> n1 = n2.
+Proof.
+  intros H1 H2.
+  destruct n1, n2.
+  - easy.
+  - exfalso.
+    enough (hit f n2) by firstorder lia. apply H2. lia.
+  - exfalso.
+    enough (hit f n1) by firstorder lia. apply H1. lia.
+  - enough (~(n1 < n2) /\ ~(n2 < n1)) by lia.
+    split; intros H3.
+    + enough (hit f (S n1)) by firstorder lia. apply H2. lia.
+    + enough (hit f (S n2)) by firstorder lia. apply H1. lia.
+Qed.
+
+Fact alignment_bijective_function X (f: X -> nat) :
+  alignment f /\ surjective f <-> bijective f.
+Proof.
+  split.
+  - intros [[_ H1] H2]. easy.
+  - intros [H1 H2]. split. 2:exact H2. split. 2:exact H1.
+    intros n k _ _. apply H2.
+Qed.
+
+Fact cty_alignment_bijection X g :
+  cty X -> @alignment X g -> surjective g -> bijection X nat.
+Proof.
+  intros H1 [Hg1 Hg2] H2.
+  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
+  { exists g f; easy. }
+  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
+Qed.
+
+Fact hit_self X f x :
+  @hit X f (f x).
+Proof.
+  exists x. reflexivity.
+Qed.
+
+Definition cty_hit_witness {X f n} :
+  cty X -> @hit X f n -> Sigma x, f x = n.
+Proof.
+  intros H1 H2. apply (cty_ewo H1). 2:exact H2.
+  intros x. apply eqdec_nat.
+Qed.
+
+Definition cty_alignment_segment {X f} n :
+  cty X -> @alignment X f -> hit f n ->
+  Sigma A, nrep A /\ length A = S n /\ segment (map f A).
+Proof.
+  intros H1 [H2 _] H3. (*injevtivity of f not needed *)
+  induction n as [|n IH].
+  - destruct (cty_hit_witness H1 H3) as [x H4].
+    exists [x]. split; cbn. easy. split. easy. hnf; cbn; intuition lia.
+  - destruct (cty_hit_witness H1 H3) as [x H4].
+    destruct IH as (A&IH1&IH2&IH3).
+    { eapply H2. exact H3. lia. }
+    exists (x::A). cbn. split. 1:split. 2:exact IH1. 2:split. 2:congruence.
+    + intros H5. enough (f x < S n) by lia.
+      specialize (IH3 (f x)).
+      rewrite map_length, IH2 in IH3.
+      apply IH3, in_map, H5.
+    + intros k. cbn. specialize (IH3 k). rewrite H4.
+      rewrite map_length, IH2. rewrite map_length, IH2 in IH3.
+      split.
+      * intros [<-|H5]; intuition lia.
+      * intros H5.
+        assert (k = S n \/ k <= n) as [->|H6] by lia.
+        now auto. right. apply IH3. lia.
+Qed.
+
+(*** Alignment Construction *)
+
+Definition enum_nrep {X} (f: nat -> option X) : Prop :=
   forall m n, f m = f n -> f m <> None -> m = n.
 
-Definition cty_enum_fnrep {X} :
-  cty X -> Sigma f, enum' X f /\ fnrep f.
+Definition cty_enum_nrep {X} :
+  cty X -> Sigma f, enum' X f /\ enum_nrep f.
 Proof.
   intros (d&f&Hf).
   assert (D: forall x, decider (fun n => f n = Some x)).
@@ -560,34 +638,6 @@ Proof.
     intros [= ->] _. eapply least_unique; eassumption.
 Qed.
 
-(*** Alignments *)
-
-Definition hit {X} (f: X -> nat) n := exists x, f x = n.
-Definition serial' {X} (f: X -> nat) := forall n k, hit f n -> k <= n -> hit f k.
-Definition alignment {X} (f: X -> nat) := serial' f /\ injective f.
-
-Fact hit_self X f x :
-  @hit X f (f x).
-Proof.
-  exists x. reflexivity.
-Qed.
-
-Definition cty_hit {X f n} :
-  cty X -> @hit X f n -> Sigma x, f x = n.
-Proof.
-  intros H1 H2. apply (cty_ewo H1). 2:exact H2.
-  intros x. apply eqdec_nat.
-Qed.
-
-Fact cty_alignment_bijection X g :
-  cty X -> @alignment X g -> surjective g -> bijection X nat.
-Proof.
-  intros H1 [Hg1 Hg2] H2.
-  enough (Sigma f : nat -> X, inv f g /\ inv g f) as (f&H3&H4).
-  { exists g f; easy. }
-  apply bijection_ex. easy. apply cty_ewo. exact H1. apply eqdec_nat.
-Qed.
-
 Lemma serial'' X (f: X -> nat) :
   (forall n, hit f (S n) -> hit f n) -> serial' f.
 Proof.
@@ -596,11 +646,11 @@ Proof.
   - assert (k = S n \/ k <= n) as [->|H3] by lia; auto.
 Qed.
 
-Definition cty_alignment {X} :
+Theorem cty_alignment {X} :
   cty X -> sig (@alignment X).
 Proof.
   intros H.
-  destruct (cty_enum_fnrep H) as (f&H1&H2).
+  destruct (cty_enum_nrep H) as (f&H1&H2).
   destruct H as [d _].
   destruct (co_enum_ex d H1) as [g Hg].
   (* hn = # hits f has below n *)
@@ -632,56 +682,43 @@ Proof.
     enough (g x < g y \/ g y < g x -> False) by lia. 
     intros [H3|H3]; eapply h_increasing in H3; try lia;  apply Hg.
 Qed.
-  
+
+(*** Bijection Theorem *)
+
+Lemma cty_injection_hit_transport {X Y f g} :
+  cty X -> cty Y -> @alignment X f -> @alignment Y g  ->
+  injection X Y -> forall x, Sigma y, g y = f x.
+Proof.
+  intros H1 H2 H3 H4 [F G H5] x.
+  apply (cty_hit_witness H2).
+  destruct (cty_alignment_segment (f x) H1 H3) as (A&H7&H8&_).
+  {apply hit_self.}
+  destruct H3 as [H31 H32], H4 as [H41 H42].
+  destruct (nrep_nat_large_el (map g (map F A)) (f x)) as (k&H10&H11).
+  { apply nrep_map. exact H42. apply nrep_map.
+    eapply inv_injective. exact H5. exact H7. }
+  { rewrite !map_length. exact H8. }
+  eapply H41. 2:exact H11.
+  apply in_map_iff in H10 as (y&<-&H10).
+  apply hit_self.
+Qed.
+
+Theorem cty_bijection X Y  :
+  cty X -> cty Y -> injection X Y -> injection Y X -> bijection X Y.
+Proof.
+  intros H1 H2 H3 H4.
+  destruct (cty_alignment H1) as [f Hf].
+  destruct (cty_alignment H2) as [g Hg].
+  assert (F:= cty_injection_hit_transport H1 H2 Hf Hg H3).
+  assert (G:= cty_injection_hit_transport H2 H1 Hg Hf H4).
+  exists (fun x => pi1 (F x)) (fun y => pi1 (G y)).
+  - intros x. destruct (F x) as [y HF]. cbn.
+    destruct (G y) as [x' HG]. cbn. apply Hf. congruence.
+  - intros y. destruct (G y) as [x HG]. cbn.
+    destruct (F x) as [y' HF]. cbn. apply Hg. congruence.
+Qed.
+
 (*** Finite Types and Cutoffs *)
-
-
-Definition cty_alignment_segment {X f} n :
-  cty X -> @alignment X f -> hit f n ->
-  Sigma A, nrep A /\ length A = S n /\ segment (map f A).
-Proof.
-  intros H1 [H2 _] H3. (*injevtivity of f not needed *)
-  induction n as [|n IH].
-  - destruct (cty_hit H1 H3) as [x H4].
-    exists [x]. split; cbn. easy. split. easy. hnf; cbn; intuition lia.
-  - destruct (cty_hit H1 H3) as [x H4].
-    destruct IH as (A&IH1&IH2&IH3).
-    { eapply H2. exact H3. lia. }
-    exists (x::A). cbn. split. 1:split. 2:exact IH1. 2:split. 2:congruence.
-    + intros H5. enough (f x < S n) by lia.
-      specialize (IH3 (f x)).
-      rewrite map_length, IH2 in IH3.
-      apply IH3, in_map, H5.
-    + intros k. cbn. specialize (IH3 k). rewrite H4.
-      rewrite map_length, IH2. rewrite map_length, IH2 in IH3.
-      split.
-      * intros [<-|H5]; intuition lia.
-      * intros H5.
-        assert (k = S n \/ k <= n) as [->|H6] by lia;
-          intuition.
-Qed.
-
-Definition cutoff {X} (f: X -> nat) n :=  forall k, hit f k <-> k < n.
-
-Fact cutoff_unique X (f: X -> nat) n1 n2 :
-  cutoff f n1 -> cutoff f n2 -> n1 = n2.
-Proof.
-  intros H1 H2.
-  destruct n1, n2.
-  - easy.
-  - exfalso.
-    enough (hit f n2) by firstorder lia.
-    apply H2. lia.
-  - exfalso.
-    enough (hit f n1) by firstorder lia.
-    apply H1. lia.
-  - enough (~(n1 < n2) /\ ~(n2 < n1)) by lia.
-    split; intros H3.
-    + enough (hit f (S n1)) by firstorder lia.
-      apply H2. lia.
-    + enough (hit f (S n2)) by firstorder lia.
-      apply H1. lia.
-Qed.
 
 Definition alignment_cutoff_fin X f n :
   cty X -> @alignment X f -> cutoff f n -> fin n X.
@@ -693,7 +730,7 @@ Proof.
   - destruct (cty_alignment_segment n H1 H2) as (A&H7&H8&H9).
     {apply H3. lia.} 
     exists A. split. 2:easy. split. 2:easy.
-    intros x. eapply map_injective. now apply H2.
+    intros x. eapply map_injective. {apply H2.}
     apply H9. rewrite map_length, H8.
     apply H3, hit_self.
 Qed.
@@ -721,24 +758,6 @@ Proof.
   intros H1 H2.
   enough (~hit f n) as H. { contradict H. apply H. }
   intros H % (fin_alignment_cutoff H1 H2). lia.
-Qed.
-
-(*** Bijection Theorem *)
-
-Lemma cty_injection_hit_transport X Y f g :
-  cty X -> cty Y -> @alignment X f -> @alignment Y g  ->
-  injection X Y -> forall n, hit f n -> hit g n.
-Proof.
-  intros H1 H2 H3 H4 [F G H5] n H6.
-  destruct (cty_alignment_segment n H1 H3 H6) as (A&H7&H8&H9).
-  destruct H3 as [H31 H32], H4 as [H41 H42].
-  destruct (nrep_nat_large_el (map g (map F A)) n) as (k&H10&H11).
-  { apply nrep_map. exact H42. apply nrep_map.
-    eapply inv_injective. exact H5. exact H7. }
-  { rewrite !map_length. exact H8. }
-  eapply H41. 2:exact H11.
-  apply in_map_iff in H10 as (x&<-&H10).
-  apply hit_self.
 Qed.
 
 (*** Finite or Infinite *)
