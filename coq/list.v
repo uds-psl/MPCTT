@@ -659,7 +659,7 @@ Section SubPos.
         * apply IH in H1; lia.
   Qed.
 
-  Fact sub_neq A n :
+  Fact sub_el A n :
     n < length A -> sub A n el A.
   Proof.
     induction A as [|y A IH] in n |-*; cbn.
@@ -679,7 +679,7 @@ Section SubPos.
       { destruct X_eqdec as [_|H]. reflexivity. easy. }
       cbn in H3.
       destruct X_eqdec as [->|_].
-      { contradict H1. apply sub_neq. lia. }
+      { contradict H1. apply sub_el. lia. }
       f_equal. apply IH. exact H2. lia.
   Qed.
 End SubPos.

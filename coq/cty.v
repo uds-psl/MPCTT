@@ -13,7 +13,7 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 Definition eqdec X := forall x y: X, dec (x = y).
-Definition eqdec_nat : eqdec nat.
+Fact eqdec_nat : eqdec nat.
 Proof.
   hnf; induction x as [|x IH]; destruct y as [|y]; unfold dec in *.
   1-3: intuition congruence.
@@ -29,6 +29,8 @@ Definition bijective {X Y} (f: X -> Y) :=
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).
+Notation "A <<= B" := (incl A B) (at level 70).
+
 Fixpoint nrep {X} (A: list X) : Prop :=
   match A with
   | [] => True
@@ -40,6 +42,17 @@ Definition listing {X} (A: list X) :=
   covering A /\ nrep A.
 Definition fin n X : Type :=
   eqdec X * Sigma A,  @listing X A /\ length A = n.
+Fact fin_zero X :
+  fin 0 X <=> (X -> False).
+Proof.
+  split.
+  - intros [D (A&[H1 _]&H2)] x.
+    specialize (H1 x). destruct A; easy.
+  - intros H. split.
+    + intros x. easy.
+    + exists nil. easy.
+Qed.
+
 Definition segment A := forall k, k el A <-> k < length A.
 Definition serial (A: list nat) := forall n k, n el A -> k <= n -> k el A.
 Fact map_injective {X Y f x A} :
@@ -57,9 +70,9 @@ Proof.
     + contradict H2. eapply map_injective; eassumption.
     + auto.
 Qed.
-Definition nrep_nat_large_el (A: list nat) n :
+Fact nrep_nat_large_el (A: list nat) n :
   nrep A -> length A = S n -> Sigma k, k el A /\ k >= n.
-Admitted. (* Proof in file list.v *)
+Admitted. (* Proof is in file list.v *)
 Fact serial_segment A :
   serial A -> nrep A -> segment A.
 Admitted. (* Proof is in file list.v *)
@@ -77,7 +90,7 @@ Proof.
   intros H x x' H1 %(f_equal g). rewrite !H in H1. exact H1.
 Qed.
 
-Definition injection_nat_x_nat : injection (nat * nat) nat.
+Fact injection_nat_x_nat : injection (nat * nat) nat.
 Proof.
   From Coq Require Import Arith.Cantor.
   exists to_nat of_nat. exact cancel_of_to.
@@ -101,6 +114,10 @@ Proof.
   intros x. rewrite H. reflexivity.
 Qed.
 
+Fact fin_injection_nat X n :
+  fin (S n) X -> injection X nat.
+Admitted. (* Proof is in file finty.v *)
+
 (*** Least *)
 
 Definition safe (p: nat -> Prop) n := forall k, p k -> k >= n.
@@ -123,7 +140,7 @@ Proof.
   enough (k <> n) by lia. congruence.
 Qed.
 
-Definition least_sigma (p: nat -> Prop) :
+Fact least_sigma (p: nat -> Prop) :
   decider p -> sig p -> sig (least p).
 Proof.
   intros d.
@@ -162,7 +179,7 @@ Qed.
 
 (*** Equality deciders *)
 
-Definition eqdec_bot : eqdec False.
+Fact eqdec_bot : eqdec False.
 Proof.
   intros [].
 Qed.
@@ -175,7 +192,7 @@ Proof.
     unfold dec in *; intuition congruence.
 Qed.
 
-Definition eqdec_injection X Y :
+Fact eqdec_injection X Y :
   injection X Y -> eqdec Y -> eqdec X.
 Proof.
   intros [f g H] d x1 x2.
@@ -183,7 +200,7 @@ Proof.
     unfold dec; intuition congruence.
 Qed.
 
-Definition eqdec_option X :
+Fact eqdec_option X :
   eqdec X <=> eqdec (option X).
 Proof.
   split; intros d.
@@ -196,7 +213,7 @@ Proof.
     unfold dec in *; intuition congruence.
 Qed.
 
-Definition eqdec_sum X Y :
+Fact eqdec_sum X Y :
   eqdec X * eqdec Y <=> eqdec (X + Y).
 Proof.
   split.
@@ -212,7 +229,7 @@ Proof.
       destruct (d (inr y1) (inr y2)); unfold dec in *; intuition congruence.
 Qed.
 
-Definition eqdec_prod X Y :
+Fact eqdec_prod X Y :
   eqdec X -> eqdec Y -> eqdec (X * Y).
 Proof.
   intros dX dY [x1 y1] [x2 y2].
@@ -226,17 +243,17 @@ Definition enum' X (f: nat -> option X) := forall x, exists n, f n = Some x.
 
 Definition enum X := sig (enum' X).
 
-Definition enum_bot : enum False.
+Fact enum_bot : enum False.
 Proof.
   exists (fun _ => None). intros [].
 Qed.
 
-Definition enum_nat : enum nat.
+Fact enum_nat : enum nat.
 Proof.
   exists Some. hnf; eauto.
 Qed.
 
-Definition enum_injection X Y :
+Fact enum_injection X Y :
   injection X Y -> enum Y -> enum X.
 Proof.
   intros [f g H] [e H1].
@@ -245,7 +262,7 @@ Proof.
   exists n. rewrite H1. congruence.
 Qed.
 
-Definition enum_option X :
+Fact enum_option X :
   enum X <=> enum (option X).
 Proof.
   split; intros [e H].
@@ -259,7 +276,7 @@ Proof.
     exists n. rewrite H. reflexivity.
 Qed.
 
-Definition enum_sum X Y :
+Fact enum_sum X Y :
   enum X * enum Y <=> enum (X + Y).
 Proof.
   split.
@@ -290,7 +307,7 @@ Proof.
       exists n. rewrite He. reflexivity.
 Qed.
 
-Definition enum_prod X Y :
+Fact enum_prod X Y :
   enum X -> enum Y -> enum (X * Y).
 Proof.
   intros [eX HX] [eY HY].
@@ -336,13 +353,14 @@ Qed.
 
 Definition ewo X := forall (p: X -> Prop), decider p -> ex p -> sig p.
 
-Definition ewo_bot : ewo False.
+Fact ewo_bot : ewo False.
 Proof.
   intros p _ [[] _].
 Qed.
 
-Definition ewo_nat : ewo nat.
+Fact ewo_nat : ewo nat.
 Proof.
+  (* Proof is in file ewo.v *)
   intros p H1 H2.
   From Coq Require Import ConstructiveEpsilon.
   apply constructive_indefinite_ground_description_nat in H2.
@@ -350,7 +368,7 @@ Proof.
   - intros n. destruct (H1 n); auto.
 Qed.
 
-Definition ewo_injection X Y :
+Fact ewo_injection X Y :
   injection X Y -> ewo Y -> ewo X.
 Proof.
   intros [f g H] e p d H1.
@@ -360,7 +378,7 @@ Proof.
   - eauto.
 Qed.
 
-Definition ewo_option X :
+Fact ewo_option X :
   ewo X <=> ewo (option X).
 Proof.
   split; intros e p d H.
@@ -378,7 +396,7 @@ Proof.
     + contradict H1.
 Qed.
 
-Definition least_dec (p: nat -> Prop) :
+Fact least_dec (p: nat -> Prop) :
   decider p -> decider (least p).
 Proof.
   intros d n.
@@ -390,7 +408,7 @@ Proof.
   eapply least_unique; eassumption.
 Qed.
 
-Definition least_ewo (p: nat -> Prop) :
+Fact least_ewo (p: nat -> Prop) :
   decider p -> ex p -> sig (least p).
 Proof.
   intros d H. apply least_sigma. exact d.
@@ -434,17 +452,17 @@ Qed.
 
 Definition cty X := (eqdec X * enum X) %type.
 
-Definition cty_bot : cty False.
+Fact cty_bot : cty False.
 Proof.
   split. apply eqdec_bot. apply enum_bot.
 Qed.
 
-Definition cty_nat : cty nat.
+Fact cty_nat : cty nat.
 Proof.
   split. apply eqdec_nat. apply enum_nat.
 Qed.
 
-Definition cty_injection X Y :
+Fact cty_injection X Y :
   injection X Y -> cty Y -> cty X.
 Proof.
   intros H [d e]. split.
@@ -452,7 +470,7 @@ Proof.
   - apply enum_injection in H; assumption.
 Qed.
 
-Definition cty_sum X Y :
+Fact cty_sum X Y :
   cty X -> cty Y -> cty (X + Y).
 Proof.
   intros [dX eX] [dY eY]. split.
@@ -460,7 +478,7 @@ Proof.
   - apply enum_sum. split; assumption.
 Qed.
 
-Definition cty_prod X Y :
+Fact cty_prod X Y :
   cty X -> cty Y -> cty (X * Y).
 Proof.
   intros [dX eX] [dY eY]. split.
@@ -468,12 +486,12 @@ Proof.
   - apply enum_prod; assumption.
 Qed.
 
-Definition cty_nat_x_nat : cty (nat * nat).
+Fact cty_nat_x_nat : cty (nat * nat).
 Proof.
   apply cty_prod; apply cty_nat.
 Qed.
 
-Definition cty_option X :
+Fact cty_option X :
   cty X <=> cty (option X).
 Proof.
   split; intros [d e]; split.
@@ -574,14 +592,14 @@ Proof.
   exists x. reflexivity.
 Qed.
 
-Definition cty_hit_witness {X f n} :
+Fact cty_hit_witness {X f n} :
   cty X -> @hit X f n -> Sigma x, f x = n.
 Proof.
   intros H1 H2. apply (cty_ewo H1). 2:exact H2.
   intros x. apply eqdec_nat.
 Qed.
 
-Definition cty_alignment_segment {X f} n :
+Fact cty_alignment_segment {X f} n :
   cty X -> @alignment X f -> hit f n ->
   Sigma A, nrep A /\ length A = S n /\ segment (map f A).
 Proof.
@@ -611,7 +629,7 @@ Qed.
 Definition enum_nrep {X} (f: nat -> option X) : Prop :=
   forall m n, f m = f n -> f m <> None -> m = n.
 
-Definition cty_enum_nrep {X} :
+Fact cty_enum_nrep {X} :
   cty X -> Sigma f, enum' X f /\ enum_nrep f.
 Proof.
   intros (d&f&Hf).
@@ -720,7 +738,7 @@ Qed.
 
 (*** Finite Types and Cutoffs *)
 
-Definition alignment_cutoff_fin X f n :
+Fact alignment_cutoff_fin X f n :
   cty X -> @alignment X f -> cutoff f n -> fin n X.
 Proof.
   intros H1 H2 H3. split. {apply H1.}
@@ -735,7 +753,7 @@ Proof.
     apply H3, hit_self.
 Qed.
 
-Definition fin_alignment_cutoff {X f n} :
+Fact fin_alignment_cutoff {X f n} :
   fin n X -> @alignment X f -> cutoff f n.
 Proof.
   intros (H1&A&[H2 H3]&<-) [H51 H52]. hnf.
@@ -784,7 +802,7 @@ Qed.
 
 Inductive box (X: Type) : Prop := T (x:X).
 
-Fact cty_finite_or_infinite X :
+Fact cty_finite_or_infinite {X} :
   XM -> cty X -> box ((Sigma n, fin n X) + bijection X nat).
 Proof.
   intros xm H.
@@ -795,3 +813,202 @@ Proof.
   - constructor. right.
     eapply cty_alignment_bijection; eassumption.
 Qed.
+
+Fact cty_retract_or_empty {X} :
+  XM -> cty X -> box (injection X nat) \/ (X -> False).
+Proof.
+  intros xm H.
+  destruct (cty_finite_or_infinite xm H) as [[[n H1]|[f g H1 _]]].
+  - destruct n. 
+    + right. apply fin_zero, H1.
+    + left. constructor. eapply fin_injection_nat, H1.
+  - left. constructor. exists f g. exact H1.
+Qed.
+
+(*** List Enumeration *)
+
+Definition prefix {X} (A B: list X) := exists A', A ++ A' = B.
+
+Fact prefix_refl {X} (A: list X) :
+  prefix A A.
+Proof.
+  exists nil. apply app_nil_r.
+Qed.
+
+Fact prefix_trans {X} (A B C: list X) :
+  prefix A B -> prefix B C -> prefix A C.
+Proof.
+  intros [D1 H1] [D2 H2]. exists (D1 ++ D2).
+  rewrite app_assoc, H1. exact H2.
+Qed.
+
+Section SubPos.
+  Variable X : Type.
+  Variable X_escape: X.
+  Variable X_eqdec : eqdec X.
+    
+  Implicit Types (x : X) (A : list X).
+ 
+  Fixpoint sub A n : X :=
+    match A, n with
+      [], _ => X_escape
+    | x::A', 0 => x
+    | x::A', S n' => sub A' n'
+    end.
+
+  Fixpoint pos A x : nat :=
+    match A with
+      [] => 0
+    | y::A' => if X_eqdec y x then 0 else S (pos A' x)
+    end.
+   
+  Fact sub_pos x A :
+    x el A -> sub A (pos A x) = x.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [<-|H]. easy.
+      intros [->|H1]. easy. auto.
+  Qed.
+
+  Fact pos_bnd A x :
+    x el A -> pos A x < length A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [->|H].
+      + lia.
+      + intros [->|H1].
+        * easy.
+        * apply IH in H1; lia.
+  Qed.
+
+  Fact sub_el A n :
+    n < length A -> sub A n el A.
+  Proof.
+    induction A as [|y A IH] in n |-*; cbn.
+    - lia.
+    - destruct n.
+      + auto.
+      + intros H. right. apply IH. lia. 
+  Qed.
+
+  Fact pos_prefix x A B :
+    x el A -> prefix A B -> pos A x = pos B x.
+  Proof.
+    intros H [C <-]. revert H.
+    induction A as [|y A IH]; cbn.
+    - easy.
+    - destruct X_eqdec as [->|H]. easy.
+      intros [->|H1]. easy. auto.
+  Qed.
+
+  Fact sub_prefix k A B :
+    k < length A -> prefix A B -> sub A k = sub B k.
+  Proof.
+    intros H [C <-]. revert k H.
+    induction A as [|y A IH]; cbn.
+    - easy.
+    - destruct k. easy.
+      intros H. apply IH. lia.
+  Qed.
+End SubPos.
+
+Section Enumeration.
+  Variable X: Type.
+  Variable X_eqdec : eqdec X.
+  Variable L: nat -> list X.
+  Variable HL_cum : forall n, prefix (L n) (L (S n)).
+  Variable HL_len : forall n, length (L n) < length (L (S n)).
+  Variable beta: X -> nat.
+  Variable HL_beta  :  forall x, x el L (beta x).
+
+  Let L_length : forall n, n <= length (L n).
+  Proof.
+    induction n as [|n IH]. lia.
+    specialize (HL_len n). lia.
+  Qed.
+
+  Let L_prefix m n :
+    m <= n -> prefix (L m) (L n).
+  Proof.
+    induction n as [|n IH]; intros H.
+    - assert (m=0) as -> by lia. apply prefix_refl.
+    - assert (m = S n \/ m <= n) as [->|H1] by lia. {apply prefix_refl.}
+      generalize (HL_cum n). apply prefix_trans, IH, H1.
+  Qed.
+
+  Let x0 : X.
+  Proof.
+    destruct (L 1) as [|x A] eqn:E.
+    - exfalso. generalize (HL_len 0).
+      rewrite E. cbn. lia.
+    - exact x. 
+  Qed.
+
+  Let Pos:= pos X X_eqdec.
+  Let Sub:= sub X x0.
+
+  Let L_pos_invariant {x m n} :
+    x el L m -> x el L n -> Pos (L m) x = Pos (L n) x.
+  Proof.
+    intros Hm Hn.
+    assert (m <= n \/ n <= m) as [H|H] by lia.
+    - apply pos_prefix. exact Hm. apply L_prefix, H.
+    - symmetry. apply pos_prefix. exact Hn. apply L_prefix, H.
+  Qed.
+
+  Let L_sub k m n :
+    k < length (L m) -> k < length (L n) -> Sub (L m) k = Sub (L n) k.
+  Proof.
+    intros H1 H2.
+    assert (m <= n \/ n <= m) as [H|H] by lia.
+    - apply sub_prefix. easy. apply L_prefix, H.
+    - symmetry. apply sub_prefix. easy. apply L_prefix, H.
+  Qed.
+
+  Let L_pos x n :
+    x el L n -> x el L (S (Pos (L n) x)).
+  Proof.
+    intros H.
+    set (k:= Pos (L n) x).
+    assert (Hk3: Sub (L n) k = x). {apply sub_pos, H.}
+    assert (Hk1: k < length (L n)). {apply pos_bnd, H.}
+    assert (Hk2: S k <= length (L (S k))). {apply L_length.}
+    assert (Hk4: Sub (L (S k)) k = Sub (L n) k). { apply L_sub; easy. }
+    rewrite <-Hk3, <-Hk4. apply sub_el. lia.
+  Qed.
+
+  Fact cty_list_enumeration :
+    cty X.
+  Proof.
+    apply (cty_injection X nat). 2: exact cty_nat.
+    exists (fun x => Pos (L (beta x)) x)
+      (fun n => Sub (L (S n)) n).
+    intros x.
+    set (n:= S (Pos (L (beta x)) x)).
+    assert (H: x el L n). {apply L_pos, HL_beta.}
+    rewrite (L_pos_invariant (HL_beta x) H).
+    apply sub_pos. exact H.
+  Qed.
+End Enumeration.
+
+(*
+Fact enum_list X :
+  enum X <=> enum (list (X)).
+Proof.
+  split.
+  - intros [f Hf].
+    destruct (enum_prod nat nat enum_nat enum_nat) as [g Hg].
+      
+    exists (fun n => match n with
+             | 0 => Some nil
+             | S n => match g n with
+                     | None => None
+                     | Some (n1, n2) =>  match f n1 with
+                                        | None => None
+                                        | Some x => 
+                     end
+             end).
+Termination?
+*)
