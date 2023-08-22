@@ -883,26 +883,6 @@ Section SubPos.
         * apply IH in H1; lia.
   Qed.
 
-  Fact sub_el A n :
-    n < length A -> sub A n el A.
-  Proof.
-    induction A as [|y A IH] in n |-*; cbn.
-    - lia.
-    - destruct n.
-      + auto.
-      + intros H. right. apply IH. lia. 
-  Qed.
-
-  Fact pos_prefix x A B :
-    x el A -> prefix A B -> pos A x = pos B x.
-  Proof.
-    intros H [C <-]. revert H.
-    induction A as [|y A IH]; cbn.
-    - easy.
-    - destruct X_eqdec as [->|H]. easy.
-      intros [->|H1]. easy. auto.
-  Qed.
-
   Fact sub_prefix k A B :
     k < length A -> prefix A B -> sub A k = sub B k.
   Proof.
@@ -923,12 +903,6 @@ Section Enumeration.
   Variable beta: X -> nat.
   Variable HL_beta  :  forall x, x el L (beta x).
 
-  Let L_length : forall n, n <= length (L n).
-  Proof.
-    induction n as [|n IH]. lia.
-    specialize (HL_len n). lia.
-  Qed.
-
   Let L_prefix m n :
     m <= n -> prefix (L m) (L n).
   Proof.
@@ -936,6 +910,14 @@ Section Enumeration.
     - assert (m=0) as -> by lia. apply prefix_refl.
     - assert (m = S n \/ m <= n) as [->|H1] by lia. {apply prefix_refl.}
       generalize (HL_cum n). apply prefix_trans, IH, H1.
+  Qed.
+  
+  Let L_prefix_either m n :
+    prefix (L m) (L n) \/ prefix (L n) (L m).
+  Proof.
+    assert (m <= n \/ n <= m) as [H|H] by lia.
+    - left. apply L_prefix, H.
+    - right. apply L_prefix, H.
   Qed.
 
   Let x0 : X.
@@ -948,35 +930,20 @@ Section Enumeration.
 
   Let Pos:= pos X X_eqdec.
   Let Sub:= sub X x0.
-
-  Let L_pos_invariant {x m n} :
-    x el L m -> x el L n -> Pos (L m) x = Pos (L n) x.
-  Proof.
-    intros Hm Hn.
-    assert (m <= n \/ n <= m) as [H|H] by lia.
-    - apply pos_prefix. exact Hm. apply L_prefix, H.
-    - symmetry. apply pos_prefix. exact Hn. apply L_prefix, H.
-  Qed.
-
+  
   Let L_sub k m n :
     k < length (L m) -> k < length (L n) -> Sub (L m) k = Sub (L n) k.
   Proof.
     intros H1 H2.
-    assert (m <= n \/ n <= m) as [H|H] by lia.
-    - apply sub_prefix. easy. apply L_prefix, H.
-    - symmetry. apply sub_prefix. easy. apply L_prefix, H.
+    destruct (L_prefix_either m n) as [H|H].
+    - now apply sub_prefix.
+    - symmetry. now apply sub_prefix.
   Qed.
 
-  Let L_pos x n :
-    x el L n -> x el L (S (Pos (L n) x)).
+  Let L_length : forall n, n <= length (L n).
   Proof.
-    intros H.
-    set (k:= Pos (L n) x).
-    assert (Hk3: Sub (L n) k = x). {apply sub_pos, H.}
-    assert (Hk1: k < length (L n)). {apply pos_bnd, H.}
-    assert (Hk2: S k <= length (L (S k))). {apply L_length.}
-    assert (Hk4: Sub (L (S k)) k = Sub (L n) k). { apply L_sub; easy. }
-    rewrite <-Hk3, <-Hk4. apply sub_el. lia.
+    induction n as [|n IH]. lia.
+    specialize (HL_len n). lia.
   Qed.
 
   Fact cty_list_enumeration :
@@ -986,12 +953,16 @@ Section Enumeration.
     exists (fun x => Pos (L (beta x)) x)
       (fun n => Sub (L (S n)) n).
     intros x.
-    set (n:= S (Pos (L (beta x)) x)).
-    assert (H: x el L n). {apply L_pos, HL_beta.}
-    rewrite (L_pos_invariant (HL_beta x) H).
-    apply sub_pos. exact H.
+    set (k:= Pos (L (beta x)) x).
+    enough (Sub (L (S k)) k = Sub (L (beta x)) k) as ->.
+    { apply sub_pos, HL_beta. }
+    apply L_sub.
+    - generalize (L_length (S k)). lia.
+    - apply pos_bnd, HL_beta.
   Qed.
 End Enumeration.
+
+Check cty_list_enumeration.
 
 (*
 Fact enum_list X :
