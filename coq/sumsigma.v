@@ -533,6 +533,65 @@ Proof.
   all: easy.
 Qed.
 
+Fact exercise_bool1 (f: bool -> bool) :
+  injective f <-> surjective f.
+Proof.
+  destruct (f true) eqn:E1, (f false) eqn:E2; split; intros H.
+  - exfalso. enough (true = false) by congruence.
+    apply H. congruence.
+  - exfalso. specialize (H false) as [x H].
+    destruct x; congruence.
+  - intros [|]; eauto.
+  - intros [|] [|]; congruence.
+  - intros [|]; eauto.
+  - intros [|] [|]; congruence.
+  - exfalso.
+    enough (true = false) by congruence.
+    apply H. congruence.
+  - exfalso. specialize (H true) as [x H].
+    destruct x; congruence.
+Qed.
+
+Fact exercise_bool2 (f: bool -> bool) :
+  injective f ->
+  (forall x, f x = x) \/ (forall x, f x = negb x).
+Proof.
+  intros H.
+  destruct (f true) eqn:E1.
+  - left. intros [|]. exact E1.
+    destruct (f false) eqn:E2. 2:easy.
+    apply H. congruence.
+  - right. intros [|]. exact E1.
+    destruct (f false) eqn:E2; cbn. easy.
+    apply H. congruence.
+Qed.
+    
+Definition agree {X Y} (f g: X -> Y) := forall x, f x = g x.
+
+Fact exercise_bool3  (f: bool -> bool) :
+  injective f ->
+  (Sigma g, inv g f) *
+    (forall g g', inv g f -> inv g' f -> agree g g').
+Proof.
+  intros H. split.
+  - exists (if f true then fun x => x else negb).
+    intros x. destruct x, (f true) eqn:E.
+    1-2:easy.
+    1-2: destruct (f false) eqn:E'; cbn.
+    2-3: easy.
+    1-2: apply H; congruence.
+  - intros g g' Hg Hg'.
+    destruct (f true) eqn:E, (f false) eqn:E'.
+    + exfalso.
+      enough (true = false) by congruence.
+      apply H. congruence.
+    + intros [|]; congruence.
+    + intros [|]; congruence.
+    + exfalso.
+      enough (true = false) by congruence.
+      apply H. congruence.
+Qed.
+
 (*** Option Types *)
 
 Definition option_eqdec {X} :
