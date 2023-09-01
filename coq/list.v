@@ -16,6 +16,10 @@ Notation "'Sigma' x .. y , p" :=
     : type_scope.
 
 Definition injective {X Y} (f: X -> Y) := forall x x', f x = f x' -> x = x'.
+Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
+Inductive injection (X Y: Type) : Type :=
+| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+
 Definition XM := forall P, P \/ ~P.
 
 Implicit Types (n k : nat).
@@ -614,6 +618,16 @@ Proof.
   - exists (S x + n). intros y [-> |H].
     + lia.
     + apply IH in H. lia.
+Qed.
+
+Fact infinite_list_next X :
+  injection nat X -> forall A: list X, Sigma x, forall a, a el A -> a <> x.
+Proof.
+  intros [f g H] A.
+  destruct (nat_list_next (map g A)) as [n H1].
+  exists (f n). intros x H2 ->.
+  enough (H3: g (f n) < n). { rewrite H in H3. lia. }
+  apply H1. apply in_map_iff. eauto.
 Qed.
 
 (*** Position-Element Mappings *)

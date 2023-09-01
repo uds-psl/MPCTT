@@ -627,7 +627,7 @@ Proof.
   apply injection_ewo, bijection_injection, fin_Fin_bijection, H.
 Qed.
 
-Fact finite_injection_nat X n :
+Fact fin_injection_nat X n :
   fin (S n) X -> injection X nat.
 Proof.
   intros (D&A&(H1&H2)&H3).

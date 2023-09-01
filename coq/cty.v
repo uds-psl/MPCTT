@@ -539,10 +539,288 @@ Proof.
   intros H. apply cty_char_retract, injection_nat_option, H.
 Qed.
 
-Fact cty_flat_injection X :
+Fact cty_inhabited_injection X :
   cty X -> X -> injection X nat.
 Proof.
   intros H %cty_char_retract. apply injection_option, H.
+Qed.
+
+Fact Cantor X :
+  ~ex (@surjective X (X -> bool)).
+Proof.
+  intros [f H].
+  specialize (H (fun x => negb (f x x))) as [x H].
+  enough (f x x = negb (f x x)) by (destruct (f x x); easy).
+  pattern (f x) at 1. now rewrite H.
+Qed.
+
+Fact uncountable :
+  cty (nat -> bool) -> False.
+Proof.
+  intros [f g H] %(cty_inhabited_injection (nat -> bool)).
+  2: exact (fun _ => true).
+  apply (Cantor nat). exists g. intros h. exists (f h). apply H.
+Qed.
+
+(*** Injections into nat *)
+
+Definition prefix {X} (A B: list X) := exists A', A ++ A' = B.
+
+Fact prefix_refl {X} (A: list X) :
+  prefix A A.
+Proof.
+  exists nil. apply app_nil_r.
+Qed.
+
+Fact prefix_trans {X} (A B C: list X) :
+  prefix A B -> prefix B C -> prefix A C.
+Proof.
+  intros [D1 H1] [D2 H2]. exists (D1 ++ D2).
+  rewrite app_assoc, H1. exact H2.
+Qed.
+
+Section SubPos.
+  Variable X : Type.
+  Variable X_escape: X.
+  Variable X_eqdec : eqdec X.
+    
+  Implicit Types (x : X) (A : list X).
+ 
+  Fixpoint sub A n : X :=
+    match A, n with
+      [], _ => X_escape
+    | x::A', 0 => x
+    | x::A', S n' => sub A' n'
+    end.
+
+  Fixpoint pos A x : nat :=
+    match A with
+      [] => 0
+    | y::A' => if X_eqdec y x then 0 else S (pos A' x)
+    end.
+   
+  Fact sub_pos x A :
+    x el A -> sub A (pos A x) = x.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [<-|H]. easy.
+      intros [->|H1]. easy. auto.
+  Qed.
+
+  Fact pos_bnd A x :
+    x el A -> pos A x < length A.
+  Proof.
+    induction A as [|y A IH]; cbn.
+    - intros [].
+    - destruct X_eqdec as [->|H].
+      + lia.
+      + intros [->|H1].
+        * easy.
+        * apply IH in H1; lia.
+  Qed.
+
+  Fact sub_prefix k A B :
+    k < length A -> prefix A B -> sub A k = sub B k.
+  Proof.
+    intros H [C <-]. revert k H.
+    induction A as [|y A IH]; cbn.
+    - easy.
+    - destruct k. easy.
+      intros H. apply IH. lia.
+  Qed.
+End SubPos.
+
+Section Enumeration.
+  Variable X: Type.
+  Variable L: nat -> list X.
+  Variable beta: X -> nat.
+  Variable X_eqdec : eqdec X.
+  Variable HL_cum : forall n, prefix (L n) (L (S n)).
+  Variable HL_len : forall n, length (L n) < length (L (S n)).
+  Variable HL_beta  :  forall x, x el L (beta x).
+
+  Let L_prefix m n :
+    m <= n -> prefix (L m) (L n).
+  Proof.
+    induction n as [|n IH]; intros H.
+    - assert (m=0) as -> by lia. apply prefix_refl.
+    - assert (m = S n \/ m <= n) as [->|H1] by lia. {apply prefix_refl.}
+      generalize (HL_cum n). apply prefix_trans, IH, H1.
+  Qed.
+  
+  Let L_prefix_either m n :
+    prefix (L m) (L n) \/ prefix (L n) (L m).
+  Proof using L_prefix.
+    assert (m <= n \/ n <= m) as [H|H] by lia.
+    - left. apply L_prefix, H.
+    - right. apply L_prefix, H.
+  Qed.
+
+  Let x0 : X.
+  Proof.
+    destruct (L 1) as [|x A] eqn:E.
+    - exfalso. generalize (HL_len 0).
+      rewrite E. cbn. lia.
+    - exact x. 
+  Qed.
+
+  Let Pos:= pos X X_eqdec.
+  Let Sub:= sub X x0.
+  
+  Let L_sub k m n :
+    k < length (L m) -> k < length (L n) -> Sub (L m) k = Sub (L n) k.
+  Proof.
+    intros H1 H2.
+    destruct (L_prefix_either m n) as [H|H].
+    - now apply sub_prefix.
+    - symmetry. now apply sub_prefix.
+  Qed.
+
+  Let L_length : forall n, n <= length (L n).
+  Proof.
+    induction n as [|n IH]. lia.
+    specialize (HL_len n). lia.
+  Qed.
+
+  Fact list_enumeration :
+    injection X nat.
+  Proof.
+    exists (fun x => Pos (L (beta x)) x)
+      (fun n => Sub (L (S n)) n).
+    intros x.
+    set (k:= Pos (L (beta x)) x).
+    enough (Sub (L (S k)) k = Sub (L (beta x)) k) as ->.
+    { apply sub_pos, HL_beta. }
+    apply L_sub.
+    - generalize (L_length (S k)). lia.
+    - apply pos_bnd, HL_beta.
+  Qed.
+End Enumeration.
+
+Check list_enumeration.
+
+(*** More Countable Types *)
+
+Inductive tree := TL (x: nat) | TN (t1 t2: tree).
+
+Fact eqdec_tree :
+  eqdec tree.
+Proof.
+  intros s t. revert t. unfold dec.
+  induction s as [x|s1 IH1 s2 IH2]; destruct t as [y|t1 t2].
+  - destruct (eqdec_nat x y) as [<- |H1]; intuition congruence.
+  - intuition congruence.
+  - intuition congruence.
+  - specialize (IH1 t1). specialize (IH2 t2). intuition congruence.
+Qed.
+
+Fact tree_list_product :
+  forall A B, Sigma C, forall s, s el C <-> exists t1 t2, s = TN t1 t2 /\ t1 el A /\ t2 el B.
+Proof.
+  intros A B. induction A as [|t A [C IH]].
+  - exists nil. cbn. firstorder.
+  - exists (map (TN t) B ++ C). intros s. split.
+    + intros [H|H] %in_app_iff.
+      * apply in_map_iff in H as (t'&<-&H). exists t, t'; cbn; auto.
+      * apply IH in H as (t1&t2&->&H1&H2). firstorder.
+   + intros (t1&t2&->&[->|H1]&H2); apply in_app_iff.
+     * left. apply in_map_iff. eauto.
+     * right. apply IH. eauto.
+Qed.
+
+Fact injection_tree_nat :
+  injection tree nat.
+Proof.
+  pose (L:= fix L n :=
+          match n with
+          | 0 => []
+          | S n => L n ++ TL n :: pi1 (tree_list_product (L n) (L n))
+          end).
+  pose (beta:= fix beta t :=
+          match t with
+          | TL n => S n
+          | TN t1 t2 => S (beta t1 + beta t2)
+          end).
+
+  assert (L_cum: forall m n, m <= n -> L m <<= L n).
+  { intros m n H.
+    induction n as [|n IH].
+    - assert (m = 0) as -> by lia. easy.
+    - assert (m = S n \/ m <= n) as [->|H1] by lia. easy.
+      cbn. intros t H2. apply in_app_iff. left. apply IH; easy. }
+
+  apply (list_enumeration tree L beta).
+  - apply eqdec_tree.
+  - intros n. exists ([TL n] ++ pi1 (tree_list_product (L n) (L n))). easy.
+  - intros n. cbn. rewrite app_length. cbn. lia.
+  - intros t.
+    induction t as [x|t1 IH1 t2 IH2]; cbn; apply in_app_iff.
+    + cbn; auto.
+    + right. right. destruct tree_list_product as [C H]; cbn.
+      apply H. exists t1,t2. repeat split.
+      * apply L_cum with (m:= beta t1). lia. easy.
+      * apply L_cum  with (m:= beta t2). lia. easy.
+Qed.
+
+Fact cty_tree :
+  cty tree.
+Proof.
+  apply cty_injection_nat, injection_tree_nat.
+Qed.
+
+Fact cty_nat_nat :
+  cty (nat * nat).
+Proof.
+  apply cty_injection with (Y:= tree). 2:exact cty_tree.
+  exists (fun a => TN (TL (fst a)) (TL (snd a)))
+    (fun t => match t with
+           | TN (TL x) (TL y) => (x,y)
+           | _ => (0,0)
+           end).
+  intros [x y]. reflexivity.
+Qed.
+  
+Fact cty_list_nat:
+  cty (list nat).
+Proof.
+  apply cty_injection with (Y:= tree). 2:exact cty_tree.
+  pose (f:= fix f A := match A with
+                       | [] => TL 0
+                       | x::A => TN (TL x) (f A)
+                       end).
+  pose (g:= fix g t := match t with
+                       | TN (TL x) t => x :: g t
+                       | _ => []
+                       end).
+  exists f g. intros A.
+  induction A as [|x A IH]; cbn; congruence.
+Qed.
+
+Fact cty_list X:
+  cty X -> cty (list X).
+Proof.
+  intros [f g H] %cty_char_retract.
+  apply cty_injection with (Y:= list nat). 2:exact cty_list_nat.
+  pose (F:= map (fun x => f (Some x))).
+  pose (G:= fix G A := match A with
+                       | [] => []
+                       | n::A => match g n with
+                                | Some x => x :: G A
+                                | None => []
+                                end
+                       end).
+  exists F G. intros A.
+  induction A as [|x A IH]; cbn. easy.
+  destruct (g (f (Some x))) as [y|] eqn:E; congruence.
+Qed.
+
+Fact injection_list X:
+  injection X nat -> injection (list X) (list nat).
+Proof.
+  intros [f g H].
+  exists (map f) (map g). intros A.
+  induction A as [|x A IH]; cbn; congruence.
 Qed.
 
 (*** Alignments *)
@@ -736,6 +1014,15 @@ Proof.
     destruct (F x) as [y' HF]. cbn. apply Hg. congruence.
 Qed.
 
+Fact cty_infinite X :
+  injection nat X -> cty X -> bijection X nat.
+Proof.
+  intros H1 H2. apply cty_bijection.
+  exact H2. exact cty_nat. 2: exact H1.
+  apply cty_inhabited_injection. exact H2.
+  destruct H1 as [f _ _]. exact (f 0).
+Qed.
+
 (*** Finite Types and Cutoffs *)
 
 Fact alignment_cutoff_fin X f n :
@@ -824,162 +1111,3 @@ Proof.
     + left. constructor. eapply fin_injection_nat, H1.
   - left. constructor. exists f g. exact H1.
 Qed.
-
-(*** List Enumeration *)
-
-Definition prefix {X} (A B: list X) := exists A', A ++ A' = B.
-
-Fact prefix_refl {X} (A: list X) :
-  prefix A A.
-Proof.
-  exists nil. apply app_nil_r.
-Qed.
-
-Fact prefix_trans {X} (A B C: list X) :
-  prefix A B -> prefix B C -> prefix A C.
-Proof.
-  intros [D1 H1] [D2 H2]. exists (D1 ++ D2).
-  rewrite app_assoc, H1. exact H2.
-Qed.
-
-Section SubPos.
-  Variable X : Type.
-  Variable X_escape: X.
-  Variable X_eqdec : eqdec X.
-    
-  Implicit Types (x : X) (A : list X).
- 
-  Fixpoint sub A n : X :=
-    match A, n with
-      [], _ => X_escape
-    | x::A', 0 => x
-    | x::A', S n' => sub A' n'
-    end.
-
-  Fixpoint pos A x : nat :=
-    match A with
-      [] => 0
-    | y::A' => if X_eqdec y x then 0 else S (pos A' x)
-    end.
-   
-  Fact sub_pos x A :
-    x el A -> sub A (pos A x) = x.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros [].
-    - destruct X_eqdec as [<-|H]. easy.
-      intros [->|H1]. easy. auto.
-  Qed.
-
-  Fact pos_bnd A x :
-    x el A -> pos A x < length A.
-  Proof.
-    induction A as [|y A IH]; cbn.
-    - intros [].
-    - destruct X_eqdec as [->|H].
-      + lia.
-      + intros [->|H1].
-        * easy.
-        * apply IH in H1; lia.
-  Qed.
-
-  Fact sub_prefix k A B :
-    k < length A -> prefix A B -> sub A k = sub B k.
-  Proof.
-    intros H [C <-]. revert k H.
-    induction A as [|y A IH]; cbn.
-    - easy.
-    - destruct k. easy.
-      intros H. apply IH. lia.
-  Qed.
-End SubPos.
-
-Section Enumeration.
-  Variable X: Type.
-  Variable X_eqdec : eqdec X.
-  Variable L: nat -> list X.
-  Variable HL_cum : forall n, prefix (L n) (L (S n)).
-  Variable HL_len : forall n, length (L n) < length (L (S n)).
-  Variable beta: X -> nat.
-  Variable HL_beta  :  forall x, x el L (beta x).
-
-  Let L_prefix m n :
-    m <= n -> prefix (L m) (L n).
-  Proof.
-    induction n as [|n IH]; intros H.
-    - assert (m=0) as -> by lia. apply prefix_refl.
-    - assert (m = S n \/ m <= n) as [->|H1] by lia. {apply prefix_refl.}
-      generalize (HL_cum n). apply prefix_trans, IH, H1.
-  Qed.
-  
-  Let L_prefix_either m n :
-    prefix (L m) (L n) \/ prefix (L n) (L m).
-  Proof.
-    assert (m <= n \/ n <= m) as [H|H] by lia.
-    - left. apply L_prefix, H.
-    - right. apply L_prefix, H.
-  Qed.
-
-  Let x0 : X.
-  Proof.
-    destruct (L 1) as [|x A] eqn:E.
-    - exfalso. generalize (HL_len 0).
-      rewrite E. cbn. lia.
-    - exact x. 
-  Qed.
-
-  Let Pos:= pos X X_eqdec.
-  Let Sub:= sub X x0.
-  
-  Let L_sub k m n :
-    k < length (L m) -> k < length (L n) -> Sub (L m) k = Sub (L n) k.
-  Proof.
-    intros H1 H2.
-    destruct (L_prefix_either m n) as [H|H].
-    - now apply sub_prefix.
-    - symmetry. now apply sub_prefix.
-  Qed.
-
-  Let L_length : forall n, n <= length (L n).
-  Proof.
-    induction n as [|n IH]. lia.
-    specialize (HL_len n). lia.
-  Qed.
-
-  Fact cty_list_enumeration :
-    cty X.
-  Proof.
-    apply (cty_injection X nat). 2: exact cty_nat.
-    exists (fun x => Pos (L (beta x)) x)
-      (fun n => Sub (L (S n)) n).
-    intros x.
-    set (k:= Pos (L (beta x)) x).
-    enough (Sub (L (S k)) k = Sub (L (beta x)) k) as ->.
-    { apply sub_pos, HL_beta. }
-    apply L_sub.
-    - generalize (L_length (S k)). lia.
-    - apply pos_bnd, HL_beta.
-  Qed.
-End Enumeration.
-
-Check cty_list_enumeration.
-
-(*
-Fact enum_list X :
-  enum X <=> enum (list (X)).
-Proof.
-  split.
-  - intros [f Hf].
-    destruct (enum_prod nat nat enum_nat enum_nat) as [g Hg].
-      
-    exists (fun n => match n with
-             | 0 => Some nil
-             | S n => match g n with
-                     | None => None
-                     | Some (n1, n2) =>  match f n1 with
-                                        | None => None
-                                        | Some x => 
-                     end
-             end).
-Termination?
-*)
