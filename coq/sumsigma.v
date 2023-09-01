@@ -570,26 +570,16 @@ Definition agree {X Y} (f g: X -> Y) := forall x, f x = g x.
 
 Fact exercise_bool3  (f: bool -> bool) :
   injective f ->
-  (Sigma g, inv g f) *
-    (forall g g', inv g f -> inv g' f -> agree g g').
+  inv f f *  (forall g, inv g f -> agree g f).
 Proof.
-  intros H. split.
-  - exists (if f true then fun x => x else negb).
-    intros x. destruct x, (f true) eqn:E.
-    1-2:easy.
-    1-2: destruct (f false) eqn:E'; cbn.
-    2-3: easy.
-    1-2: apply H; congruence.
-  - intros g g' Hg Hg'.
-    destruct (f true) eqn:E, (f false) eqn:E'.
-    + exfalso.
-      enough (true = false) by congruence.
-      apply H. congruence.
-    + intros [|]; congruence.
-    + intros [|]; congruence.
-    + exfalso.
-      enough (true = false) by congruence.
-      apply H. congruence.
+  intros [H|] %exercise_bool2; split.
+  - congruence.
+  - congruence.
+  - intros x. rewrite !H. destruct x; easy.
+  - intros g H1.
+    enough (agree g negb) by congruence.
+    assert (H2: inv g negb) by congruence.
+    intros x. rewrite <-H2. destruct x; easy.
 Qed.
 
 (*** Option Types *)
