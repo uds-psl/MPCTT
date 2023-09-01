@@ -113,22 +113,34 @@ Proof.
 Qed.
 
 
-(* Injection from surjective function *)
+(*** Inverse functions via EWOs *)
 
+Definition injective {X Y} (f: X -> Y) :=
+  forall x x', f x = f x' -> x = x'.
 Definition surjective {X Y} (f: X -> Y) :=
   forall y, exists x, f x = y.
+Definition bijective {X Y} (f: X -> Y) :=
+  injective f /\ surjective f.
 
-Fact surjective_inv X Y f :
+Fact surjective_inv {X Y f} :
   @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
 Proof.
-  intros H E d.
+  intros H e d.
   enough (G: forall y, Sigma x, f x = y).
-  { exists (fun y => pi1 (G y)). intros y. destruct (G y) as [x H1]; easy. }
-  intros y. apply E.
+  { exists (fun y => pi1 (G y)). intros y. apply (pi2 (G y)). }
+  intros y. apply e.
   - intros x. apply d.
   - apply H. 
 Qed.
 
+Fact bijective_inv X Y f :
+  @bijective X Y f -> ewo X -> eqdec Y -> Sigma g, inv g f /\ inv f g.
+Proof.
+  intros [H1 H2] e d.
+  destruct (surjective_inv H2 e d) as [g H3].
+  exists g. split. 2:exact H3.
+  intros x. apply H1. congruence.
+Qed.
   
 (*** Linear Search Types and EWO for nat *)
 
