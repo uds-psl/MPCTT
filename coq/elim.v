@@ -46,21 +46,50 @@ Qed.
 
 (*** Nat *)
 
-Definition match_nat
-  : forall p: nat -> Type, p 0 -> (forall n, p (S n)) -> forall n, p n
-  := fun p e1 e2 n =>
-       match n with 0 => e1 | S n' => e2 n' end.
-
 Definition elim_nat
   : forall p: nat -> Type, p 0 -> (forall n, p n -> p (S n)) -> forall n, p n
   := fun p e1 e2 => fix F n :=
        match n with 0 => e1 | S n' => e2 n' (F n') end.
+
+Definition match_nat
+  : forall p: nat -> Type, p 0 -> (forall n, p (S n)) -> forall n, p n
+  := fun p e1 e2 n =>
+       match n with 0 => e1 | S n' => e2 n' end.
 
 Goal forall x, x + 0 = x.
 Proof.
   refine (elim_nat _ _ _).
   - reflexivity.
   - intros n IH. cbn. rewrite IH. reflexivity.
+Qed.
+
+Goal forall x y,
+    x + y = elim_nat (fun _ => nat) y (fun _ => S) x.
+Proof.
+  intros *.
+  induction x as [|x IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+Goal forall x y,
+    x + y = elim_nat (fun _ => nat -> nat) (fun y => y) (fun _ a y => S (a y)) x y.
+Proof.
+  intros *.
+  induction x as [|x IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+Fixpoint  plus (x: nat) : nat -> nat :=
+  match x with
+  | 0 => fun y => y
+  | S x' => fun y => S (plus x' y)
+  end.
+
+Goal plus = elim_nat (fun _ => nat -> nat) (fun y => y) (fun x a y => S (a y)).
+Proof.
+  cbv. reflexivity.
 Qed.
 
 Goal forall x y: nat, x = y \/ x <> y.
@@ -75,30 +104,45 @@ Proof.
       destruct IH; auto.  (* auto includes injectivity *)
 Qed.
 
-Fixpoint  plus (x: nat) : nat -> nat :=
-  match x with
-  | 0 => fun y => y
-  | S x' => fun y => S (plus x' y)
-  end.
+(*** Pairs *)
 
-Goal plus = elim_nat (fun _ => nat -> nat) (fun y => y) (fun x a y => S (a y)).
+Definition elim_pair
+  : forall (X Y: Type) (p: X * Y -> Type), (forall x y, p(x,y)) -> forall a, p a
+  := fun X Y p e => fix F a :=
+    match a with (x,y) => e x y end.
+
+Definition fst
+  : forall X Y, X * Y -> X
+  := fun X Y => elim_pair X Y _ (fun x _ => x).
+
+Definition snd
+  : forall X Y, X * Y -> Y
+  := fun X Y => elim_pair X Y _ (fun _ y => y).
+
+Goal forall X Y (a: X * Y), a = (fst _ _ a, snd _ _ a).
 Proof.
-  cbv. reflexivity.
+  intros X Y.
+  apply elim_pair.
+  cbn.
+  reflexivity.
 Qed.
 
-Goal forall x y, plus x y = elim_nat (fun _ => nat) y (fun _ => S) x.
+(*** Void and Unit *)
+
+Definition elim_void
+  : forall Z: Type, False -> Z
+  := fun Z a => match a with end.
+
+Definition elim_unit
+  : forall p: True -> Type, p I -> forall a, p a
+  := fun p e a => match a with I => e end.
+
+Goal forall x: True, x = I.
 Proof.
-  intros x y. induction x; cbn.
-  - reflexivity.
-  - f_equal. exact IHx.
+  apply elim_unit.
+  reflexivity.
 Qed.
 
-Goal forall x y, plus x y = x + y.
-Proof.
-  refine (elim_nat _ _ _).
-  - cbv. reflexivity.
-  - intros n IH y. cbn. rewrite IH. reflexivity.
-Qed.
 
 (*** [nat <> bool] *)
 
@@ -112,151 +156,20 @@ Proof.
     + intros H. specialize (H 0 1 2) as [H|[H|H]]; discriminate.
 Qed.
 
-(*** Procedural Specifications *)
+(*** Notes *)
 
-Definition Plus f x y :=
-  match x with
-  | 0 => y
-  | S x' => S (f x' y)
-  end.
-  
-Fact Plus_unique f g :
-  (forall x y, f x y = Plus f x y) ->
-  (forall x y, g x y = Plus g x y) ->
-  forall x y, f x y = g x y.
-Proof.
-  intros Hf Hg x y.
-  induction x as [|x IH];
-    rewrite Hf, Hg; cbn.
-  - reflexivity.
-  - f_equal. exact IH.
-Qed.
-  
-Definition Fib f n :=
-  match n with
-  | 0 => 0
-  | 1 => 1
-  | S (S n) => f n + f (S n)
-  end.
+(* Coq derives eliminators *)
+Check bool_rect.
+Check nat_rect.
+Check prod_rect.
+Check False_rect.
+Check True_rect.
+(* Coq doesn't derive most general eliminator for True by default *)
+Check and_ind.
+Check and_rect.
+Check or_ind.
 
-Fact Fib_unique f g :
-  (forall n, f n = Fib f n) ->
-  (forall n, g n = Fib g n) ->
-  forall n, f n = g n /\ f (S n) = g (S n).
-Proof.
-  intros Hf Hg.
-  induction n as [|n [IH1 IH2]].
-  - rewrite !Hf, !Hg. easy.
-  - split. exact IH2.
-    rewrite Hf, Hg; cbn.
-    congruence.
-Qed.
+Check False_rect nat.
+Check False_rect (nat -> nat).
+Check False_rect (nat -> nat -> nat).
 
-Definition Acker f x y :=
-  match x, y with
-  | 0, y => S y
-  | S x, 0 => f x 1
-  | S x, S y => f x (f (S x) y)
-  end.
-
-Fact Acker_unique f g :
-  (forall x y, f x y = Acker f x y) ->
-  (forall x y, g x y = Acker g x y) ->
-  forall x y, f x y = g x y.
-Proof.
-  intros Hf Hg.
-  induction x as [|x IHx].
-  - destruct y;
-      rewrite Hf, Hg;
-      reflexivity.
-  - induction y as [|y IHy];
-      rewrite Hf, Hg; cbn.
-    + apply IHx.
-    + rewrite IHy. apply IHx.
-Qed.
-  
-(*** Exercises *)
-
-Module Exercises.
-Fixpoint eq_nat x y : bool :=
-  match x, y with
-  | 0, 0 => true
-  | 0, S _ => false
-  | S _, 0 => false
-  | S x', S y' => eq_nat x' y'
-  end.
-
-Goal forall x y, x = y <-> eq_nat x y = true.
-Proof.
-  refine (elim_nat _ _ _).
-  - intros [|y]; cbn.
-    + intuition.
-    + intuition congruence.
-  - intros x IH [|y]; cbn.
-    + intuition congruence.
-    + specialize (IH y). intuition.
-Qed.
-
-Definition eq_nat' : nat -> nat -> bool :=
-  elim_nat (fun _ => nat -> bool)
-    (elim_nat (fun _ => bool) true (fun _ _ => false))
-    (fun _ f => elim_nat (fun _ => bool) false (fun y _ => f y)).
-
-Goal forall x y, x = y <-> eq_nat' x y = true.
-Proof.
-  refine (elim_nat _ _ _).
-  - intros [|y]; cbn.
-    + intuition.
-    + intuition congruence.
-  - intros x IH [|y]; cbn.
-    + intuition congruence.
-    + specialize (IH y). intuition.
-Qed.
-
-Definition plus
-  : nat -> nat -> nat
-  := fun x y => elim_nat (fun _ => nat) y (fun _ a => S a) x.
-
-Goal forall x y, plus x y = x + y.
-Proof.
-  refine (elim_nat _ _ _).
-  - reflexivity.
-  - intros x IH y.
-    change (plus (S x) y) with (S (plus x y)).
-    rewrite IH. reflexivity.
-Qed.
-
-Definition minus : nat -> nat -> nat
-  := elim_nat _
-              (fun _ => 0)
-              (fun x f => match_nat _ (S x) f).
-
-Compute minus 4 2.
-Compute minus 4 5.
-
-Goal forall x y, minus x y = x - y.
-Proof.
-  induction x as [|x IH].
-  - reflexivity.
-  - intros [|y].
-    + reflexivity.
-    + cbn. apply IH.
-Qed.
-
-(* We may define elim_nat with a section *)
-
-Section Elim_nat.
-  Variable p : nat -> Type.                     (*return type function *)
-  Variable e1 : p 0.                         (*continuation for zero *)
-  Variable e2 : forall n, p n -> p (S n).          (*continuation for S *)
-  Fixpoint elim_nat n : p n :=
-    match n with
-    | 0 => e1
-    | S n => e2 n (elim_nat n)
-    end.
-End Elim_nat.
-
-Check elim_nat.
-Print elim_nat.
- 
-End Exercises.
