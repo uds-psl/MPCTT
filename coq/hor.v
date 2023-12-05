@@ -1,3 +1,4 @@
+(*** Higher-Order Structural Recursion and EWOs *)
 From Coq Require Import Lia.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
@@ -16,6 +17,12 @@ Notation "'Sigma' x .. y , p" :=
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+Definition injective {X Y} (f: X -> Y) :=
+  forall x x', f x = f x' -> x = x'.
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
+Definition bijective {X Y} (f: X -> Y) :=
+  injective f /\ surjective f.
 
 
 (*** Linear Search Types *)
@@ -236,13 +243,6 @@ Proof.
 Qed.
 
 (*** EWO Applications *)
-
-Definition injective {X Y} (f: X -> Y) :=
-  forall x x', f x = f x' -> x = x'.
-Definition surjective {X Y} (f: X -> Y) :=
-  forall y, exists x, f x = y.
-Definition bijective {X Y} (f: X -> Y) :=
-  injective f /\ surjective f.
 
 Fact surjective_inv {X Y f} :
   @surjective X Y f -> ewo X -> eqdec Y -> Sigma g, inv f g.
