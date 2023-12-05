@@ -68,7 +68,7 @@ Section WO.
   Qed.
 End WO.
 
-(** Now we staert with semi-decidability *)
+(** Now we start with semi-decidability *)
 
 Definition tsat (f: nat -> bool) : Prop :=
   exists n, f n = true.

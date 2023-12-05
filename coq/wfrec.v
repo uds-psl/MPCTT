@@ -43,7 +43,7 @@ Proof.
   - easy.
   - intros x H. constructor. intros y H1. apply IH. lia.
 Defined.
-
+ 
 Section Lexical_product.
   Variables (X: Type) (R: X -> X -> Prop).
   Variables (Y: Type) (S: Y -> Y -> Prop).
@@ -62,7 +62,7 @@ Section Lexical_product.
 End Lexical_product.
 Arguments lex {X} R {Y}.
 Arguments lex_wf {X R Y S}.
-
+  
 Section Retract.
   Variables (X Y: Type) (R: Y -> Y -> Prop) (sigma: X -> Y).
   Definition retract (x x': X) := R (sigma x) (sigma x').
@@ -88,7 +88,7 @@ Arguments retract_wf {X Y R}.
 
 From Coq Require Import FunctionalExtensionality.
 
-Fact Acc_pure X (R: X -> X -> Prop) :
+Fact Acc_unique X (R: X -> X -> Prop) :
   forall x (a a': Acc R x), a = a'.
 Proof.
   enough (forall x (a: Acc R x) (a a': Acc R x), a = a') by eauto.
@@ -96,7 +96,7 @@ Proof.
   extensionality y. extensionality r. apply IH, r.
 Qed.
 
-Print Assumptions Acc_pure.
+Print Assumptions Acc_unique.
 
 Fact W_eq
      {X} {R: X -> X -> Prop} {R_wf: wf R}
@@ -107,7 +107,7 @@ Fact W_eq
 Proof.
   unfold W. destruct (R_wf x) as [h]. cbn.
   f_equal. extensionality y. extensionality r.
-  f_equal. apply Acc_pure.
+  f_equal. apply Acc_unique.
 Qed.
 
 Fact W_unique 
@@ -452,6 +452,17 @@ Section Successor_relation.
     - constructor. unfold R_S at 1. intros y [= ->]. exact IH.
   Qed.
 End Successor_relation.
+
+(** Void *)
+
+Goal Acc eq I -> forall X, X.
+Proof.
+  generalize I.
+  refine (W' _).
+  intros x IH.
+  apply (IH x).
+  reflexivity.
+Qed.
 
 (** Existential Witness Operator *)
 

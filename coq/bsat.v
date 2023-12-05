@@ -7,7 +7,7 @@ Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 50).
 Notation "x 'nel' A" := (~In x A) (at level 70).
 Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p)) ..))
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
   : type_scope.
@@ -52,19 +52,19 @@ Implicit Types S T : sform.
 Implicit Types C D E : clause.
 Implicit Types L : list clause.
 
-Fact sform_eq_dec S T : dec (S = T).
+Definition sform_eq_dec S T : dec (S = T).
 Proof. 
   unfold dec. repeat decide equality. 
 Defined.
-Fact clause_eq_dec C D : dec (C = D).
+Definition clause_eq_dec C D : dec (C = D).
 Proof. 
   unfold dec. repeat decide equality. 
 Defined.
-Fact list_clause_eq_dec L L' : dec (L = L').
+Definition list_clause_eq_dec L L' : dec (L = L').
 Proof. 
   unfold dec. repeat decide equality. 
 Defined.
-Fact clause_in_dec S C : dec (S el C).
+Definition clause_in_dec S C : dec (S el C).
 Proof. 
   unfold dec. apply in_dec, sform_eq_dec.
 Defined.
@@ -545,7 +545,7 @@ Proof.
   - intros [alpha H1]. specialize (H alpha).
     revert H1. cbn. rewrite H. cbn. discriminate.
   - intros alpha. destruct (eva alpha s) eqn:H1. reflexivity.
-    contradiction H. exists alpha. cbn. rewrite H1. trivial.
+    contradict H. exists alpha. cbn. rewrite H1. trivial.
 Qed.
 
 Fact sat_valid s :
@@ -557,7 +557,7 @@ Proof.
   - intros H.  apply dec_DN. { apply satf_dec. }
     contradict H. intros alpha. cbn.
     destruct (eva alpha s) eqn:H1. 2:reflexivity.
-    contradiction H. exists alpha. exact H1.
+    contradict H. exists alpha. exact H1.
 Qed.
 
 Fact valid_solve :

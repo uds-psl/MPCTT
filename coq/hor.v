@@ -1,4 +1,6 @@
 From Coq Require Import Lia.
+Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
+Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
@@ -11,13 +13,107 @@ Notation "'Sigma' x .. y , p" :=
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
-
-
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 Inductive injection (X Y: Type) : Type :=
 | Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
 
-(*** EWO Basics *)
+
+(*** Linear Search Types *)
+
+Section EWO.
+  Variable p: nat -> Prop.
+
+  Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
+
+  Definition T_elim (q: nat -> Type)
+    : (forall n, (~p n -> q (S n)) -> q n) ->
+      forall n, T n -> q n
+    := fun e => fix f n a :=
+      let (phi) := a in
+      e n (fun h => f (S n) (phi h)).
+
+  (*** EWO for Numbers *)
+
+  Lemma TI n :
+    p n -> T n.
+  Proof.
+    intros H. constructor. intros H1. destruct (H1 H).
+  Qed.
+
+  Lemma TD n :
+    T (S n) -> T n.
+  Proof.
+    intros H. constructor. intros _. exact H.
+  Qed.
+
+  Variable p_dec: decider p.
+
+  Definition TE (q: nat -> Type)
+    : (forall n, p n -> q n) ->
+      (forall n, ~p n -> q (S n) -> q n) ->
+      forall n, T n -> q n.
+  Proof.
+    intros e1 e2.
+    apply T_elim. intros n IH.
+    destruct (p_dec n); auto.
+  Qed.
+
+  (** From now on T will only be used through TI, TD, and TE *)
+
+  
+  Lemma T_zero n :
+    T n -> T 0.
+  Proof.
+    induction n as [|n IH].
+    - auto.
+    - intros H. apply IH. apply TD, H.
+  Qed.
+
+  Definition ewo_nat :
+    ex p -> sig p.
+  Proof.
+    intros H.
+    refine (TE (fun _ => sig p) _ _ 0 _).
+    - eauto.
+    - easy.
+    - destruct H as [n H]. apply (T_zero n), TI, H.
+  Qed.
+
+  (* T_zero generalized *)
+  
+  Fact T_lower n m :
+    m <= n -> T n -> T m.
+  Proof.
+    induction n as [|n IH].
+    - intros H1 H2.
+      assert (m = 0) as -> by lia.
+      exact H2.
+    - intros H1 H2.
+      assert (m = S n \/ m <= n) as [H|H] by lia.
+      + congruence.
+      + apply IH. exact H. apply TD, H2.
+  Qed.
+
+  Fact T_sig n :
+    T n -> Sigma m, m >= n /\ p m.
+  Proof.
+    revert n.
+    refine (TE _ _ _).
+    - intros n IH. exists n. split. lia. exact IH.
+    - intros n _ (m&IH1&IH2). exists m. split. lia. exact IH2.
+  Qed.
+
+  Fact T_equiv n :
+    T n <=> Sigma m, m >= n /\ p m.
+  Proof.
+    split.
+    - apply T_sig.
+    - intros (m&H1&H2).
+      eapply T_lower. exact H1. apply TI, H2.
+  Qed.    
+End EWO.
+
+(*** General EWOs *)
 
 Definition ewo (X:Type) :=
   forall p: X -> Prop, decider p -> ex p -> sig p.
@@ -47,6 +143,11 @@ Proof.
     + eauto.
     + exfalso. destruct H as [[|] H]; auto.
       (* note computational falsity elimination *)
+Qed.
+
+Goal ewo nat.
+Proof.
+  exact ewo_nat.
 Qed.
 
 Theorem ewo_or X (p q: X -> Prop) :
@@ -112,8 +213,29 @@ Proof.
   - eauto.
 Qed.
 
+Fact injection_nat_ewo X :
+  injection X nat -> ewo X.
+Proof.
+  intros H.
+  eapply injection_ewo. exact H. exact ewo_nat.
+Qed.
 
-(*** Inverse functions via EWOs *)
+Fact ewo_binary :
+  injection (nat * nat) nat ->
+  forall p: nat -> nat -> Prop,
+  forall d: forall x y, dec (p x y),
+    (exists x y, p x y) -> Sigma x y, p x y.
+Proof.
+  intros E %injection_ewo. 2:exact ewo_nat.
+  intros p d H.
+  pose (q a := p (fst a) (snd a)).
+  specialize (E (fun a => p (fst a) (snd a))) as [[x y] E].
+  - intros [x y]. apply d.
+  - destruct H as (x&y&H). exists (x,y). exact H.
+  - eauto.
+Qed.
+
+(*** EWO Applications *)
 
 Definition injective {X Y} (f: X -> Y) :=
   forall x x', f x = f x' -> x = x'.
@@ -141,160 +263,6 @@ Proof.
   exists g. split. 2:exact H3.
   intros x. apply H1. congruence.
 Qed.
-  
-(*** Linear Search Types and EWO for nat *)
-
-Module EWO_nat.
-Section EWO_nat.
-  Variable p: nat -> Prop.
-  Variable p_dec: decider p.
-
-  Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
-
-  Lemma T_base n :
-    p n -> T n.
-  Proof.
-    intros H. constructor. intros H1. destruct (H1 H).
-  Qed.
-
-  Lemma T_step n :
-    T (S n) -> T n.
-  Proof.
-    intros H. constructor. intros _. exact H.
-  Qed.
-
-  Lemma T_zero n :
-    T n -> T 0.
-  Proof.
-    induction n as [|n IH].
-    - auto.
-    - intros H. apply IH. apply T_step, H.
-  Qed.
-
-  Lemma V n :
-    p n -> T 0.
-  Proof.
-    intros H. eapply T_zero, T_base, H.
-  Qed.
-
-  Definition W'
-    : forall n, T n -> sig p
-    := fix f n a := let (phi) := a in
-                    match p_dec n with
-                    | inl h => (Sig p n h)
-                    | inr h => f (S n) (phi h)
-                    end.
-
-  Theorem W :
-    ex p -> sig p.
-  Proof.
-    intros H. apply (W' 0).
-    destruct H as [n H].
-    apply (V n), H.
-  Qed.
-
-  (* Eliminator generalizing W' *)
-  
-  Definition elim_T (q: nat -> Type)
-    : (forall n, (~p n -> q (S n)) -> q n) ->
-      forall n, T n -> q n
-    := fun e => fix f n a := let (phi) := a in e n (fun h => f (S n) (phi h)).
-
-  Fact W'_elim_T_agree :
-    W' = elim_T (fun _ => sig p)
-           (fun n f => match p_dec n with
-                    | inl h => (Sig p n h)
-                    | inr h => f h
-                    end).
-  Proof.
-    reflexivity.
-  Qed.
- 
-  Fact elim_T_unfold q e n phi :
-    elim_T q e n (C n phi) = e n (fun h => elim_T q e (S n) (phi h)).
-  Proof.
-    reflexivity.
-  Qed.
-  
-  Goal forall n, T n -> sig p.
-  Proof.
-    refine (elim_T _ (fun n IH => _)). cbn in IH.
-    destruct (p_dec n) as [H|H].
-    - exists n. exact H.
-    - exact (IH H).
-  Qed.
-
-  (** Existential characterisation of T *)
-
-  Fact T_step_add k n :
-    T (k + n) -> T n.
-  Proof.
-    induction k as [|k IH].
-    - auto. 
-    - intros H. apply IH, T_step, H.
-  Qed.
-
-  Fact T_p_zero n :
-    p n -> T 0.
-  Proof.
-    intros H%T_base%T_zero. exact H.
-  Qed.
-
-  Fact T_ex_ge n :
-    T n <-> exists k, k >= n /\ p k.
-  Proof.
-    split.
-    - revert n.
-      refine (elim_T _ (fun n IH => _)). cbn in IH.
-      destruct (p_dec n) as [H|H].
-      + exists n. auto.
-      + destruct (IH H) as (k&H1&H2).
-        exists k. split. lia. exact H2.
-    - intros (k&H1&H2). apply (T_step_add (k - n)).
-      replace (k - n + n) with k by lia.
-      constructor. easy. 
-  Qed.
-
-  (* Padding *)
-  
-  Definition pad3 n (d: T n) : T n :=
-    C n (fun h => C (S n) (fun h1 => C (S (S n)) (fun h2 =>
-       let (phi) := d in
-       let (phi1) := phi h in
-       let (phi2) := phi1 h1 in
-       phi2 h2))).
-
-End EWO_nat.
-End EWO_nat.
-
-Fact ewo_nat : ewo nat.
-Proof.
-  exact EWO_nat.W.
-Qed.
-
-Fact ewo_injection_nat X :
-  injection X nat -> ewo X.
-Proof.
-  intros H %injection_ewo. apply H. apply ewo_nat.
-Qed.
-    
-
-(*** More EWOs *)
-
-Fact ewo_binary :
-  injection (nat * nat) nat ->
-  forall p: nat -> nat -> Prop,
-  forall d: forall x y, dec (p x y),
-    (exists x y, p x y) -> Sigma x y, p x y.
-Proof.
-  intros E %injection_ewo. 2:exact ewo_nat.
-  intros p d H.
-  pose (q a := p (fst a) (snd a)).
-  specialize (E (fun a => p (fst a) (snd a))) as [[x y] E].
-  - intros [x y]. apply d.
-  - destruct H as (x&y&H). exists (x,y). exact H.
-  - eauto.
-Qed.
 
 Section Step_indexed_eqdec.
   Variable X: Type.
@@ -315,3 +283,4 @@ Section Step_indexed_eqdec.
     - apply f_prop. reflexivity.
   Qed.
 End Step_indexed_eqdec.
+

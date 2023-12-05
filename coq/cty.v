@@ -15,9 +15,8 @@ Notation "'Sigma' x .. y , p" :=
 Definition eqdec X := forall x y: X, dec (x = y).
 Fact eqdec_nat : eqdec nat.
 Proof.
-  hnf; induction x as [|x IH]; destruct y as [|y]; unfold dec in *.
-  1-3: intuition congruence.
-  destruct (IH y); intuition congruence.
+  intros x y. unfold dec.
+  destruct ((x - y) + (y - x)) eqn:?; intuition lia.
 Qed.
 Definition injective {X Y} (f: X -> Y) :=
   forall x x', f x = f x' -> x = x'.
@@ -118,64 +117,112 @@ Fact fin_injection_nat X n :
   fin (S n) X -> injection X nat.
 Admitted. (* Proof is in file finty.v *)
 
-(*** Least *)
+(*** Least Witnesses *)
 
-Definition safe (p: nat -> Prop) n := forall k, p k -> k >= n.
-Definition least (p: nat -> Prop) n := p n /\ safe p n.
+Definition safe p n := forall k, k < n -> ~p k.
+Definition least p n := p n /\ safe p n.
 Notation unique p := (forall x x', p x -> p x' -> x = x').
 
-Fact least_unique (p: nat -> Prop) :
-  unique (least p).
+Fact least_unique p : unique (least p).
 Proof.
-  intros x y [H1 H2] [H3 H4].
-  enough (x <= y /\ y <= x) by lia. split.
-  - apply H2, H3.
-  - apply H4, H1.
+  intros n n' [H1 H2] [H1' H2'].
+  enough (~(n < n') /\ ~(n' < n)) by lia.
+  split; intros H.
+  - eapply H2'; eassumption.
+  - eapply H2; eassumption.
 Qed.
 
 Fact safe_S p n :
   safe p n -> ~p n -> safe p (S n).
 Proof.
-  intros H1 H2 k H3. specialize (H1 k H3).
-  enough (k <> n) by lia. congruence.
+  intros H1 H2 k H3. unfold safe in *.
+  assert (k < n \/ k = n) as [H|H] by lia.
+  - auto.
+  - congruence.
 Qed.
 
-Fact least_sigma (p: nat -> Prop) :
-  decider p -> sig p -> sig (least p).
+Section LWO.
+Variable p : nat -> Prop.
+Variable p_dec : decider p.
+
+Definition lwo :
+  forall n, (Sigma k, k < n /\ least p k) + safe p n.
 Proof.
-  intros d.
-  enough (forall n, sig (least p) + safe p n) as F.
-  { intros [n Hn]. destruct (F n) as [H|H]. easy. exists n. easy. }
-  induction n as [|n [IH|IH]].
-  - right. hnf; lia.
-  - eauto.
-  - destruct (d n) as [H|H].
-    + left. exists n. easy.
-    + right. apply safe_S; easy.
+  induction n as [|n IH].
+  - right. easy. 
+  - destruct IH as [(k&H1&H2)|H1].
+    + left. exists k. split. lia. exact H2.
+    + destruct (p_dec n).
+      * left. exists n. split. lia. easy.
+      * right. apply safe_S; assumption.
 Qed.
 
-Fact least_exists (p: nat -> Prop) :
-  decider p -> ex p -> ex (least p).
+Definition least_sig :
+  sig p -> sig (least p).
 Proof.
-  intros d [n Hn].
-  destruct (least_sigma p d) as [x H]; eauto.
+  intros [n H].
+  destruct (lwo (S n)) as [(k&H1&H2)|H1].
+  - exists k. exact H2.
+  - exfalso. apply (H1 n). lia. exact H.
 Qed.
+
+Definition least_ex :
+  ex p -> ex (least p).
+Proof.
+  intros [n H].
+  destruct (lwo (S n)) as [(k&H1&H2)|H1].
+  - exists k. exact H2.
+  - exfalso. apply (H1 n). lia. exact H.
+Qed.
+
+Definition safe_dec n :
+  dec (safe p n).
+Proof.
+  destruct (lwo n) as [(k&H1&H2)|H1].
+  - right. intros H. apply (H k). exact H1. apply H2.
+  - left. exact H1.
+Qed.
+
+Definition least_dec n :
+  dec (least p n).
+Proof.
+  unfold least.
+  destruct (p_dec n) as [H|H].
+  2:{ right. tauto. }
+  destruct (safe_dec n) as [H1|H1].
+  - left. easy.
+  - right. tauto.
+Qed.
+End LWO.
 
 Definition XM : Prop := forall X: Prop, X \/ ~X.
 
-Fact least_xm_exists (p: nat -> Prop) :
-  XM -> ex p -> ex (least p).
-Proof.
-  intros xm.
-  enough (forall n, ex (least p) \/ safe p n) as H1.
-  { intros [n H]. specialize (H1 n) as [H1|H1]. easy. exists n; easy. }
-  induction n as [|n [IH|IH]].
-  - right. hnf; lia.
-  - left. exact IH.
-  - destruct (xm (p n)) as [H|H].
-    + left. exists n. easy.
-    + right. apply safe_S; easy.
-Qed.
+
+Section XM.
+  Variable xm : XM.
+  Variable p : nat -> Prop.
+ 
+  Fact xm_lwo :
+    forall n, (exists k, k < n /\ least p k) \/ safe p n.
+  Proof.
+    induction n as [|n IH].
+    - right. easy.
+    - destruct IH as [(k&H1&H2)|H1].
+      + left. exists k. split. lia. exact H2.
+      + destruct (xm (p n)).
+        * left. exists n. split. lia. easy.
+        * right. apply safe_S; assumption.
+  Qed.
+
+  Definition xm_least_ex :
+    ex p -> ex (least p).
+  Proof.
+    intros [n H].
+    destruct (xm_lwo (S n)) as [(k&H1&H2)|H1].
+    - exists k. exact H2.
+    - exfalso. apply (H1 n). lia. exact H.
+  Qed.
+End XM.
 
 (*** Equality deciders *)
 
@@ -396,22 +443,10 @@ Proof.
     + contradict H1.
 Qed.
 
-Fact least_dec (p: nat -> Prop) :
-  decider p -> decider (least p).
-Proof.
-  intros d n.
-  destruct (d n) as [H|H].
-  2:{ right. intros [H2 _]. easy. }
-  destruct (least_sigma p d) as [x Hx]. {eauto.}
-  destruct (eqdec_nat x n) as [->|H1]. {left. exact Hx.}
-  right. intros H2. contradict H1.
-  eapply least_unique; eassumption.
-Qed.
-
 Fact least_ewo (p: nat -> Prop) :
   decider p -> ex p -> sig (least p).
 Proof.
-  intros d H. apply least_sigma. exact d.
+  intros d H. apply least_sig. exact d.
   apply ewo_nat; assumption.
 Qed.
 
@@ -921,7 +956,7 @@ Proof.
            end).
   split.
   - intros x.
-    destruct (least_exists _ (D x) (Hf x)) as (k&Hk).
+    destruct (least_ex _ (D x) (Hf x)) as (k&Hk).
     assert (Hx: f k = Some x). {apply Hk.}
     exists k. destruct (f k) as [y|]. 2:easy.
     assert (x=y) as <- by congruence.
@@ -1078,9 +1113,9 @@ Proof.
     + enough (~ n <= k) by lia. intros H4.
       destruct H2 as [H2 _]. enough (hit f n) by easy.
       revert H3 H4. apply H.
-    + destruct (xm (hit f k)) as [H4|H4]. {auto.} exfalso.
-      apply H2 in H4. lia.
-  - apply least_xm_exists. exact xm.
+    + destruct (xm (hit f k)) as [H4|H4]. easy.
+      exfalso. apply H2 in H3. apply H3, H4.
+  - apply xm_least_ex. exact xm.
     destruct (xm (ex miss)) as [H2|H2]. {auto.} exfalso.
     apply H1. intros n.
     destruct (xm (hit f n)) as [H3|H3]. {auto.} exfalso.

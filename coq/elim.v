@@ -104,6 +104,17 @@ Proof.
       destruct IH; auto.  (* auto includes injectivity *)
 Qed.
 
+Module Exercise.
+  Notation "x <= y" := (x - y = 0) : nat_scope.
+  Fact antisymmetry x y :
+    x <= y -> y <= x -> x = y.
+  Proof.
+    revert y.
+    induction x as [|x IH]; destruct y.
+    all:auto.
+  Qed.
+End Exercise.
+
 (*** Pairs *)
 
 Definition elim_pair

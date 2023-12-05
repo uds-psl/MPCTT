@@ -153,6 +153,15 @@ Module Hierarchy.
   Proof.
     intros X H. apply (hierarchy X). rewrite H. apply embeds_refl.
   Qed.
+
+  #[bypass_check(universes)]
+    Example test: False.
+  Proof.
+    apply (hierarchy Tyi).
+    apply embeds_refl.
+  Qed.
+
+  Print Assumptions test.
   
 End Hierarchy.
 

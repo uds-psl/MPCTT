@@ -1,4 +1,4 @@
-From Coq Require Import List.
+From Coq Require Import Lia List.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation "'Sigma' x .. y , p" :=
@@ -8,11 +8,10 @@ Notation "'Sigma' x .. y , p" :=
     : type_scope.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Lemma nat_eqdec : eqdec nat.
+Definition nat_eqdec: eqdec nat.
 Proof.
-  hnf; unfold dec.
-  induction x; destruct y; try intuition easy.
-  specialize (IHx y). intuition congruence.
+  intros x y. unfold dec.
+  destruct ((x - y) + (y - x)) eqn:?; intuition lia.
 Qed.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
