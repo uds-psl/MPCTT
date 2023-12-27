@@ -529,6 +529,83 @@ Proof.
     + apply gamma_sym, gcd_correct.
 Qed.
 
+(*** Inductive GCD predicate *)
+
+Definition size_ind2 {X Y} (sigma: X -> Y -> nat) {p: X -> Y -> Type} :
+  (forall x y, (forall x' y', sigma x' y' < sigma x y -> p x' y') -> p x y) ->
+  forall x y, p x y.
+Proof.
+  intros H.
+  enough (forall n x y, sigma x y < n -> p x y) by eauto.
+  induction n as [|n IH]. lia.
+  intros x y H1. apply H. intros x' y' H2.
+  apply IH. lia.
+Qed.
+
+Inductive G : nat -> nat -> nat -> Prop :=
+| G_zero y : G 0 y y
+| G_sym x y z : G x y z -> G y x z
+| G_sub x y z : x <= y -> G x (y - x) z -> G x y z.
+
+Definition G_sig : forall x y, Sigma z, G x y z.
+Proof.
+  refine (size_ind2 (fun x y => x + y) _).
+  intros x y IH.
+  destruct x.
+  { exists y. apply G_zero. }
+  destruct y.
+  { exists (S x). apply G_sym, G_zero. }
+  destruct (x - y) as [|d] eqn:H.
+  - specialize (IH (S x) (y - x)) as [z IH]. lia.
+    exists z. apply G_sub. lia. exact IH.
+  - specialize (IH (S y) (x - y)) as [z IH]. lia.
+    exists z. apply G_sym, G_sub. lia. exact IH.
+Qed.
+
+Section GCD.
+  Variable gamma : nat -> nat -> nat -> Prop.
+  Variable gamma_zero : forall y, gamma 0 y y.
+  Variable gamma_sym : forall x y z, gamma x y z -> gamma y x z.
+  Variable gamma_sub : forall x y z, x <= y -> gamma x (y - x) z -> gamma x y z.
+
+  Fact G_gamma x y z :
+    G x y z -> gamma x y z.
+  Proof.
+    induction 1 as [y|x y z _ IH|x y z H _ IH].
+    - apply gamma_zero.
+    - revert IH. apply gamma_sym.
+    - revert H IH. apply gamma_sub.
+  Qed.
+
+  Variable gamma_fun : forall x y z z', gamma x y z -> gamma x y z' -> z = z'.
+
+  Fact gamma_G x y z :
+    gamma x y z -> G x y z.
+  Proof.
+    intros H.
+    destruct (G_sig x y) as [z' H1].      
+    enough (z = z') by congruence.
+    apply G_gamma in H1.
+    revert H H1. apply gamma_fun.
+  Qed.
+
+  Fact G_gamma_agree' x y z :
+    G x y z <-> gamma x y z.
+  Proof.
+    split. apply G_gamma. apply gamma_G.
+  Qed.
+End GCD.
+
+Theorem G_gamma_agree x y z :
+  G x y z <-> gamma x y z.
+Proof.
+  apply G_gamma_agree'.
+  - apply gamma_zero.
+  - apply gamma_sym.
+  - apply gamma_sub.
+  - apply gamma_unique.
+Qed.
+
 (*** Reducible Div and Mod *)
 
 Fixpoint Div x c y :=
@@ -605,4 +682,5 @@ Proof.
 Qed.
 
 Print Nat.gcd.
-
+      
+      

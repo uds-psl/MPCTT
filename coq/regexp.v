@@ -1,3 +1,4 @@
+(*** Regular Expressions *)
 From Coq Require Import Arith Lia List.
 Import ListNotations.
 Definition dec X := sum X (X -> False).

@@ -347,12 +347,12 @@ Qed.
    
 (*** Hilbert System *)
 
-Inductive hil A : form -> Type :=
-| hilA s :      s el A -> hil A s
-| hilMP s t :   hil A (s ~> t) -> hil A s -> hil A t
-| hilK s t :    hil A (s ~> t ~> s)
-| hilS s t u :  hil A ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
-| hilF s :      hil A (bot ~> s).
+Inductive hil A | : form -> Type :=
+| hilA s :      s el A -> hil s
+| hilMP s t :   hil (s ~> t) -> hil s -> hil t
+| hilK s t :    hil (s ~> t ~> s)
+| hilS s t u :  hil ((s ~> t ~> u) ~> (s ~> t) ~> s ~> u)
+| hilF s :      hil (bot ~> s).
 
 Fact hil_nd A s :
   hil A s -> nd A s.

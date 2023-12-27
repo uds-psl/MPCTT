@@ -1,5 +1,63 @@
-﻿From Coq Require Import List.
+﻿(*** Abstract Syntax *)
+From Coq Require Import List.
 Import ListNotations.
+
+
+(*** Lists *)
+Print list.
+
+Fixpoint concat {X} (A B : list X) : list X :=
+  match A with
+  | nil => B
+  | cons x A => cons x (concat A B)
+  end.
+
+Definition elim_list {X} (p: list X -> Type)
+  : p nil ->
+    (forall x A, p A -> p (cons x A)) -> 
+    forall A, p A
+  := fun f1 f2 => fix f A :=
+    match A with
+    | nil => f1
+    | cons x A => f2 x A (f A)
+    end.
+
+Fact concat_nil X (A : list X) :
+  concat A nil = A.
+Proof.
+  revert A.
+  refine (elim_list _ _ _).
+  - cbn. reflexivity.
+  - intros x A  IH.
+    cbn. f_equal. exact IH.
+Qed.
+
+Fact concat_nil' X (A : list X) :
+  concat A nil = A.
+Proof.
+  induction A as [|x A IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+Fact associativity X (A B C : list X) :
+  concat (concat A B) C = concat A (concat B C).
+Proof.
+  revert A.
+  refine (elim_list _ _ _).
+  - cbn. reflexivity.
+  - intros x A IH.
+    cbn. f_equal. exact IH.
+Qed.
+
+Fact associativity' X (A B C : list X) :
+  concat (concat A B) C = concat A (concat B C).
+Proof.
+  induction A as [|x A IH]; cbn. reflexivity.
+  f_equal. exact IH.
+Qed.
+
+(*** Expressions and Codes *)
 
 (* First time we use Coq's BNF format for an inductive type *)
 Inductive exp :=
@@ -7,7 +65,7 @@ Inductive exp :=
 | add (e: exp) (e: exp)
 | sub (e: exp) (e: exp).
 
-Implicit Types (x: nat) (e: exp).
+(* Implicit Types (x: nat) (e: exp). *)
 
 Fixpoint eval e : nat :=
   match e with
@@ -18,7 +76,7 @@ Fixpoint eval e : nat :=
 
 Compute eval (sub (add (con 3) (con 5)) (con 2)).
 
-Implicit Types (A C: list nat).
+(* Implicit Types (A C: list nat). *)
 
 Fixpoint run C A : list nat :=
   match C, A with
@@ -30,6 +88,24 @@ Fixpoint run C A : list nat :=
   end.
 
 Compute run [5;7;1] [].
+
+(*** Eliminator for Expressions *)
+
+Check exp_rect.
+
+Definition elim_exp (p: exp -> Type) 
+  : (forall x, p (con x)) ->
+    (forall e1 e2, p e1 -> p e2 -> p (add e1 e2)) ->
+    (forall e1 e2, p e1 -> p e2 -> p (sub e1 e2)) ->
+    forall e, p e
+  := fun f1 f2 f3 => fix f e :=
+    match e with
+    | con x => f1 x
+    | add e1 e2 => f2 e1 e2 (f e1) (f e2)
+    | sub e1 e2 => f3 e1 e2 (f e1) (f e2)
+    end.
+
+(*** Compiler *)
 
 Fixpoint com e : list nat :=
   match e with
@@ -60,7 +136,9 @@ Proof.
   reflexivity.
 Qed.
 
-Implicit Type L: list exp.
+(*** Decompiler *)
+
+(* Implicit Type L: list exp. *)
 
 Fixpoint dcom C L : list exp :=
   match C, L with
@@ -91,4 +169,6 @@ Proof.
   rewrite dcom_correct.
   reflexivity.
 Qed.
+
+
 

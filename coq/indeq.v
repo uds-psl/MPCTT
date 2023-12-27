@@ -1,3 +1,4 @@
+(*** Inductive Equality *)
 From Coq Require Import Arith Bool.
 Notation sig := sigT.
 Notation Sig := existT.
@@ -101,7 +102,7 @@ Section UIP.
     - intros u v e'. apply (H' _ _ e' eq_refl).
     - intros a b []. apply H.
   Qed.
-    
+  
   Goal DPI -> UIP'.
   Proof.
     intros H x e.

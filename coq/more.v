@@ -1,3 +1,5 @@
+(*** More Types *)
+From Coq Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
@@ -229,6 +231,8 @@ Qed.
 
 (*** Option Types *)
 
+Print option.
+
 Definition option_eqdec {X} :
   eqdec X -> eqdec (option X).
 Proof.
@@ -249,20 +253,6 @@ Proof.
   - left. congruence.
   - right. congruence.
 Qed.
-
-Fixpoint Fin n : Type :=
-  match n with 0 => False | S n' => option (Fin n') end.
-
-Fact Fin_eqdec n :
-  eqdec (Fin n).
-Proof.
-  induction n as [|n IH]; cbn.
-  - intros [].
-  - apply option_eqdec, IH.
-Qed.
-
-
-(*** Bijection Theorem *)
 
 Fact R {X Y f g} :
   @inv (option X) (option Y) g f ->
@@ -295,4 +285,277 @@ Theorem bijection_option X Y :
 Proof.
   intros [f g H1 H2].
   exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
+Qed.
+
+(*** Numeral Types *)
+
+Fixpoint num n : Type :=
+  match n with
+  | 0 => False
+  | S n' => option (num n')
+  end.
+
+Fact num_eqdec n :
+  eqdec (num n).
+Proof.
+  induction n as [|n IH]; cbn.
+  - intros [].
+  - apply option_eqdec, IH.
+Qed.
+
+Fact bijection_eq m n :
+  bijection (num m) (num n) -> m = n.
+Proof.
+  revert m n.
+  induction m as [|m IH]; destruct n; intros H.
+  - reflexivity.
+  - exfalso. apply H. exact None.
+  - exfalso. apply H. exact None.
+  -  f_equal. apply IH. apply bijection_option. exact H.
+Qed.
+
+(*** Vector Types *)
+
+Fixpoint vec X n : Type :=
+  match n with
+  | 0 => unit
+  | S n => X * vec X n
+  end.
+
+Compute vec nat 3.
+Check (1,(2,(3,tt))) : vec nat 3.
+
+Definition vec_eqdec X n :
+  eqdec X -> eqdec (vec X n).
+Proof.
+  unfold eqdec, dec. intros d.
+  induction n as [|n IH]. 
+  - intros [] []. auto.
+  - intros [x v] [x' v'].
+    specialize (d x x'). specialize (IH v v').
+    intuition congruence.
+Qed.
+
+(** List operations *)
+
+Definition nil {X} : vec X 0 := tt.
+
+Definition cons {X n}
+  : X -> vec X n -> vec X (S n)
+  := @pair X (vec X n).
+
+Definition hd {X n}
+  : vec X (S n) -> X
+  := fst.
+
+Arguments hd :simpl never.
+
+Definition tl {X n}
+  : vec X (S n) -> vec X n
+  := snd.
+
+Fact vec_eta {X n} (v: vec X (S n)) :
+  v = cons (hd v) (tl v).
+Proof.
+  destruct v as [x v]. cbn. reflexivity.
+Qed.
+
+(** Enumeration *)
+
+Fixpoint enum k n : vec nat n :=
+  match n with
+  | 0 => nil
+  | S n => cons k (enum (S k) n)
+  end.
+
+Eval cbn in enum 1 3.
+
+(** Tuple Types *)
+
+Fixpoint tup (p: nat -> Type) n : Type :=
+  match n with
+  | 0 => unit
+  | S n => p n * tup p n
+  end.
+
+Compute tup (fun n => n = n) 3.
+
+Definition tuprec {p: nat -> Type}
+  : (forall n, tup p n -> p n) -> forall n, tup p n
+  := fun e => fix f n :=
+       match n with
+       | 0 => tt
+       | S n => let t := f n in (e n t, t)
+       end.
+
+Definition tupcov {p} e n : p n := fst (tuprec e (S n)).
+
+Check @tupcov.
+
+(** Position element maps *)
+
+Fixpoint sub {X n}
+  : vec X (S n) -> nat -> X
+  := match n with
+     | 0 => fun v k => hd v
+     | S n => fun v k => match k with
+                     | 0 => hd v
+                     | S k => sub (tl v) k
+             end
+     end.
+
+Fixpoint sub' {X n}
+  : vec X n -> num n -> X
+  := match n with
+     | 0 => fun v a => match a with end
+     | S n => fun v a => match a with 
+                     | Some a => sub' (tl v) a
+                     | None => hd v
+                     end
+     end.
+
+Fact sub0 X n (v: vec X (S n)) :
+  sub v 0 = hd v.
+Proof.
+  destruct n; reflexivity.
+Qed.
+
+Fact sub1 X n (v: vec X (S (S n))) :
+  sub v 1 = hd (tl v).
+Proof.
+  destruct n; reflexivity.
+Qed.
+
+Fact sub'0 X n (v: vec X (S n)) :
+  sub' v None = hd v.
+Proof.
+  destruct n; reflexivity.
+Qed.
+
+Fact sub'1 X n (v: vec X (S (S n))) :
+  sub' v (Some None) = hd (tl v).
+Proof.
+  destruct n; reflexivity.
+Qed.
+
+(** last, snoc, reversion *)
+
+Fixpoint last {X n}
+  : vec X (S n) -> X :=
+  match n with
+  | 0 => hd
+  | S n => fun v => last (tl v)
+  end.
+
+Compute last (enum 1 5).
+
+Fact sub_last X n (v: vec X (S n)) :
+  sub v n = last v.
+Proof.
+  induction n as [|n IH]. reflexivity.
+  cbn. apply IH.
+Qed.
+
+Fixpoint snoc {X n}
+  : vec X n -> X -> vec X (S n)
+  := match n with
+     | 0 => fun _ x => cons x nil
+     | S n => fun v x => cons (hd v) (snoc (tl v) x)
+     end.
+
+Compute snoc (enum 1 5) 6.
+
+Fact last_snoc X n x (v: vec X n) :
+  last (snoc v x) = x.
+Proof.
+  induction n as [|n IH]. reflexivity.
+  destruct v as [y v]. change (y,v) with (cons y v).
+  cbn. apply IH.
+Qed.
+  
+(** Reversion *)
+
+Fixpoint rev {X n}
+  : vec X n -> vec X n 
+  := match n with
+     | 0 => fun v => v
+     | S n => fun v => snoc (rev (tl v)) (hd v)
+     end.
+
+Compute rev (enum 0 5).
+Compute rev (rev (enum 0 5)).
+
+Fact rev_cons X n (v: vec X n) (x: X) :
+  rev (cons x v) = snoc (rev v) x.
+Proof.
+  reflexivity.
+Qed.
+
+Fact rev_snoc_cons X n (v: vec X n) (x y: X) :
+  rev (snoc (cons x v) y) = snoc (rev (snoc v y)) x.
+Proof.
+  reflexivity.
+Qed.
+  
+Fact rev_snoc X x n (v: vec X n) :
+  rev (snoc v x) = cons x (rev v).
+Proof.
+  induction n as [|n IH] in v|-*.
+  - destruct v. reflexivity.
+  - destruct v as [y v]. change (y,v) with (cons y v).
+    rewrite rev_snoc_cons. rewrite IH. reflexivity.
+Qed.
+
+Fact rev_rev X n (v: vec X n) :
+  rev (rev v) = v.
+Proof.
+  induction n as [|n IH]. reflexivity.
+  destruct v as [x v]. change (x,v) with (cons x v).
+  rewrite rev_cons. rewrite rev_snoc. f_equal. apply IH.
+Qed.
+
+(** Concatenation *)
+
+Fixpoint con {X m n}
+  : vec X m -> vec X n -> vec X (m + n)
+  := match m with
+     | 0 => fun v w => w
+     | S m => fun v w => cons (hd v) (con (tl v) w)
+     end.
+  
+Fail Check
+  forall X m n k (u: vec X m) (v: vec X n) (w: vec X k),
+    con (con u v) w = con u (con v w).
+
+Fixpoint cast {X m n k}
+  : vec X ((m + n) + k) -> vec X (m + (n + k))
+  := match m with
+     | 0 => fun v => v
+     | S m => fun v => cons (hd v) (cast (tl v))
+     end.
+
+Fact con_assoc X m n k (u: vec X m) (v: vec X n) (w: vec X k) :
+  cast (con (con u v) w) = con u (con v w).
+Proof.
+  revert m u.
+  induction m as [|m IH]; intros u.
+  - simpl cast. simpl con. reflexivity.
+  - simpl con. simpl cast. f_equal. apply IH.
+Qed.
+
+Module GroundExample.
+  Definition u := enum 0 3.
+  Definition v := enum 3 3.
+  Definition w := enum 6 3.
+  Goal con (con u v) w = con u (con v w).
+  Proof.
+    cbn. reflexivity.
+  Qed.
+  Eval cbn in cast (con (con u v) w).
+End GroundExample.
+
+Goal forall X m n k,
+    vec X ((m + n) + k) = vec X (m + (n + k)).
+Proof.
+  intros *. f_equal. lia.
 Qed.
