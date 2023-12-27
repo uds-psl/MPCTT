@@ -11,7 +11,7 @@
 -  Certifying Functions and Sigma Types [certsig.v](certsig.v) 
 -  Linear Arithmetic [la.v](la.v) 
 -  More Types [more.v](more.v) 
-- Indexed Inductives [indind.v](indind.v) 
+-  Indexed Inductives [indind.v](indind.v) 
 -  Extensionality [ext.v](ext.v)
 -  Excluded Middle and Double Negation [xm.v](xm.v)
 -  Provability [provability.v](provability.v)
