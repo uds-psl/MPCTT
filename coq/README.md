@@ -4,7 +4,7 @@
 -  Propositions as Types [pat.v](pat.v)
 -  Leibniz Equality [leibniz.v](leibniz.v)
 -  Inductive Eliminators [elim.v](elim.v)
--  Cantor Pairing [pairing.v](pairing.v)
+-  Arithmetic Pairing [pairing.v](pairing.v)
 -  Abstract Syntax [syntax.v](syntax.v) 
 -  Existential Quantification [exquant.v](exquant.v)
 -  Certifying Functions and Sum Types [certsum.v](certsum.v) 
