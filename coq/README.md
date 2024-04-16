@@ -27,7 +27,7 @@
 -  Regular Expression Matching [regexp.v](regexp.v)
 -  Abstract Reduction Systems [ars.v](ars.v)
 -  Inductive Equality [indeq.v](indeq.v) 
--  Semi-Decidability and Markov's Principle [sdec.v](sdec.v) 
+-  Axiom CT and Semidecidability [undec.v](undec.v) 
 -  Aczel Trees and Hierarchy Theorems [aczel.v](aczel.v) 
 -  Well-Founded Recursion [wfrec.v](wfrec.v) 
 -  Numeral Types as Indexed Inductive Types [numeral.v](numeral.v)
