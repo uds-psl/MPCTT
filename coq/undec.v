@@ -40,11 +40,7 @@ Fact skolem_trans {X Y} (R: Rel X Y) :
 Proof.
   intros F. exists (fun x => pi1 (F x)). intros x. exact (pi2 (F x)).
 Qed.
-Fact skolem_trans' {X Y} (R: Rel X Y) :
-  (Sigma f, forall x, R x (f x)) -> (forall x, Sigma y, R x y).
-Proof.
-  intros [f H] x. exists (f x). apply H.
-Qed.
+
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) := forall x, g (f x) = x.
 
 Definition XM := forall P, P \/ ~ P.
@@ -98,6 +94,84 @@ Proof.
   assert (E1:=Cantor.cancel_to_of n).
   congruence.
 Qed.
+
+(** Least Witnesses *)
+
+Definition safe p n := forall k, k < n -> ~p k.
+Definition least p n := p n /\ safe p n.
+Notation unique p := (forall x x', p x -> p x' -> x = x').
+
+Fact least_unique p : unique (least p).
+Proof.
+  intros n n' [H1 H2] [H1' H2'].
+  enough (~(n < n') /\ ~(n' < n)) by lia.
+  split; intros H.
+  - eapply H2'; eassumption.
+  - eapply H2; eassumption.
+Qed.
+
+Fact safe_S p n :
+  safe p n -> ~p n -> safe p (S n).
+Proof.
+  intros H1 H2 k H3. unfold safe in *.
+  assert (k < n \/ k = n) as [H|H] by lia.
+  - eauto.
+  - congruence.
+Qed.
+
+Section LWO.
+Variable p : nat -> Prop.
+Variable p_dec : Dec p.
+
+Definition lwo :
+  forall n, (Sigma k, k < n /\ least p k) + safe p n.
+Proof.
+  induction n as [|n IH].
+  - right. easy. 
+  - destruct IH as [(k&H1&H2)|H1].
+    + left. exists k. split. lia. exact H2.
+    + destruct (p_dec n).
+      * left. exists n. split. lia. easy.
+      * right. apply safe_S; assumption.
+Qed.
+
+Definition least_ex :
+  ex p -> ex (least p).
+Proof.
+  intros [n H].
+  destruct (lwo (S n)) as [(k&H1&H2)|H1].
+  - exists k. exact H2.
+  - exfalso. apply (H1 n). lia. exact H.
+Qed.
+
+Definition safe_dec n :
+  dec (safe p n).
+Proof.
+  destruct (lwo n) as [(k&H1&H2)|H1].
+  - right. intros H. apply (H k). exact H1. apply H2.
+  - left. exact H1.
+Qed.
+
+Definition least_dec :
+  Dec (least p).
+Proof.
+  intros n. unfold least.
+  destruct (p_dec n) as [H|H].
+  2:{ right. tauto. }
+  destruct (safe_dec n) as [H1|H1].
+  - left. easy.
+  - right. tauto.
+Qed.
+
+Fact least_ewo :
+  ex p -> sig (least p).
+Proof.
+  intros H. apply ewo_nat.
+  exact least_dec.
+  apply least_ex, H.
+Qed.
+
+End LWO.
 
 (*** Tests and Basic Predicates *)
 
@@ -167,80 +241,9 @@ Proof.
   - intros H [n H1]. congruence.
 Qed.
 
-(*** R.E. Predicates *)
-
-Inductive exp :=
-| Var: nat -> exp
-| Zero
-| One
-| Add: exp -> exp -> exp
-| Sub: exp -> exp -> exp
-| Mul: exp -> exp -> exp.
-  
-Fixpoint get n k : nat :=
-  match n with
-  | 0 => 0
-  | S n => match k with
-          | 0 => arp1 n
-          | S k => get (arp2 n) k
-          end
-  end.
-  
-Definition cons n k := S (arp n k).
-
-Compute get 0 7.
-Compute get (cons 5 (cons 6 (cons 7 0))) 2.
-Compute get (cons 5 (cons 6 (cons 7 0))) 3.
-
-Implicit Type e : exp.
-
-Fixpoint eva n e : nat :=
-  match e with
-  | Var k => get n k
-  | Zero => 0
-  | One => 1         
-  | Add e1 e2 => eva n e1 + eva n e2
-  | Sub e1 e2 => eva n e1 - eva n e2
-  | Mul e1 e2 => eva n e1 * eva n e2
-  end.
-  
-Definition tau e : nat -> nat -> bool :=
-  fun n k => if eva (cons n k) e then true else false.
-  
-Definition repr (p: nat -> Prop) := exists e, p ≡ dom (tau e).
-
-Fact enum_exp :
-  Sigma delta, forall e, exists n, delta n = e.
-Admitted.
-
-Fact enum_repr :
-  Sigma U: nat -> nat -> Prop, forall p, repr p <-> exists n, p ≡ U n.
-Proof.
-  destruct enum_exp as [delta H].
-  exists (fun n => dom (tau (delta n))).
-  intros p; split.
-  - intros [e He]. specialize (H e) as [n Hn].
-    exists n. rewrite Hn. exact He.
-  - intros [n Hn]. exists (delta n). exact Hn.
-Qed.
-
-(*** Axiom CT *)
-
-Definition CT := forall p, basic p -> repr p.
+(*** Axiom UT *)
 
 Definition UT := Sigma U: nat -> test2, forall f: test2, exists c, dom f ≡ dom (U c).
-
-Fact CT_UT:
-  CT -> UT.
-Proof.
-  intros H.
-  destruct enum_exp as [delta H_delta].
-  exists (fun c => tau (delta c)). intros f.
-  specialize (H (dom f)) as [e He].
-  { exists f. easy. }
-  specialize (H_delta e) as [c Hc].
-  exists c. rewrite Hc. exact He.
-Qed.
 
 Fact UT_codom_not_basic :
   UT -> Sigma f, ~basic (co (dom f)).
@@ -294,6 +297,194 @@ Proof.
   intros H d.
   apply (UT_undec_coK H).
   apply dec_co_dec, d.
+Qed.
+
+Fact UT_undec_dom_fixed n :
+  UT -> ~ Dec (fun f => dom f n).
+Proof.
+  intros ut d.
+  apply (UT_undec_K ut).
+  intros f. exact (d (fun _ => f)).
+Qed.
+
+Fact UT_disjoint :
+  UT -> exists f, forall g,
+      (forall n, dom f n -> dom g n -> False) ->
+      exists n, ~ K (f n) /\ ~ K (g n).
+Proof.
+  intros [U HU]. exists (fun n => U n n). intros g H.
+  specialize (HU g) as [c HU].
+  exists c. specialize (HU c). specialize (H c).
+  unfold dom in *.
+  tauto.
+Qed.
+
+(*** Diophantine Expressions *)
+
+Inductive exp :=
+| Var: nat -> exp
+| Zero
+| One
+| Add: exp -> exp -> exp
+| Sub: exp -> exp -> exp
+| Mul: exp -> exp -> exp.
+  
+Fixpoint get n k : nat :=
+  match n with
+  | 0 => 0
+  | S n => match k with
+          | 0 => arp1 n
+          | S k => get (arp2 n) k
+          end
+  end.
+  
+Definition cons n k := S (arp n k).
+
+Compute get 0 7.
+Compute get (cons 5 (cons 6 (cons 7 0))) 2.
+Compute get (cons 5 (cons 6 (cons 7 0))) 3.
+
+Implicit Type e : exp.
+
+Fixpoint eva n e : nat :=
+  match e with
+  | Var k => get n k
+  | Zero => 0
+  | One => 1         
+  | Add e1 e2 => eva n e1 + eva n e2
+  | Sub e1 e2 => eva n e1 - eva n e2
+  | Mul e1 e2 => eva n e1 * eva n e2
+  end.
+
+Definition pred e n := exists k, eva (cons n k) e = 0.
+
+Definition tau e : nat -> nat -> bool :=
+  fun n k => if eva (cons n k) e then true else false.
+
+Fact pred_tau e :
+  pred e ≡ dom (tau e).
+Proof.
+  unfold tau.
+  intros n; split; intros [k H]; exists k.
+  - rewrite H. easy.
+  - destruct eva; easy.
+Qed.
+
+Fact exp_basic e :
+  basic (pred e).
+Proof.
+  exists (tau e). apply pred_tau.
+Qed.
+
+Fact exp_test :
+  forall e, exists f, dom f ≡ pred e.
+Proof.
+  intros e. exists (tau e). intros n. symmetry. apply pred_tau.
+Qed.
+
+Fact enum_exp :
+  Sigma delta, forall e, exists n, delta n = e.
+Admitted.
+
+(*** Axiom CT *)
+
+Definition CT := forall f, exists e, dom f ≡ pred e.
+
+Fact CT_UT:
+  CT -> UT.
+Proof.
+  intros H.
+  destruct enum_exp as [delta H_delta].
+  exists (fun c => tau (delta c)). intros f.
+  specialize (H f) as [e He].
+  specialize (H_delta e) as [c Hc].
+  exists c. intros n. rewrite Hc, He. apply pred_tau. 
+Qed.
+
+Fact CT_exp_not_basic :
+  CT -> exists e, ~ basic (co (pred e)).
+Proof.
+  intros ct.
+  destruct (UT_codom_not_basic (CT_UT ct)) as [f Hf].
+  specialize (ct f) as [e He].
+  exists e.  contradict Hf. destruct Hf as [g Hg].
+  exists g. intros n. specialize (He n). specialize (Hg n).
+  unfold compl in *. tauto.
+Qed.
+
+Fact CT_exp_undec :
+  CT -> exists e, ~Dec (pred e).
+Proof.
+  intros [e H] %CT_exp_not_basic.
+  exists e. contradict H.
+  apply dec_basic, dec_co_dec, H.
+Qed.
+
+Definition diophantine p := exists e, p ≡ pred e.
+
+Fact CT_equiv p :
+  CT -> basic p <-> diophantine p.
+Proof.
+  intros H. split.
+  - intros [f Hf]. destruct (H f) as [e He].
+    exists e. intros n. rewrite Hf. apply He.    
+  - intros [e He]. exists (tau e).
+    intros n. rewrite He, <-pred_tau. easy.
+Qed.
+
+Lemma eva_cons :
+  forall e, Sigma e', forall k, eva (cons 0 k) e = eva k e'.
+Admitted.
+
+Fact CT_eva_zero :
+  CT -> forall f: test, exists e, K f <-> exists n, eva n e = 0.
+Proof.
+  intros H f.
+  specialize (H (fun _ => f)) as [e He]. unfold dom in He.
+  destruct (eva_cons e) as [e' He'].
+  exists e'. rewrite (He 0). split; intros [n Hn]; exists n; congruence.
+Qed.
+
+(* Challenges *)
+Goal CT -> ~ Dec (fun e => ex (pred e)).
+Abort.
+Goal CT -> ~ Dec (fun e => exists n, eva n e = 0).
+Abort.
+
+Definition ACT A (tau: A -> test2) (delta: nat -> A) : Prop := 
+  (forall f, exists a, dom f ≡ dom (tau a)) /\ (forall a, exists n, delta n = a).
+ 
+ 
+Fact ACT_exp :
+  CT -> sig (ACT exp tau).
+Proof.
+  intros H.
+  destruct enum_exp as [delta H_delta].
+  exists delta. split.
+  - intros f. destruct (H f) as [e He].
+    exists e. intros n. rewrite He. apply pred_tau.
+  - exact H_delta.
+Qed.
+
+Fact ACT_UT A tau delta :
+  ACT A tau delta -> UT.
+Proof.
+  intros [H1 H2].
+  exists (fun n => tau (delta n)). intros f.
+  specialize (H1 f) as [a Hf].
+  specialize (H2 a) as [c <-].
+  eauto.
+Qed.
+
+Fact ACT_basic A tau delta :
+  ACT A tau delta -> forall p, basic p <-> exists a, p ≡ dom (tau a).
+Proof.
+  intros [H1 _] p. split.
+  - intros [f Hf].
+    specialize (H1 f) as [a Ha].
+    exists a. intros n.
+    specialize (Hf n). specialize (Ha n). tauto.
+  - intros [a Ha]. exists (tau a). exact Ha.
 Qed.
 
 (*** Recusant Relations *)
@@ -384,55 +575,6 @@ Proof.
   intros H1 H2. apply UT_undec_coK.
   - apply UT_Sigma_UT, H1.
   - apply UT_Sigma_TE_dec_coK; easy.
-Qed.
-
- (* Exercises *)
-
- Definition ACT A (tau: A -> test2) (delta: nat -> A) : Prop := 
-   (forall f, exists a, dom f ≡ dom (tau a)) /\ (forall a, exists n, delta n = a).
- 
- 
- Fact ACT_exp :
-   CT -> sig (ACT exp tau).
-Proof.
-   intros H.
-  destruct enum_exp as [delta H_delta].
-  exists delta. split.
-  - intros f. apply (H (dom f)). apply dom_basic.
-  - exact H_delta.
-Qed.
-
-Fact ACT_UT A tau delta :
-  ACT A tau delta -> UT.
-Proof.
-  intros [H1 H2].
-  exists (fun n => tau (delta n)). intros f.
-  specialize (H1 f) as [a Hf].
-  specialize (H2 a) as [c <-].
-  eauto.
-Qed.
-
-Fact ACT_basic A tau delta :
-  ACT A tau delta -> forall p, basic p <-> exists a, p ≡ dom (tau a).
-Proof.
-  intros [H1 _] p. split.
-  - intros [f Hf].
-    specialize (H1 f) as [a Ha].
-    exists a. intros n.
-    specialize (Hf n). specialize (Ha n). tauto.
-  - intros [a Ha]. exists (tau a). exact Ha.
-Qed.
-
-Fact UT_disjoint :
-  UT -> exists f, forall g,
-      (forall n, dom f n -> dom g n -> False) ->
-      exists n, ~ K (f n) /\ ~ K (g n).
-Proof.
-  intros [U HU]. exists (fun n => U n n). intros g H.
-  specialize (HU g) as [c HU].
-  exists c. specialize (HU c). specialize (H c).
-  unfold dom in *.
-  tauto.
 Qed.
 
 (*** Post Hierarchy *)
@@ -595,9 +737,15 @@ Proof.
     + intros [[|] H] n; congruence. 
 Qed.
 
-(* Domain satisfiability *)
+Fact ired_K_dom_membership n :
+  (fun f => dom f n) ≈ K.
+Proof.
+  split; apply red_skolem; intros f.
+  - exists (f n). easy.
+  - exists (fun _ => f). easy.
+Qed.
 
-Fact ired_dom_K :
+Fact ired_K_dom_satisfiability :
   (fun f => ex (dom f)) ≈ K.
 Proof.
   split; apply red_skolem; intros f.
@@ -992,84 +1140,6 @@ Proof.
   intros mp. apply MP_coK. exact mp.
   apply ired_ct_coK.
 Qed.
-
-(*** Least Witnesses *)
-
-Definition safe p n := forall k, k < n -> ~p k.
-Definition least p n := p n /\ safe p n.
-Notation unique p := (forall x x', p x -> p x' -> x = x').
-
-Fact least_unique p : unique (least p).
-Proof.
-  intros n n' [H1 H2] [H1' H2'].
-  enough (~(n < n') /\ ~(n' < n)) by lia.
-  split; intros H.
-  - eapply H2'; eassumption.
-  - eapply H2; eassumption.
-Qed.
-
-Fact safe_S p n :
-  safe p n -> ~p n -> safe p (S n).
-Proof.
-  intros H1 H2 k H3. unfold safe in *.
-  assert (k < n \/ k = n) as [H|H] by lia.
-  - eauto.
-  - congruence.
-Qed.
-
-Section LWO.
-Variable p : nat -> Prop.
-Variable p_dec : Dec p.
-
-Definition lwo :
-  forall n, (Sigma k, k < n /\ least p k) + safe p n.
-Proof.
-  induction n as [|n IH].
-  - right. easy. 
-  - destruct IH as [(k&H1&H2)|H1].
-    + left. exists k. split. lia. exact H2.
-    + destruct (p_dec n).
-      * left. exists n. split. lia. easy.
-      * right. apply safe_S; assumption.
-Qed.
-
-Definition least_ex :
-  ex p -> ex (least p).
-Proof.
-  intros [n H].
-  destruct (lwo (S n)) as [(k&H1&H2)|H1].
-  - exists k. exact H2.
-  - exfalso. apply (H1 n). lia. exact H.
-Qed.
-
-Definition safe_dec n :
-  dec (safe p n).
-Proof.
-  destruct (lwo n) as [(k&H1&H2)|H1].
-  - right. intros H. apply (H k). exact H1. apply H2.
-  - left. exact H1.
-Qed.
-
-Definition least_dec :
-  Dec (least p).
-Proof.
-  intros n. unfold least.
-  destruct (p_dec n) as [H|H].
-  2:{ right. tauto. }
-  destruct (safe_dec n) as [H1|H1].
-  - left. easy.
-  - right. tauto.
-Qed.
-
-Fact least_ewo :
-  ex p -> sig (least p).
-Proof.
-  intros H. apply ewo_nat.
-  exact least_dec.
-  apply least_ex, H.
-Qed.
-
-End LWO.
 
 (*** Promises *)
 
