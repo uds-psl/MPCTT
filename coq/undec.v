@@ -299,12 +299,23 @@ Proof.
   apply dec_co_dec, d.
 Qed.
 
-Fact UT_undec_dom_fixed n :
+Fact UT_undec_in_dom n :
   UT -> ~ Dec (fun f => dom f n).
 Proof.
   intros ut d.
   apply (UT_undec_K ut).
   intros f. exact (d (fun _ => f)).
+Qed.
+
+Fact UT_undec_ex_dom :
+  UT -> ~ Dec (fun f => ex (dom f)).
+Proof.
+  intros ut d.
+  apply (UT_undec_K ut).
+  intros f.
+  destruct (d (fun _ => f)) as [H|H].
+  - left. destruct H as [n H]. exact H.
+  - right. contradict H. exists 0.  exact H.
 Qed.
 
 Fact UT_disjoint :
