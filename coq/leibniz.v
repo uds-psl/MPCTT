@@ -421,3 +421,48 @@ Section Abstract_Prop_Connectives.
   Qed.
   
 End Abstract_Prop_Connectives.
+
+(*** Eta Conversion *)
+
+Goal forall X Y (f: X -> Y),
+    (fun x => f x) = f.
+Proof.
+  intros X Y f.
+  cbv.
+  reflexivity.
+Abort.
+
+
+Goal
+  (fun x => 3 + x - 2) = S.
+Proof.
+  cbv.
+  reflexivity.
+Abort.
+
+Section Currying.
+  Variables X Y Z : Type.
+  Definition C : (X * Y -> Z) -> X -> Y -> Z
+    := fun f x y => f (x,y).
+  Definition U : (X -> Y -> Z) -> X * Y -> Z
+    := fun f '(x,y) => f x y.
+  Goal forall f x y, U (C f) (x,y) = f (x,y).
+  Proof.
+    cbv.
+    reflexivity.
+  Qed.
+  Goal forall f x y, C (U f) x y = f x y.
+  Proof.
+    cbv. reflexivity.
+  Qed.
+  Goal forall f, C (U f) = f.
+  Proof.
+    cbv. reflexivity.
+    (* Note the use of eta equivalence *)
+  Qed.
+  Goal forall f, U (C f) = f.
+  Proof.
+    cbv.
+    Fail reflexivity.
+  Abort.
+End Currying.

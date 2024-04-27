@@ -1,3 +1,98 @@
+(*** MPCTT, Chapter 2 *)
+
+(** We show how Coq realizes basic CTT *)
+
+(** Definition of the inductive types for booleans, numbers, and pairs.
+    We also define some inductive functions for these types  .        
+    We enclose the definitions in a module so that 
+    we can use the predefined definitions afterwards. *)        
+
+Module Definitions.
+ 
+  Inductive bool : Type :=
+  | true : bool
+  | false : bool.
+ 
+  Inductive nat : Type :=
+  | O : nat
+  | S : nat -> nat.
+
+  Inductive Pair (X Y: Type) : Type :=
+  | pair : X -> Y -> Pair X Y.
+
+  Definition negb (x: bool) : bool :=
+    match x with
+    | true => false
+    | false => true
+    end.
+  
+  Fixpoint add (x y: nat) : nat :=
+    match x with
+    | O => y
+    | S x => S (add x y)
+    end.
+  
+  Fixpoint mul (x y: nat) : nat :=
+    match x with
+    | O => O
+    | S x => add y (mul x y)
+    end.
+
+  Fixpoint sub (x y: nat) : nat :=
+    match x, y with
+    | O, _  => O
+    | S x', O => x
+    | S x', S y' => sub x' y'
+    end.
+
+  Check pair.
+  Check pair nat.
+  Check pair nat bool.
+  Check pair nat bool (S O).
+  Check pair nat bool (S O) false.
+  Check pair _ _ (S O) false.
+  
+  Arguments pair {X Y}.
+  Check pair (S O) false.
+  Check pair.
+  Check @pair.
+  Check @pair nat.
+  Check @pair nat bool.
+  Check @pair nat bool (S O).
+  
+  Definition swap {X Y: Type} (a: Pair X Y) : Pair Y X := 
+    match a with
+    |  pair x y => pair y x
+    end.
+
+  Definition fst {X Y: Type} (a: Pair X Y) : X :=
+    match a with
+    |  pair x _ => x
+    end.
+  
+  Check negb.
+  Compute negb (negb (negb true)).
+  Check mul.
+  Compute mul (S (S O)) (S (S (S O))).
+  Compute sub (S (S (S O))) (S (S O)).
+  Check swap.
+  Check swap (pair O true).
+  Compute swap (pair O true).
+End Definitions.
+
+(** We now look at predefined inductive types and inductive functions *)
+
+Print bool.
+(** Read "Set" as "Type" *)
+Print nat.
+Locate "*".
+Print prod.
+Check S (S O).
+Compute 2 + 7.
+Locate "+".
+Check Nat.add.
+Check Nat.sub.
+
 (** Beta and zeta reduction *)
 
 Eval cbv beta in
@@ -16,11 +111,7 @@ fun x:nat => match S (2 * x) with 0 => x | S y => x + y end.
             
 Eval cbv match in
 fun x:nat => match x with 0 => x | S y => x + y end.
-
-(* Note that match reductions in Coq include 
-   resulting beta reductions for matching clauses *)
    
- 
 (** Delta reduction *)
 
 Definition T : nat -> nat :=
@@ -58,26 +149,24 @@ Goal
   D 1 = 2.
 Proof.
   cbv delta [D].
-  cbv fix. fold D. cbv beta.
+  cbv fix. cbv beta.
   cbv match.
-  cbv delta [D].
-  cbv fix. fold D. cbv beta.
+  cbv fix. cbv beta.
   cbv match.
 Abort.
 
-(* Note that fix reductions in Coq include the
-   resulting beta reduction for the continuation function *)
-
-(* Also note the non-computational fold steps 
-   to be undone with delta un recursion *)
+(** Readability can be improved by folding in the constant $D$
+    again after reduction of the recursive abstraction. 
+    This is routinely done by Coq's simplification tactics. *)          
 
 Goal
   D 1 = 2.
 Proof.
   cbv delta [D].
-  cbv fix. cbv beta.
+  cbv fix. fold D. cbv beta.
   cbv match.
-  cbv fix. cbv beta.
+  cbv delta [D].
+  cbv fix. fold D. cbv beta.
   cbv match.
 Abort.
 
@@ -125,7 +214,7 @@ Compute add 1.
 Compute add 2.
 Compute fun x => 3 + x - 2.
 
-(** Alpha conversion *)
+(** Alpha renaming *)
 
 Goal
   (fun n: nat => n) = (fun x => x).
@@ -133,14 +222,16 @@ Proof.
   reflexivity.
 Abort.
 
-(** Eta conversion *)
+(** Coq has also eta conversion, something MPCTT will explain in Chapter 4. *)
 
-Goal
-  add 1 = S.
+Goal forall X Y (f: X -> Y),
+    (fun x => f x) = f.
 Proof.
+  intros X Y f.
   cbv.
   reflexivity.
 Abort.
+
 
 Goal
   (fun x => 3 + x - 2) = S.
@@ -149,68 +240,18 @@ Proof.
   reflexivity.
 Abort.
 
-(* We use the predefined iter, which has arguments swapped *)
-
-Check iter.
-Eval cbv in iter.
-Eval cbv in iter 2 S.
-Eval cbv in add 2 = iter 2 S.
-
-Inductive Pair X Y : Type :=
-  pair: X -> Y -> Pair X Y.
-Check Pair.
-Check pair.
-
-Definition swap :=
-  fun X Y a => match a with pair _ _ x y => pair Y X y x end.
-
-Print swap.
-
-Example demo X Y x y :
-  swap X Y (pair X Y x y) = pair Y X y x.
-Proof.
-  cbv delta. cbv beta. cbv match.
-Abort.
-
-(** If-then-else and let notations *)
-
+(** We switch off all notational conveniences *)
 Set Printing All.
 
+Check 2.
+Check nat -> nat.
+
 Check fun b: bool => if b then false else true.
-
-Check fun a: Pair nat nat => let (x,y) := a in pair nat nat y x.
-
-(** Matches are equipped with return types,
-    simple function types are printed as dependent function types *)
+Check fun n: nat => if n then 0 else 2 * n.
+Check fun a: nat * nat => let (x,y) := a in (y,x).
 
 Unset Printing All.
 
 Check fun b: bool => if b then false else true.
-Check fun a: prod nat nat => let (x,y) := a in pair nat nat y x.
-
-Section Currying.
-  Variables X Y Z : Type.
-  Definition C : (X * Y -> Z) -> X -> Y -> Z
-    := fun f x y => f (x,y).
-  Definition U : (X -> Y -> Z) -> X * Y -> Z
-    := fun f '(x,y) => f x y.
-  Goal forall f x y, U (C f) (x,y) = f (x,y).
-  Proof.
-    cbv.
-    reflexivity.
-  Qed.
-  Goal forall f x y, C (U f) x y = f x y.
-  Proof.
-    cbv. reflexivity.
-  Qed.
-  Goal forall f, C (U f) = f.
-  Proof.
-    cbv. reflexivity.
-    (* Note the use of eta equivalence *)
-  Qed.
-  Goal forall f, U (C f) = f.
-  Proof.
-    cbv.
-    Fail reflexivity.
-  Abort.
-End Currying.
+Check fun n: nat => if n then 0 else 2 * n.
+Check fun a: nat * nat => let (x,y) := a in (y,x).

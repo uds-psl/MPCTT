@@ -1,3 +1,5 @@
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
+
 (** We use Coq's definitions for falsity, truth, 
     conjunctions, and disjunctions. *)
 
