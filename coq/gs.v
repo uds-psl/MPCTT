@@ -3,7 +3,7 @@
 (* Step through the commands and proofs 
    and try to understand what is happening.
    The main point is to understand 
-   how theorems are staded and proved. *)       
+   how theorems are stated and proved. *)       
 
 (** Booleans *)
 
@@ -368,5 +368,5 @@ Qed.
 
 (** Tactics used:
     reflexivity, symmetry, f_equal, cbn, rewrite,      
-    apply, exact, destruct, induction, intros
+    apply, exact, destruct, induction, intros,
     lia *) 

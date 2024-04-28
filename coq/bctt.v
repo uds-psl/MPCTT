@@ -1,11 +1,12 @@
 (*** MPCTT, Chapter 2 *)
 
-(** We show how Coq realizes basic CTT *)
+(* We show how Coq realizes basic CTT *)
 
-(** Definition of the inductive types for booleans, numbers, and pairs.
-    We also define some inductive functions for these types  .        
-    We enclose the definitions in a module so that 
-    we can use the predefined definitions afterwards. *)        
+(* We start with the definitions of the inductive types 
+   for booleans, numbers, and pairs.  We also define 
+   some inductive functions for these types.        
+   We enclose the definitions in a module so that 
+   the predefined definitions can be used afterwards. *)        
 
 Module Definitions.
  
@@ -51,14 +52,15 @@ Module Definitions.
   Check pair nat bool (S O).
   Check pair nat bool (S O) false.
   Check pair _ _ (S O) false.
-  
-  Arguments pair {X Y}.
+
+  (* declare implicit arguments *)
+  Arguments pair {X Y}. 
   Check pair (S O) false.
-  Check pair.
+  Check @pair nat bool (S O).
   Check @pair.
   Check @pair nat.
   Check @pair nat bool.
-  Check @pair nat bool (S O).
+  Check pair.
   
   Definition swap {X Y: Type} (a: Pair X Y) : Pair Y X := 
     match a with
@@ -120,7 +122,7 @@ Definition T : nat -> nat :=
 Eval cbv delta in
 T 1 = 3.
 
-(* We switch to proof format so that we can do reduction chains *)
+(* We switch to proof mode so that we can do reduction chains *)
 
 Goal
   T 1 = 3.
@@ -173,13 +175,12 @@ Abort.
 Example demo n :
   D (S n) = S (S (D n)).
 Proof.
+  (* We use set/subst so that delta affects only the left occurrence od D *)
   set (a:= S (S (D n))).
   cbv delta [D]. cbv fix. fold D. cbv beta.
   cbv match. cbv beta.
   subst a.
 Abort.
-
-(* Note that we use set/subst so that delta affects only the left occurrence od D *)
 
 Locate "+".
 Import Nat. (* Write add for Nat.add *)
@@ -222,7 +223,7 @@ Proof.
   reflexivity.
 Abort.
 
-(** Coq has also eta conversion, something MPCTT will explain in Chapter 4. *)
+(** Coq has also eta conversion, explained in Chapter 4 of MPCTT. *)
 
 Goal forall X Y (f: X -> Y),
     (fun x => f x) = f.
@@ -232,22 +233,9 @@ Proof.
   reflexivity.
 Abort.
 
-
 Goal
   (fun x => 3 + x - 2) = S.
 Proof.
   cbv.
   reflexivity.
 Abort.
-
-(** Printing of notational conveniences can be switched off      *)
-Set Printing All.
-
-Check 2.
-Check nat -> nat.
-
-Check fun b: bool => if b then false else true.
-Check fun n: nat => if n then 0 else 2 * n.
-Check fun a: nat * nat => let (x,y) := a in (y,x).
-
-Unset Printing All.
