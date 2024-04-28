@@ -240,7 +240,7 @@ Proof.
   reflexivity.
 Abort.
 
-(** We switch off all notational conveniences *)
+(** Printing of notational conveniences can be switched off      *)
 Set Printing All.
 
 Check 2.
@@ -251,7 +251,3 @@ Check fun n: nat => if n then 0 else 2 * n.
 Check fun a: nat * nat => let (x,y) := a in (y,x).
 
 Unset Printing All.
-
-Check fun b: bool => if b then false else true.
-Check fun n: nat => if n then 0 else 2 * n.
-Check fun a: nat * nat => let (x,y) := a in (y,x).
