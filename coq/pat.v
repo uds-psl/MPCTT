@@ -3,8 +3,8 @@
 (* We show how Coq accommodates propositions and proofs. *)
 
 Print False.
-Definition exfalso : False -> forall X, X :=
-  fun a => match a with end.
+Definition exfalso : forall X: Prop, False -> X :=
+  fun X a => match a with end.
 Check exfalso.
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 
@@ -271,7 +271,7 @@ Section Demo.
   Qed.
 End Demo.
 
-(** Assumed variables are now taken as leading arguments *)
+(** Assumed variables now appear as leading arguments *)
 
 Check Russell.
 Check deMorgan_or.
