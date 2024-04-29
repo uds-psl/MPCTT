@@ -1,11 +1,6 @@
-(*** Conversion Rule *)
+(*** MPCTT, Chapter 4 *)
 
-(** The tactic interpreter does conversions tacitly when needed.
-    Conversions can be forced with the "change" tactic
-    or applications of the polymorphic identity function.
-    The "pattern" tactic converts to a beta-redex "s t"
-    for a given term "t".
- *)
+(* We study conversion and propositonal equality. *)
 
 Definition id X : X -> X := fun x => x.
 
@@ -15,26 +10,14 @@ Section Conversion.
   Check fun a : p 4 => a.
   Check fun a : p (2 + 2) => a.
   Check fun a : p 4 => id (p (2 + 2)) a.
-  (* Coq uses the notation $s:t$ for applications "id t s" 
-     of the polymorphic identity function *) 
 
+  (* Coq uses the notation $s:t$ for applications "id t s" 
+     of the polymorphic identity function *)      
   Check fun a : p 4 => a : p (2 + 2).
   Check id (p 4 -> p (2 + 2)) (fun a : p 4 => a).
   Check (fun a : p 4 => a) : p 4 -> p (2 + 2).
- 
 
-  Goal p 4 -> p (2 + 2).
-  Proof.
-    intros a. exact a.
-    Show Proof.
-  Qed.
-
-  Goal p 4 -> p (2 + 2).
-  Proof.
-    exact (fun a => a).
-    Show Proof.
-  Qed.
-
+  (* One can force cenversions with the change tactic *)
   Goal p 4 -> p (2 + 2).
   Proof.
     intros a.
@@ -45,6 +28,12 @@ Section Conversion.
 
   Goal p 4 -> p (2 + 2).
   Proof.
+    intros a. exact a.
+    Show Proof.
+  Qed.
+  
+  Goal p 4 -> p (2 + 2).
+  Proof.
     intros a.
     apply (id (p 4)).
     exact a.
@@ -53,8 +42,9 @@ Section Conversion.
 
 End Conversion.
 
-(** Propositional negation and equivalence are implemented
-    as functions "not" and "iff". *)
+(** Coq implements propositional negation 
+    and propositional equivalence with
+    predicates "not" and "iff". *)  
 
 Locate "~".
 Print not.
@@ -77,23 +67,24 @@ Goal forall X Y, (X <-> Y) -> (X -> Y) /\ (Y -> X).
 Proof.
   intros * a.
   change (X <-> Y).
+  Show Proof. (* not visible in partial proof term *)
   exact a.
   Show Proof.
 Qed.
 
+(* The pattern tactic does beta expansions *)
+
 (** Exercise Leibniz symmetry *)
 
-Goal forall X (x y: X),
-    (forall p: X -> Prop, p x -> p y) -> (forall p: X -> Prop, p y -> p x).
+Fact Leibniz_symmetry X (x y: X) :
+  (forall p: X -> Prop, p x -> p y) -> (forall p: X -> Prop, p y -> p x).
 Proof.
-  intros * F p.
-  Show Proof.
+  intros F p.
   pattern y.
-  Show Proof.
+  Show Proof.  (* pattern puts in a type ascription *)
   apply F.
   intros a. exact a.
   Show Proof.
-  (* Note that pattern puts in a type ascription *)
 Qed.
 
 Check fun X (x y: X) (F: forall p: X -> Prop, p x -> p y) (p: X -> Prop) =>
@@ -123,9 +114,8 @@ Section AbstractEquality.
   Proof.
     intros * e.
     pattern y.
-    Show Proof.
     apply (R _ e).
-    (* conversion was done tacitly *)
+    (* beta reduction was done tacitly *)
     exact (fun e => e).
     Show Proof.
   Qed.
@@ -283,7 +273,7 @@ End Sandbox.
 
 Locate "=".
 Check @eq.
-Check @eq_refl.    (* Q, used by reflexivit tactic*)
+Check @eq_refl.    (* Q, used by reflexivity tactic*)
 Check @eq_ind.     (* R *)
 Check @eq_ind_r.   (* used by rewrite tactic *)
 
