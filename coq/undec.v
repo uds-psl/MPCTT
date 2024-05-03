@@ -330,6 +330,21 @@ Proof.
   tauto.
 Qed.
 
+Fact UT_UT2 :
+  UT <=> Sigma g, forall f, exists c, dom f  ≡ dom (fun n => g (arp c n)).
+Proof.
+  split.
+  - intros [U H].
+    exists (fun n => U (arp1 n) (arp2 n)).
+    intros f. specialize (H f) as [c Hc].
+    exists c. intros n. unfold dom in *.
+    rewrite arp1_eq, arp2_eq. apply Hc.
+  - intros [g H].
+    exists (fun c n => g (arp c n)).
+    intros f. specialize (H f) as [c Hc].
+    exists c. intros n. unfold dom in *. apply Hc.
+Qed.
+
 (*** Diophantine Expressions *)
 
 Inductive exp :=
@@ -429,6 +444,12 @@ Proof.
   intros [e H] %CT_exp_not_basic.
   exists e. contradict H.
   apply dec_basic, dec_co_dec, H.
+Qed.
+
+Fact CT_exp_undec' :
+  CT -> ~ forall e n, dec (pred e n).
+Proof.
+  intros [e He] %CT_exp_undec. contradict He. apply He.
 Qed.
 
 Definition diophantine p := exists e, p ≡ pred e.
@@ -677,7 +698,7 @@ Proof.
 Qed.
 
 Fact stable_co X (p: X -> Prop) :
-  stable p -> stable (co p).
+  stable (co p).
 Proof.
   unfold stable. firstorder easy.
 Qed.
