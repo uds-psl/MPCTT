@@ -449,7 +449,8 @@ Qed.
 Fact CT_exp_undec' :
   CT -> ~ forall e n, dec (pred e n).
 Proof.
-  intros [e He] %CT_exp_undec. contradict He. apply He.
+  intros [e H] %CT_exp_not_basic.
+  contradict H. apply dec_basic, dec_co_dec, H.
 Qed.
 
 Definition diophantine p := exists e, p ≡ pred e.
