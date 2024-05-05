@@ -1,10 +1,64 @@
+(*** MPCTT, Chapter 4 *)
+
+(* We define and apply inductive eliminators *)
+
+(*** Void and Unit *)
+
+Module VoidUnit.
+   Inductive bot : Prop := .
+   Inductive top : Prop := I.
+
+   Definition elim_bot
+     : forall Z: Type, bot -> Z
+     := fun Z a => match a with end.
+
+   Definition elim_top
+     : forall p: top -> Type, p I -> forall a, p a
+     := fun p e a => match a with I => e end.
+
+   Goal bot <-> False.
+   Proof.
+     split.
+     - apply elim_bot.
+     - apply False_ind.
+       Show Proof.
+   Qed.
+
+   Goal forall x: top, x = I.
+   Proof.
+     apply elim_top.
+     reflexivity.
+     Show Proof.
+   Qed.
+
+   Goal forall x: top, x = I.
+   Proof.
+     exact (fun x => match x with I => eq_refl I end).
+   Qed.
+
+   Inductive F: Prop := C (_: F).
+
+   Definition elim_F
+     : forall Z: Type, F -> Z
+     := fun Z => fix f a := match a with C a => f a end.
+
+   Goal F <-> bot.
+   Proof.
+     split.
+     - apply elim_F.
+     - apply elim_bot.
+       Show Proof.
+   Qed.
+End VoidUnit.
+
 (*** Bool *)
 
 Definition elim_bool
   : forall p: bool -> Type, p true -> p false -> forall x, p x
   := fun p e1 e2 x => match x with true => e1 | false => e2 end.
 
-(* Note: Coq derives the return type function of the match automatically *)
+Print elim_bool.
+(* Note: Coq derives the return type function of the match *)
 
 Goal forall x, x = true \/ x = false.
 Proof.
@@ -14,9 +68,15 @@ Proof.
   - right. reflexivity.
 Qed.
 
+Check fun p: bool -> Prop => elim_bool p.
+Check fun p: bool -> Type => elim_bool p.
+Check fun p: bool -> Prop => p true.
+Check fun p: bool -> Type => p true.
+
 Goal forall x, x = true \/ x = false.
 Proof.
   intros [|]; auto.
+  Show Proof.
 Qed.
 
 Goal forall (f: bool -> bool) x, f (f (f x)) = f x.
@@ -40,8 +100,8 @@ Goal forall (f: bool -> bool) x, f (f (f x)) = f x.
 Proof.
   destruct x;
     destruct (f true) eqn:H1;
-    destruct (f false) eqn:H2;
-    congruence.
+    destruct (f false) eqn:H2.
+    all: congruence.
 Qed.
 
 (*** Nat *)
@@ -66,7 +126,7 @@ Qed.
 Goal forall x y,
     x + y = elim_nat (fun _ => nat) y (fun _ => S) x.
 Proof.
-  intros *.
+  intros *. 
   induction x as [|x IH]; cbn.
   - reflexivity.
   - f_equal. exact IH.
@@ -104,6 +164,15 @@ Proof.
       destruct IH; auto.  (* auto includes injectivity *)
 Qed.
 
+Goal forall x y: nat, x = y \/ x <> y.
+Proof.
+  induction x as [|x IH]; destruct y.
+  1-3: auto.
+  specialize (IH y) as [IH|IH].
+  - left. congruence.
+  - right. congruence.
+Qed.
+
 Module Exercise.
   Notation "x <= y" := (x - y = 0) : nat_scope.
   Fact antisymmetry x y :
@@ -138,23 +207,6 @@ Proof.
   reflexivity.
 Qed.
 
-(*** Void and Unit *)
-
-Definition elim_void
-  : forall Z: Type, False -> Z
-  := fun Z a => match a with end.
-
-Definition elim_unit
-  : forall p: True -> Type, p I -> forall a, p a
-  := fun p e a => match a with I => e end.
-
-Goal forall x: True, x = I.
-Proof.
-  apply elim_unit.
-  reflexivity.
-Qed.
-
-
 (*** [nat <> bool] *)
 
 Goal nat <> bool.
@@ -167,9 +219,7 @@ Proof.
     + intros H. specialize (H 0 1 2) as [H|[H|H]]; discriminate.
 Qed.
 
-(*** Notes *)
-
-(* Coq derives eliminators *)
+(*** Coq derives eliminators *)
 Check bool_rect.
 Check nat_rect.
 Check prod_rect.
