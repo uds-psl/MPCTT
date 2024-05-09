@@ -216,8 +216,40 @@ Proof.
   - intros H. apply H2. rewrite H. exact H1.
   - split; unfold p. 
     + intros [|] [|] [|]; auto.
-    + intros H. specialize (H 0 1 2) as [H|[H|H]]; discriminate.
+    + intros H. specialize (H 0 1 2) as [H|[H|H]]; congruence.
 Qed.
+
+(*** Coq's Set considered harmful *)
+
+(* Coq has a subuniverse Set of Type and type inference uses
+    Set rather than type if it can.  In particular, the predefined
+    types bool and nat are typed with Set.  This can lead to
+    annoying problems.  An example follows. *)
+
+Check nat.
+Check bool.
+Set Printing All.
+Check nat <> bool.
+
+Lemma eq_not (X: Type) (x y : X) (p: X -> Prop) :
+  ~ p x -> p y -> x <> y.
+Proof.
+  intros H H1. contradict H. rewrite H. exact H1.
+Qed.
+
+Definition card_le2 (X: Type) :=
+  forall x y z : X, x = y \/ x = z \/ y = z.
+
+Goal nat <> bool.
+Proof.
+  Fail apply (eq_not Type nat bool card_le2).
+  enough (not (@eq Type nat bool)) as H.
+  - contradict H. rewrite H. reflexivity.
+  - apply (eq_not Type _ _ card_le2).
+    + intros H. specialize (H 0 1 2) as [H|[H|H]]; congruence.
+    + intros [|] [|] [|]; auto.
+Qed.
+Unset Printing All.
 
 (*** Coq derives eliminators *)
 Check bool_rect.
