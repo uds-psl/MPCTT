@@ -1,4 +1,4 @@
-(*** MPCTT, Chapter 4 *)
+(*** MPCTT, Chapter 5 *)
 
 (* We define and apply inductive eliminators *)
 
@@ -173,6 +173,41 @@ Proof.
   - right. congruence.
 Qed.
 
+Fixpoint eq_nat (x y: nat) : bool :=
+  match x, y with
+  | 0, 0 => true
+  | 0, S _ => false
+  | S _, 0 => false
+  | S x, S y => eq_nat x y
+  end.
+
+Fact eq_nat_correct x y :
+  eq_nat x y = true <-> x = y.
+Proof.
+  revert x y.
+  refine (elim_nat _ _ _).
+  - refine (elim_nat _ _ _).
+    + cbn. easy.
+    + intros y _. cbn. easy.
+  - intros x IH.
+    refine (elim_nat _ _ _).
+    + cbn. easy.
+    + intros y _. cbn. specialize (IH y). split.
+      * intros H. f_equal. apply IH, H.
+      * intros H. apply IH. congruence.
+Qed.
+
+Goal forall x y: nat, x = y \/ x <> y.
+Proof.
+  intros x y.
+  assert (H:= eq_nat_correct x y).
+  destruct (eq_nat x y).
+  - left. apply H. easy.
+  - right. intros H1.
+    enough (false = true) by easy.
+    apply H, H1.
+Qed.
+  
 Module Exercise.
   Notation "x <= y" := (x - y = 0) : nat_scope.
   Fact antisymmetry x y :
