@@ -1,9 +1,6 @@
-(* Load basic lemmas for addition *)
-From Coq Require Import Arith.
-Import Nat.
-Search concl: (_ + S _ = _).
-Search concl: (_ + 0 = _).
-Search concl: (_ + _ = _ + _).
+(*** MPCTT, Chapter Arithmetic Pairing *)
+
+From Coq Require Import Lia.
 
 Implicit Types (n x y: nat) (a: nat * nat).
 
@@ -31,13 +28,12 @@ Definition encode '(x, y) : nat :=
 Fact encode_next a :
   encode (next a) = S (encode a).
 Proof.
-  destruct a as [[|x] y]; cbn -[sum].
-  - rewrite !add_0_r. rewrite add_comm. reflexivity.
-  - rewrite !add_succ_r. reflexivity.
+  destruct a as [[|x] y]; cbn.
+  - replace (y + 0) with y by lia. lia.
+  - replace (x + S y) with (S (x +y)) by lia. cbn. lia.
 Qed.
 
-(* Disable simplification of encode *)
-Opaque encode. 
+Opaque encode. (* Disable simplification of encode *)
 
 Fact encode_decode n :
   encode (decode n) = n.
@@ -53,16 +49,14 @@ Proof.
   revert a.
   enough (forall n a, encode a = n -> decode n = a) by eauto.
   induction n as [|n IH]; intros [x y]; cbn.
-  - destruct x, y; cbn [encode]; cbn; easy.
+  - destruct x, y; easy.
   - destruct y.
-    + destruct x.
-      * discriminate.
-      * change (S x, 0) with (next (0,x)).
-        rewrite encode_next.
-        intros [= <-].
-        f_equal. apply IH. reflexivity.
+    + destruct x. easy.
+      change (S x, 0) with (next (0,x)).
+      rewrite encode_next.
+      specialize (IH (0,x)). 
+      intros [= <-]. f_equal. auto.
     + change (x, S y) with (next (S x, y)). 
       rewrite encode_next.
-      intros [= <-].
-      f_equal. apply IH. reflexivity.
+      intros [= <-]. f_equal. auto. 
 Qed.
