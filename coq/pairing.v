@@ -1,5 +1,9 @@
 (*** MPCTT, Chapter Arithmetic Pairing *)
 
+(* This development is a pearl both mathematically
+   and regarding the Coq mechanisation.  We will
+   demonstrate several advanced tactic uses.  *)
+
 From Coq Require Import Lia.
 
 Implicit Types (n x y: nat) (a: nat * nat).
@@ -25,23 +29,32 @@ Fixpoint sum n : nat :=
 Definition encode '(x, y) : nat :=
   sum (x + y) + y.
 
-Fact encode_zero x y :
-  encode (x,y) = 0 -> (x,y) = (0,0).
-Proof.
-  destruct x, y; easy.
-Qed.
-
 Fact encode_next a :
   encode (next a) = S (encode a).
 Proof.
   destruct a as [[|x] y]; cbn.
-  - replace (y + 0) with y by lia. lia.
-  - replace (x + S y) with (S (x +y)) by lia. cbn. lia.
+  - replace (y + 0) with y; lia.
+  - replace (x + S y) with (S (x + y)); cbn; lia.
 Qed.
 
-(* Disable simplification of encode
-   without affecting reflexivity and easy. *)
-Opaque encode. 
+Opaque encode.
+(* Disables simplification of encode;
+   doesn't affect reflexivity and easy. *)
+
+Fact encode_decode n :
+  encode (decode n) = n.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - rewrite encode_next. congruence.
+Qed.
+
+
+Fact encode_zero a :
+  encode a = 0 -> a = (0,0).
+Proof.
+  destruct a as [[|x] [|y]]; easy.
+Qed.
 
 Fact encode_eq_zero x n :
   encode (S x, 0) = S n -> encode (0, x) = n.
@@ -57,25 +70,17 @@ Proof.
   rewrite encode_next. congruence.
 Qed.
 
-Fact encode_decode n :
-  encode (decode n) = n.
-Proof.
-  induction n as [|n IH]; cbn.
-  - reflexivity.
-  - rewrite encode_next. congruence.
-Qed.
-
 Fact decode_encode a :
   decode (encode a) = a.
 Proof.
   revert a.
   enough (forall n a, encode a = n -> decode n = a) by eauto.
-  induction n as [|n IH]; intros [x y]; cbn.
-  - intros H%encode_zero. easy.
-  - destruct y.
+  induction n as [|n IH]; cbn.
+  - intros a H%encode_zero. easy.
+  - destruct a as [x [|y]].
     + destruct x. easy.
       intros <-%encode_eq_zero.
       rewrite (IH (0,x)); reflexivity.
     + intros <-%encode_eq_S.
-      rewrite (IH (S x, y)); reflexivity.
+      rewrite (IH (S x,y)); reflexivity.
 Qed.
