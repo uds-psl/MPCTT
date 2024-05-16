@@ -26,11 +26,9 @@ Definition encode '(x, y) : nat :=
   sum (x + y) + y.
 
 Fact encode_zero x y :
-  encode (x,y) = 0 -> x = 0 /\ y = 0.
+  encode (x,y) = 0 -> (x,y) = (0,0).
 Proof.
-  destruct x.
-  - destruct y. easy. easy.
-  - easy.
+  destruct x, y; easy.
 Qed.
 
 Fact encode_next a :
@@ -73,7 +71,7 @@ Proof.
   revert a.
   enough (forall n a, encode a = n -> decode n = a) by eauto.
   induction n as [|n IH]; intros [x y]; cbn.
-  - intros [-> ->] %encode_zero. reflexivity.
+  - intros H%encode_zero. easy.
   - destruct y.
     + destruct x. easy.
       intros <-%encode_eq_zero.
