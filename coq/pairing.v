@@ -84,3 +84,9 @@ Proof.
     + intros <-%encode_eq_S.
       rewrite (IH (S x,y)); reflexivity.
 Qed.
+
+Fact Gauss n :
+  2 * sum n = n * S n.
+Proof.
+  induction n as [|n IH]; cbn; lia.
+Qed.
