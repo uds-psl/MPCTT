@@ -1,7 +1,7 @@
 (*** MPCTT, Chapter Arithmetic Pairing *)
 
 (* This development is a pearl both mathematically
-   and regarding the Coq mechanisation.  We will
+   and regarding the Coq mechanization.  We will
    demonstrate several advanced tactic uses.  *)
 
 From Coq Require Import Lia.
