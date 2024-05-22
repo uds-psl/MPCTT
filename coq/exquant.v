@@ -1,3 +1,5 @@
+(*** MPCTT, Chapter existential quantification *)
+
 Module Demo.
   Inductive ex {X: Type} (p: X -> Prop) : Prop := E (x:X) (a: p x).
 
