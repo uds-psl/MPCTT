@@ -1,9 +1,13 @@
+(*** MPCTT, Chapter Sigma Types *)
+
 From Coq Require Import Lia.
-Definition dec (X: Type) : Type := X + (X -> False).
-Definition eqdec X := forall x y: X, dec (x = y).
-Definition decider {X} (p: X -> Type) := forall x, dec (p x).
+
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Definition dec (X: Type) : Type := X + ~ X.
+Definition eqdec X := forall x y: X, dec (x = y).
+Definition decider {X} (p: X -> Type) := forall x, dec (p x).
 
 (* We shall use Coq's predefined sigma types but rename the constructors
    and projections.  We also define the big sigma notation to replace
@@ -26,16 +30,13 @@ Definition sig_elim X  (p: X -> Type) (q: sig p -> Type)
   : (forall x y, q (Sig p x y)) -> forall a, q a
   := fun e a => match a with Sig _ x y => e x y end.
 
-(* Our eliminator is computationaly equal with 
+(* Our eliminator is computationally equal with 
    Coq's predefined eliminator. *)         
 
 Goal sig_elim = sigT_rect.
 Proof.
   reflexivity.
 Qed.
-
-(* In the following we rely on Coq's predefined eliminator
-   as it is used with the destructuring tactics and notations. *) 
 
 (*** Certifying Division *)
 
@@ -48,7 +49,7 @@ Proof.
   - exists (S y). left. lia. 
 Qed.
 
-(* Note the %nat annotation in the statement of div2.  It is sometimes
+(* Note the %nat annotation in the statement of div2.  It is
    needed to help with the overloading of "+" and "*" for numbers
    and types. *)
 
@@ -74,7 +75,19 @@ Proof.
     intros x y.
     destruct (d x y) as [H|H]; intuition congruence.
   - intros [f H] x y. specialize (H x y).
-    destruct (f x y); unfold dec; intuition congruence.
+    destruct (f x y); unfold dec; intuition easy.
+Qed.
+
+Fact trans_eqdec' X :
+  eqdec X <=> Sigma f: X -> X -> bool, forall x y, if f x y then x = y else x <> y.
+Proof.
+  split.
+  - intros d.
+    exists (fun x y => if d x y then true else false).
+    intros x y.
+    destruct (d x y) as [H|H]; easy.
+  - intros [f H] x y. specialize (H x y).
+    destruct (f x y); unfold dec; intuition.
 Qed.
 
 Fact trans_p_dec X (p: X -> Type) :
@@ -84,9 +97,9 @@ Proof.
   - intros d.
     exists (fun x => if d x then true else false).
     intros x.
-    destruct (d x) as [H|H]; unfold iffT; intuition congruence.
+    destruct (d x) as [H|H]; unfold iffT; intuition easy.
   - intros [f H] x. specialize (H x).
-    destruct (f x); unfold dec, iffT in *; intuition congruence.
+    destruct (f x); unfold dec, iffT in *; intuition easy.
 Qed.
 
 Fact trans_skolem X Y (p: X -> Y -> Type) :
@@ -175,8 +188,6 @@ Proof.
   Fail pattern (Sig p x y).
   Fail rewrite H. 
 Abort.
-
-
 
 
 (*** Dependent Pair Types *)
@@ -274,6 +285,11 @@ Module SigmaTypes.
   Abort.
 
 End SigmaTypes.
+
+(*** Truncations *)
+
+Inductive trunc (X: Type) : Prop := Trunc (_ : X).
+Notation "□ X" := (trunc X) (at level 75, right associativity).
 
 (*** Exercises *)
 

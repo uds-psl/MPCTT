@@ -1,4 +1,6 @@
-(*** Sum Types *)
+(*** MPCTT, Chapter Sum Types *)
+
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 
 Module SumTypes.
   Inductive sum (X Y: Type) : Type := L (x : X) | R (y : Y).
@@ -37,17 +39,18 @@ End SumTypes.
 
 Locate "+".
 Print sum.
+Print unit.
 
-Goal forall a : False + True,
-    a = inr I.
+Goal forall a : False + unit,
+    a = inr tt.
 Proof.
   destruct a as [x|y].
   - destruct x.
   - destruct y. reflexivity.
 Qed.
 
-Goal forall a : (False + True) + True,
-    a = inr I \/ a = inl (inr I).
+Goal forall a : (False + unit) + unit,
+    a = inr tt \/ a = inl (inr tt).
 Proof.
   destruct a as [x|y].
   - right. destruct x  as [x|y].
@@ -56,8 +59,8 @@ Proof.
   - left. destruct y. reflexivity.
 Qed.
 
-Goal forall a : ((False + True) + True) + True,
-    a = inr I \/ a = inl (inr I) \/ a = inl (inl (inr I)).
+Goal forall a : ((False + unit) + unit) + unit,
+    a = inr tt \/ a = inl (inr tt) \/ a = inl (inl (inr tt)).
 Proof.
   destruct a as [x|y].
   - right. destruct x as [x|y].
@@ -91,6 +94,7 @@ Section Exercise.
   Proof.
     unfold iffT. tauto.
   Qed.
+  
   Goal (X + Y -> Z) <=> (X -> Z) * (Y -> Z).
   Proof.
     split.
@@ -103,10 +107,10 @@ Section Exercise.
   Qed.
 End Exercise.
 
+From Coq Require Import Bool.
 Module Exercise.
-  From Coq Require Import Bool.
   Goal forall x y : bool,
-        x && y = false <=> (x = false) + (y = false).
+      x && y = false <=> (x = false) + (y = false).
   Proof.
     destruct x, y; cbn; unfold iffT; tauto.
   Qed.
@@ -141,24 +145,21 @@ Goal forall X (f: X -> bool) x,
 Proof.
   intros *. destruct (f x) as [|].
   - left. reflexivity.
-  - right.easy.
+  - right. easy.
 Qed.
 
-(*** Certifying Functions *)
+(*** Certifying Equality Deciders *)
 
 Goal forall x y: nat, (x = y) + (x <> y).
 Proof.
   induction x as [|x IH]; destruct y.
   - left. reflexivity.
-  - right. intros [=].
-  - right. intros [=].
+  - right. easy.
+  - right. easy.
   - destruct (IH y) as [H|H].
-    + left. f_equal. exact H.
-    + right. intros [= <-]. easy.
+    + left. congruence.
+    + right. congruence.
 Qed.
-
-
-(*** Certifying Equality Deciders *)
 
 Definition eqdec X := forall x y: X, dec (x = y).
 
