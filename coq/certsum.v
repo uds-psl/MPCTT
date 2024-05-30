@@ -2,6 +2,8 @@
 
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 
+(*** Sum types *)
+
 Module SumTypes.
   Inductive sum (X Y: Type) : Type := L (x : X) | R (y : Y).
   
@@ -70,7 +72,6 @@ Proof.
     + left. destruct y. reflexivity.
   - left. destruct y. reflexivity.
 Qed.
-
 
 Section Exercise.
   Variables X Y : Type.
@@ -168,7 +169,7 @@ Proof.
   intros [].
 Qed.
 
-Definition nat_eqdec : eqdec nat.
+Fact nat_eqdec : eqdec nat.
 Proof.
   hnf. induction x as [|x IH]; destruct y.
   - left. reflexivity.

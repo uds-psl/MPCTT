@@ -9,11 +9,84 @@ Definition dec (X: Type) : Type := X + ~ X.
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
 
-(* We shall use Coq's predefined sigma types but rename the constructors
-   and projections.  We also define the big sigma notation to replace
-   Coq's curly braces notation *)
+(*** Sigma types *)
 
-Print sigT.
+Module SigmaTypes.
+  Inductive sig (X: Type) (p: X -> Type) : Type :=
+  | Sig : forall x, p x -> sig X p.
+
+  Arguments sig {X}.
+  Arguments Sig {X}.
+
+  Definition elim_sig {X: Type} {p: X -> Type} (q: sig p -> Type)
+    : (forall x y, q (Sig p x y)) -> forall a, q a
+    := fun f a => match a with Sig _ x y => f x y end.
+
+  Definition pi1 {X: Type} {p: X -> Type}
+    : sig p -> X
+    := fun a => match a with Sig _ x _ => x end.
+
+  Definition pi2 {X: Type} {p: X -> Type}
+    : forall a: sig p, p (pi1 a)
+    := fun a => match a with Sig _ _ y => y end.
+
+  Fact eta_law X (p: X -> Type) :
+    forall a, a = Sig p (pi1 a) (pi2 a).
+  Proof.
+    apply elim_sig. cbn. reflexivity.
+  Qed.
+
+  Fact pi1_injective X (p: X -> Type) x y x' y' :
+    Sig p x y = Sig p x' y' -> x = x'.
+  Proof.
+    intros H.
+    change x with (pi1 (Sig p x y)).
+    rewrite H. reflexivity.
+  Qed.
+
+  Fact pi2_injective_nondep X Y x y x' y' :
+  Sig (fun _: X => Y) x y = Sig _ x' y' -> y = y'.
+  Proof.
+    intros H.
+    change y with (pi2 (Sig _ x y)).
+    rewrite H. reflexivity.
+  Qed.
+
+  (* Injectivity in the second component cannot be shown in general *)
+
+  Fail
+    Fact pi2_injective X (p: X -> Type) x y x' y' :
+    Sig p x y = Sig p x' y' -> y = y'.
+
+  Fact pi2_injective X (p: X -> Type) x y y' :
+    Sig p x y = Sig p x y' -> y = y'.
+  Proof.
+    (* cannot be shown without assumptions *)
+    intros H.
+    change y with (pi2 (Sig p x y)).
+    Fail pattern (Sig p x y).
+    Fail rewrite H. 
+  Abort.
+
+  Goal forall X (p: X -> Type),
+      @pi1 X p = @elim_sig X p (fun _ => X) (fun x _ => x).
+  Proof.
+    reflexivity.
+  Qed.
+
+  Goal forall X (p: X -> Type),
+      @pi2 X p = @elim_sig X p (fun a => p (pi1 a)) (fun _ y => y).
+  Proof.
+    reflexivity.
+  Qed.
+
+End SigmaTypes.
+
+(* We shall use Coq's predefined sigma types from now on.
+   We rename the constructors and projections to better fit MPCTT.  
+   We also define the big sigma notation 
+   (replacing Coq's curly braces notation *)
+
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
@@ -24,45 +97,37 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 
-(*** Eliminator *)
-
-Definition sig_elim X  (p: X -> Type) (q: sig p -> Type)
-  : (forall x y, q (Sig p x y)) -> forall a, q a
-  := fun e a => match a with Sig _ x y => e x y end.
-
-(* Our eliminator is computationally equal with 
-   Coq's predefined eliminator. *)         
-
-Goal sig_elim = sigT_rect.
-Proof.
-  reflexivity.
-Qed.
-
 (*** Certifying Division *)
 
-Definition div2 :
-  forall x, Sigma y, (x = 2*y) %nat + (x = S (2*y)).
+Goal
+  forall x, Sigma y, (x = 2*y)%nat + (x = S (2*y)).
 Proof.
   induction x as [|x [y [IH|IH]]].
-  - exists 0. left. reflexivity.
-  - exists y. right. f_equal. exact IH.
+  - exists 0. auto. 
+  - exists y. right. congruence.
   - exists (S y). left. lia. 
 Qed.
 
-(* Note the %nat annotation in the statement of div2.  It is
-   needed to help with the overloading of "+" and "*" for numbers
-   and types. *)
+(* Note the "%nat" annotation in the statement of div2.  It is
+   needed to help with the overloading of "+" and "*" 
+   for numbers and types. *)
 
-Section Div2.
-  Variable F : forall x, Sigma y, (x = 2*y) %nat + (x = S (2*y)).
-  Definition D x := let (n,_) := F x in n.
-  Definition M x := let (_,a) := F x in if a then 0 else 1.
-  Fact Div2 x : x = 2 * D x + M x /\ M x <= 1.
-  Proof.
-    unfold D, M. destruct (F x) as [n [H|H]]; lia.
-  Qed.
-  (* Note the use of the let and if-then-else notations sugaring matches. *)
-End Div2.
+Goal (forall x, Sigma y, (x = 2*y)%nat + (x = S (2*y))) <=>
+  (Sigma D M, (forall x, x = 2 * D x + M x /\ M x < 2) %nat).
+Proof.
+  split.
+  - intros F.
+    exists (fun x => pi1 (F x)).
+    exists (fun x => if pi2 (F x) then 0 else 1).
+    intros x.
+    destruct (F x) as [y [H|H]]; cbn; lia.
+  - intros (D&M&H) x.
+    specialize (H x).
+    exists (D x).     
+    destruct (M x) as [|b].
+    + left. lia.
+    + right. lia.
+Qed.
 
 (*** Translation Theorems *)
 
@@ -102,208 +167,82 @@ Proof.
     destruct (f x); unfold dec, iffT in *; intuition easy.
 Qed.
 
+Fact trans_p_dec' X (p: X -> Type) :
+  decider p <=> Sigma f: X -> bool, forall x, if f x then p x else ~ p x.
+Proof.
+  split.
+  - intros d.
+    exists (fun x => if d x then true else false).
+    intros x.
+    destruct (d x) as [H|H]; unfold iffT; easy.
+  - intros [f H] x. specialize (H x).
+    destruct (f x); unfold dec, iffT in *; auto. 
+Qed.
+
 Fact trans_skolem X Y (p: X -> Y -> Type) :
   (forall x, Sigma y, p x y) <=> Sigma f: X -> Y, forall x, p x (f x).
 Proof.
   split.
   - intros F.
-    exists (fun x => let (y,_) := F x in y).
-    intros x. destruct (F x) as [y H]. exact H.
+    exists (fun x => pi1 (F x)).
+    intros x. destruct (F x) as [y H]. cbn. exact H.
   - intros [f H] x. exists (f x). apply H.
 Qed.
 
-(*** Projections *)
+(*** Truncation *)
 
-Check pi1.
-Check pi2.
+Definition trunc X := forall Z:Prop, (X -> Z) -> Z.
+Notation "□ X" := (trunc X) (at level 30, right associativity).
 
-Fact eta_law X (p: X -> Type) :
-  forall a, a = Sig p (pi1 a) (pi2 a).
+Goal forall P Q, P /\ Q <-> □ (P * Q).
 Proof.
-  destruct a as [x y]. cbn. reflexivity.
+  intros *; split.
+  - intros H Z H1. tauto.
+  - intros H. apply H. tauto.
 Qed.
 
-Fact sig_elim' X  (p: X -> Type) (q: sig p -> Type)
-  : (forall x y, q (Sig p x y)) -> forall a, q a.
+Goal forall P Q, P \/ Q <-> □ (P + Q).
 Proof.
-  intros e a. rewrite eta_law. apply e.
+  intros *; split.
+  - intros H Z. tauto.
+  - intros H. apply H. tauto.
 Qed.
 
-Section Translation.
-  Variables X Y : Type.
-  Variable p: X -> Y -> Type.
 
-  Goal (forall x, Sigma y, p x y) -> Sigma f, forall x, p x (f x).
-  Proof.
-    exact (fun F => Sig (fun f => forall x, p x (f x))
-                   (fun x => pi1 (F x))
-                   (fun x => (pi2 (F x)))).
-  Qed.
-
-  Goal (Sigma f, forall x, p x (f x)) -> forall x, Sigma y, p x y.
-  Proof.
-    exact (fun a x => Sig (p x) (pi1 a x) (pi2 a x)).
-  Qed.
-End Translation.
-
-Goal forall X (p: X -> Type),
-    @pi1 X p = sig_elim X p (fun _ => X) (fun x _ => x).
+Goal forall X p, @ex X p <-> □ @sig X p.
 Proof.
-  reflexivity.
+  intros *; split.
+  - intros [x H] Z H1. apply H1. eauto.
+  - intros H. apply H. intros [x Hx]. eauto.
 Qed.
 
-Goal forall X (p: X -> Type),
-    @pi2 X p = sig_elim X p (fun a => p (pi1 a)) (fun _ y => y).
+Goal forall X, ~X <-> ~ □ X.
 Proof.
-  reflexivity.
+  intros *; split; intros H.
+  - intros H2. apply H2. easy.
+  - intros x. apply H. intros Z. auto.
 Qed.
 
-Fact pi1_injective X (p: X -> Type) x y x' y' :
-  Sig p x y = Sig p x' y' -> x = x'.
+Inductive truncation X : Prop := Truncation (_: X).
+
+Goal forall X, truncation X <-> □ X.
 Proof.
-  intros H.
-  change x with (pi1 (Sig p x y)).
-  rewrite H. reflexivity.
+  intros X. split.
+  - intros [x] Z. auto.
+  - intros H. apply H. intros x. constructor. exact x.
 Qed.
-
-Fact pi1_injective_nondep X Y x y x' y' :
-  Sig (fun _: X => Y) x y = Sig _ x' y' -> y = y'.
-Proof.
-  intros H.
-  change y with (pi2 (Sig _ x y)).
-  rewrite H. reflexivity.
-Qed.
-
-Fail
-  Fact pi2_injective X (p: X -> Type) x y x' y' :
-  Sig p x y = Sig p x' y' -> y = y'.
-
-Fact pi2_injective X (p: X -> Type) x y y' :
-  Sig p x y = Sig p x y' -> y = y'.
-Proof.
-  (* cannot be shown without assumptions *)
-  intros H.
-  change y with (pi2 (Sig p x y)).
-  change (let z := Sig p x y in pi2 z = y').
-  Fail pattern (Sig p x y).
-  Fail rewrite H. 
-Abort.
-
-
-(*** Dependent Pair Types *)
-
-Module SigmaTypes.
- 
-  Inductive sig {X: Type} (p: X -> Type) : Type :=
-  | E : forall x, p x -> sig p.
-  
-  Arguments E {X p}.
-   
-  Definition elim_sig {X: Type} {p: X -> Type} (q: sig p -> Type)
-    : (forall x y, q (E x y)) -> forall a, q a
-    := fun e a => match a with E x y => e x y end.
-
-  Definition pi1 {X: Type} {p: X -> Type}
-    : sig p -> X
-    := fun a => match a with E x _ => x end.
-
-  Definition pi2 {X: Type} {p: X -> Type}
-    : forall a: sig p,  p (pi1 a)
-    := fun a => match a with E x y => y end.
-
-  Goal forall X (p: X -> Type),
-      @pi1 X p = elim_sig (fun _ => X) (fun x y => x).
-  Proof.
-    cbv. reflexivity.
-  Qed.
-
-  Goal forall X (p: X -> Type),
-      @pi2 X p = elim_sig (fun a => p (pi1 a)) (fun x y => y).
-  Proof.
-    reflexivity.
-  Qed.
-
-  Fact eta X (p: X -> Type) :
-    forall a: sig p, E (pi1 a) (pi2 a) = a.
-  Proof.
-    (* cannot be shown with match_sig *)
-    refine (elim_sig _ _).
-    cbn. reflexivity.
-  Qed.
-
-  Definition skolem X Y (p: X -> Y -> Type) :
-    (forall x, sig (p x)) <=> sig (fun f => forall x, p x (f x)).
-  Proof.
-    split.
-    - intros F.
-      refine (E (fun x => pi1 (F x)) _).
-      intros x. exact (pi2 (F x)).
-    - intros a.
-      refine (elim_sig _ _ a).
-      intros f H x. apply (E (f x)). apply H.
-  Qed.
-
-  (* Proof much easier with destruct and exists tactic.
-     Destruct uses automatically derived eliminator *)          
-
-  Definition skolem' X Y (p: X -> Y -> Type) :
-    (forall x, sig (p x)) <=> sig (fun f => forall x, p x (f x)).
-  Proof.
-    split.
-    - intros F. exists (fun x => pi1 (F x)). intros x. exact (pi2 (F x)).
-    - intros [f H] x. exists (f x). apply H.
-  Qed.
-
-  Fact match_sum X Y :
-    forall a: sum X Y, sig (fun x => a = inl x) + sig (fun y => a = inr y).
-  Proof.
-    apply sum_rect.
-    - intros x. left. exists x. reflexivity.
-    - intros y. right. exists y. reflexivity.
-  Qed.    
-
-  Fact pi1_injective X (p: X -> Type) x (c: p x) x' (c': p x') :
-    E x c = E x' c' -> x = x'.
-  Proof.
-  intros H.
-  change x with (pi1 (E x c)).
-  rewrite H. reflexivity.
-  Qed.
-
-  Fail
-    Fact pi2_injective X (p: X -> Type) x (c: p x) x' (c': p x') :
-    E x c = E x' c' -> c = c'.
-  
-  Fact pi2_injective X (p: X -> Type) x (c c': p x) :
-    E x c = E x c' -> c = c'.
-  Proof.
-    (* cannot be shown without assumptions *)
-    intros H.
-    change c with (pi2 (E x c)).
-    Fail pattern (E x c).
-    Fail rewrite H. 
-  Abort.
-
-End SigmaTypes.
-
-(*** Truncations *)
-
-Inductive trunc (X: Type) : Prop := Trunc (_ : X).
-Notation "□ X" := (trunc X) (at level 75, right associativity).
 
 (*** Exercises *)
 
-
 (** Certifying Distance *)
-Definition distance :
-  forall x y: nat, Sigma z:nat, (x + z = y)%nat + (y + z = x)%nat.
+Fact distance :
+  forall x y, Sigma z, (x + z = y)%nat + (y + z = x)%nat.
 Proof.
   induction x as [|x IH]; cbn. 
   - intros y. exists y. auto.
   - destruct y; cbn.
     + exists (S x). auto.
-    + specialize (IH y) as [z [<-|<-]];
-        exists z; auto.
+    + specialize (IH y) as [z [<-|<-]]; exists z; auto.
 Qed.
 
 Section Distance.
@@ -363,4 +302,36 @@ Section M.
 End M.
 End Ex_eta.
 
+Goal forall x, Sigma a b, (x = 2 * a + b /\ b < 2)%nat.
+Proof.
+  induction x as [|x (a&b&H)].
+  - exists 0, 0. lia.
+  - destruct b.
+    + exists a, 1. lia.
+    + exists (S a), 0. lia.
+Qed.
+
+Goal
+  (forall x, Sigma a b, (x = 2 * a + b /\ b < 2)%nat) <=>
+    (forall x, Sigma a, (x = 2 * a)%nat + (x = S (2 * a))).
+Proof.
+  split; intros F x.
+  - specialize (F x) as (a&b&H).
+    exists a. destruct b; intuition lia.
+  - specialize (F x) as [a [H|H]]; exists a.
+    + exists 0. lia.
+    + exists 1. lia.
+Qed.
+
+Goal
+  (forall x, exists a b, x = 2 * a + b /\ b < 2) <->
+    (forall x, exists a, x = 2 * a \/ x = S (2 * a)).
+Proof.
+  split; intros F x.
+  - specialize (F x) as (a&b&H).
+    exists a. destruct b; intuition lia.
+  - specialize (F x) as [a [H|H]]; exists a.
+    + exists 0. lia.
+    + exists 1. lia.
+Qed.
 
