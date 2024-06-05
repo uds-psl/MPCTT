@@ -90,13 +90,15 @@ Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 
 Section Exercise.
-  Variables X Y Z : Type.
-  Goal (X + Y -> Z) <=> (X -> Z) * (Y -> Z).
+  Implicit Types X Y Z : Type.
+  Goal forall X Y Z,
+      (X + Y -> Z) <=> (X -> Z) * (Y -> Z).
   Proof.
     unfold iffT. tauto.
   Qed.
   
-  Goal (X + Y -> Z) <=> (X -> Z) * (Y -> Z).
+  Goal forall X Y Z,
+      (X + Y -> Z) <=> (X -> Z) * (Y -> Z).
   Proof.
     split.
     - intros f. split.
@@ -105,6 +107,14 @@ Section Exercise.
     - intros [f g]. intros [x|y].
       + apply f,x.
       + apply g,y.
+  Qed.
+  
+  Goal forall X Y,
+      X + Y <=> forall Z, (X -> Z ) -> (Y -> Z) -> Z.
+  Proof.
+    split.
+    - intros [x|y] Z f g; auto.
+    - intros F. apply F; auto. 
   Qed.
 End Exercise.
 
