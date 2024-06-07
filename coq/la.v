@@ -1,4 +1,4 @@
-(*** Linear Arithmetic *)
+(*** MPCTT, Chapter Linear Arithmetic *)
 
 From Coq Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
@@ -30,14 +30,6 @@ Proof.
 Qed.
 
 (*** Addition *)
-
-Fact add_O x :
-  x + 0 = x.
-Proof.
-  induction x as [|x IH]; cbn.
-  - reflexivity.
-  - f_equal. exact IH.
-Qed.
 
 Fact add_S x y :
   x + S y = S (x + y).
@@ -139,6 +131,21 @@ Fact sub_add_zero x y :
   x - (x + y) = 0.
 Proof.
   rewrite sub_add, sub_xx. reflexivity.
+Qed.
+
+Goal forall x y, x - (x + y) = 0.
+Proof.
+  induction x as [|x IH]; cbn; intros y.
+  - reflexivity.
+  - apply IH.
+Qed.
+
+
+Goal forall x y, (x + y) - x = y.
+Proof.
+  induction x as [|x IH]; cbn.
+  - destruct y; reflexivity.
+  - apply IH.
 Qed.
 
 (*** Comparisons *)
@@ -317,21 +324,36 @@ Proof.
   - intros <-. rewrite sub_xx in E. easy.
 Qed.
 
-Definition le_dec x y : dec (x <= y).
+Fact le_dec x y : dec (x <= y).
 Proof.
   eapply (test_dec (fun x y => x <= y)), le_test.
 Qed.
-Definition lt_dec x y : dec (x < y).
+Fact lt_dec x y : dec (x < y).
 Proof.
   eapply (test_dec (fun x y => x < y)), lt_test.
 Qed.
-Definition eq_dec : eqdec nat.
+Fact eq_dec : eqdec nat.
 Proof.
   hnf.
   eapply (test_dec (fun x y => x = y)), eq_test.
 Qed.
 
-Definition le_lt_dec x y :
+Goal forall x y, dec (x <= y).
+Proof.
+  induction x as [|x IH]; destruct y; cbn; unfold dec.
+  1-3:intuition easy.
+  apply IH.
+Qed.
+  
+
+
+Goal forall x y, (x <= y) + (y < x).
+Proof.
+  induction x as [|x IH]; destruct y; cbn; auto.
+Qed.
+
+
+Fact le_lt_dec x y :
   (x <= y) + (y < x).
 Proof.
   destruct (le_dec x y) as [H|H].
@@ -339,7 +361,7 @@ Proof.
   - right. apply lt_contra, H.
 Qed.
 
-Definition le_lt_eq_dec x y :
+Fact le_lt_eq_dec x y :
   x <= y -> (x < y) + (x = y).
 Proof.
   intros H1.
@@ -348,7 +370,7 @@ Proof.
   - left. apply lt_contra. contradict H.  apply le_anti; assumption.
 Qed.
 
-Definition tightness_dec x y :
+Fact tightness_dec x y :
   x <= y -> y <= S x -> (x=y) + (y = S x).
 Proof.
   intros H1%le_lt_eq_dec H2%le_lt_eq_dec.
@@ -368,7 +390,7 @@ End Comparisons.
 (* We now switch to Coq's definition of comparisons
    and handle linear arithmetic with the automation tactic lia *)       
 
-Definition nat_eqdec :
+Fact nat_eqdec :
   eqdec nat.
 Proof.
   intros x y. unfold dec.

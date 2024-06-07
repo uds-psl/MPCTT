@@ -1,10 +1,30 @@
-From Coq Require Import Lia.
+(*** MPCTT, Chapter Linear Arithmetic, brute force proofs *)
+
 Arguments Nat.sub : simpl nomatch.
 
 Notation "x <= y" := (x - y = 0) : nat_scope.
 Notation "x < y" := (S x <= y) : nat_scope.
 
-(* Additive characterization *)
+Fact le_refl x :
+  x <= x.
+Proof.
+  induction x as [|x IH]; cbn; easy.
+Qed.
+
+Fact le_trans x y z:
+  x <= y -> y <= z -> x <= z.
+Proof.
+  revert y z.
+  induction x as [|x IH]; cbn.
+  - easy.
+  - destruct y, z; cbn. 1-3:easy. apply IH.
+Qed.
+
+Fact le_anti x y :
+  x <= y -> y <= x -> x = y.
+Proof.
+  revert y; induction x as [|x IH]; destruct y; cbn; auto.
+Qed.
 
 Fact sub_add_zero x y :
   x <= x + y.
@@ -17,13 +37,6 @@ Fact le_add_char x y :
 Proof.
   revert y.
   induction x as [|x IH]; destruct y; cbn; auto; easy.
-Qed.
-
-
-Fact le_anti x y :
-  x <= y -> y <= x -> x = y.
-Proof.
-  revert y; induction x as [|x IH]; destruct y; cbn; auto.
 Qed.
 
 (* Decisions *)
@@ -80,14 +93,6 @@ Proof.
   - specialize (IH y). intuition congruence.
 Qed.
 
-Fact transitivity x y z:
-  x <= y -> y <= z -> x <= z.
-Proof.
-  revert y z.
-  induction x as [|x IH]; destruct y; cbn; auto.
-  - easy.
-  -
-Abort.
  
 
 
