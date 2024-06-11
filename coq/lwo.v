@@ -5,8 +5,6 @@ Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.
 Notation Sig := existT.
-Notation pi1 := projT1.
-Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
   (sig (fun x => .. (sig (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,

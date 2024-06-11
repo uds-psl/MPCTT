@@ -1,17 +1,11 @@
 (*** MPCTT, Chapter Linear Arithmetic *)
 
+Arguments Nat.sub : simpl nomatch.
 From Coq Require Import Lia.
+
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
-Notation sig := sigT.
-Notation Sig := existT.
-Notation pi1 := projT1.
-Notation pi2 := projT2.
-Notation "'Sigma' x .. y , p" :=
-  (sig (fun x => .. (sig (fun y => p%type)) ..))
-    (at level 200, x binder, right associativity,
-     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-    : type_scope.
 
 (*** Constructor Laws *)
 
@@ -34,9 +28,13 @@ Qed.
 Fact add_S x y :
   x + S y = S (x + y).
 Proof.
-  induction x as [|x IH]; cbn.
-  - reflexivity.
-  - f_equal. exact IH.
+  induction x as [|x IH]; cbn; auto.
+Qed.
+
+Fact add_O x :
+  x + 0 = x.
+Proof.
+  induction x as [|x IH]; cbn; auto.
 Qed.
 
 Fact add_comm x y :
@@ -56,9 +54,7 @@ Qed.
 Fact add_asso x y z :
   (x + y) + z = x + (y + z).
 Proof.
-  induction x as [|x IH]; cbn.
-  - reflexivity.
-  - f_equal. exact IH.
+  induction x as [|x IH]; cbn; auto.
 Qed.
 
 Fact add_eq_zero x y :
@@ -113,10 +109,9 @@ Qed.
 Fact sub_add x y z :
   x - (y + z) = x - y - z.
 Proof.
-  induction x as [|x IH] in y |-*; cbn.
-  - reflexivity.
-  - destruct y; cbn. reflexivity.
-    apply IH.
+  revert y.
+  induction x as [|x IH]; cbn. reflexivity.
+  destruct y; cbn; easy.
 Qed.
 
 Fact sub_xx x :
@@ -151,12 +146,11 @@ Qed.
 (*** Comparisons *)
 
 Module Comparisons.
-  
+
 Notation "x <= y" := (x - y = 0) : nat_scope.
-Notation "x < y" := (S x - y = 0) : nat_scope.
-Notation "x >= y" := (y - x = 0) (only parsing) : nat_scope.
-Notation "x > y" := (S y - x = 0) (only parsing) : nat_scope.
-(* Negations ~(x < y) don't print correctly *)
+Notation "x < y" := (S x <= y) : nat_scope.
+Notation "x >= y" := (y <= x) (only parsing) : nat_scope.
+Notation "x > y" := (y < x) (only parsing) : nat_scope.
 
 Fact le_add x y :
   x <= x + y.
@@ -286,16 +280,13 @@ Proof.
 Qed.
 
 Fact exercise x y :
-  y > 0 -> y - S x < y.
+  0 < x -> x - S y < x.
 Proof.
-  destruct y. easy.
-  intros _. change (y - x <= y).
-  rewrite <-sub_add.
-  rewrite add_comm.
-  apply sub_add_zero.
+  destruct x; cbn. easy.
+  intros _. apply le_sub.
 Qed.
 
-(*** Arithmetc Tests and Deciders *)
+(*** Arithmetic Tests and Deciders *)
 
 Fact test_dec p (f: nat -> nat -> nat) :
   (forall x y, if f x y then p x y else ~p x y) ->
@@ -345,13 +336,10 @@ Proof.
   apply IH.
 Qed.
   
-
-
 Goal forall x y, (x <= y) + (y < x).
 Proof.
   induction x as [|x IH]; destruct y; cbn; auto.
 Qed.
-
 
 Fact le_lt_dec x y :
   (x <= y) + (y < x).
@@ -385,6 +373,182 @@ Qed.
 
 End Comparisons.
 
+Module BruteForce.
+
+  Notation "x <= y" := (x - y = 0) : nat_scope.
+  Notation "x < y" := (S x <= y) : nat_scope.
+
+Fact lt_le x y :
+  x < y -> x <= y.
+Proof.
+  revert y.
+  induction x as [|x IH]; cbn.
+  - easy.
+  - destruct y; cbn. easy.
+    apply IH.
+Qed.  
+
+Fact le_refl x :
+  x <= x.
+Proof.
+  induction x as [|x IH]; cbn; easy.
+Qed.
+
+Fact le_trans x y z:
+  x <= y -> y <= z -> x <= z.
+Proof.
+  revert y z.
+  induction x as [|x IH]; cbn. easy.
+  destruct y. easy.
+  destruct z. easy.
+  apply (IH y z).
+Qed.
+
+Fact le_trans' x y z:
+  x < y -> y <= z -> x < z.
+Proof.
+  apply le_trans.
+Qed.
+
+Fact le_trans'' x y z:
+  x <= y -> y < z -> x < z.
+Proof.
+  revert z x y.
+  induction z as [|z IH]; cbn. easy.
+  destruct x. easy.
+  destruct y. easy.
+  apply (IH x y).
+Qed.
+
+Fact le_anti x y :
+  x <= y -> y <= x -> x = y.
+Proof.
+  revert y.
+  induction x as [|x IH]; destruct y; cbn.
+  1-3:easy. auto.
+Qed.
+
+Fact sub_add_zero x y :
+  x <= x + y.
+Proof.
+  induction x as [|x IH]; easy.
+Qed.
+
+Fact le_add_char x y :
+  x <= y -> x + (y - x) = y.
+Proof.
+  revert y.
+  induction x as [|x IH]; destruct y; cbn.
+  1-3:easy. auto.
+Qed.
+
+(** Contra rules *)
+
+Fact lt_contra_zero x :
+  x < 0 -> False.
+Proof.
+  easy.
+Qed.
+
+Fact lt_contra_add x y :
+  x + y < x -> False.
+Proof.
+  induction x as [|x IH]; easy.
+Qed.
+
+Fact lt_contra_self x :
+  x < x -> False.
+Proof.
+  induction x as [|x IH]; easy.
+Qed.
+
+
+(* Decisions *)
+
+Fact lt_contra x y:
+  (x <= y) <-> ~(y < x).
+Proof.
+  revert y.
+  induction x as [|x IH]; destruct y; cbn; easy.
+Qed.
+         
+Fact le_zero x :
+  x <= 0 -> x = 0.
+Proof.
+  destruct x; easy.
+Qed.
+
+Goal forall x y, (x <= y) + (y < x).
+Proof.
+  induction x as [|x IH]; destruct y; cbn; auto.
+Qed.
+
+Goal forall x y, (x <= y) + ~(x <= y).
+Proof.
+  induction x as [|x IH]; cbn.
+  - auto.
+  - destruct y; cbn.
+    + right. easy.
+    + apply IH.
+Qed.
+
+Fact le_eq_lt x y :
+  x <= y -> (x=y) + (x < y).
+Proof.
+  revert y.
+  induction x as [|x IH]; destruct y; cbn.
+  - auto.
+  - auto.
+  - easy.
+  - specialize (IH y); intuition congruence.
+Qed.
+
+Fact tightness_dec x y :
+  x <= y -> y <= S x -> (x=y) + (y = S x).
+Proof.
+  revert y.
+  induction x as [|x IH]; destruct y; cbn.
+  - auto.
+  - destruct y; cbn; auto.
+  - easy.
+  - specialize (IH y); intuition congruence.
+Qed.
+
+Fact le_test x y :
+  if x - y then x <= y else ~(x <= y).
+Proof.
+  destruct (x - y); easy.
+Qed.
+
+Fact lt_test x y :
+  if S x - y then x < y else ~(x < y).
+Proof.
+  destruct (S x - y); easy.
+Qed.
+
+Fact eq_test x y :
+  if (x - y) + (y - x) then x = y else ~(x = y).
+Proof.
+  revert y.
+  induction x as [|x IH]; destruct y; cbn.
+  1-3:easy.
+  specialize (IH y). destruct (_ + _); congruence.
+Qed.
+ 
+
+
+Fact le_sub x y :
+ x - y <= x.
+  (* There seems to be no elegant brute forve proof *)
+Proof.
+  revert y. induction x; cbn. easy.
+  induction y; cbn.
+  - admit.
+  - 
+Abort.
+
+End BruteForce.
+ 
 (*** Deciders with Lia *)
 
 (* We now switch to Coq's definition of comparisons
@@ -432,7 +596,6 @@ Section LiaTest.
     Fail lia. Abort.
  
 End LiaTest.
-
 
 
 (*** Multiplication *)
