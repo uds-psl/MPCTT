@@ -1,4 +1,4 @@
-(*** EWOs *)
+(*** MPCTT, Chapter EWOs *)
 From Coq Require Import Lia.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
