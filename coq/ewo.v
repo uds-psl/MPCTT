@@ -284,3 +284,68 @@ Section Step_indexed_eqdec.
   Qed.
 End Step_indexed_eqdec.
 
+(*** EWO with interface *)
+
+
+Module EWO_Nat_Inter.
+
+  Section EWO_nat_above.
+    Variable p : nat -> Prop.
+    Variable T : nat -> Prop.
+    Variable I : forall n, p n -> T n.
+    Variable D : forall n, T (S n) -> T n.
+    Variable E : forall q: nat -> Type,
+        (forall n, p n -> q n) ->
+        (forall n, q (S n) -> q n) ->
+        (forall n, T n -> q n).
+
+    Lemma T_sig :
+      forall n, T n -> sig p.
+    Proof.
+      apply E; eauto.
+    Qed.
+
+    Lemma T_zero :
+      forall n, T n -> T 0.
+    Proof.
+      induction n. easy.
+      intros H. apply IHn, D, H.
+    Qed.
+
+    Fact ewo_nat :
+      ex p -> sig p.
+    Proof.
+      intros H. apply (T_sig 0).
+      destruct H as [n H].
+      apply (T_zero n), I, H.
+    Qed.
+  End EWO_nat_above.
+
+  Section EWO_nat_below.
+    Variable p : nat -> Prop.
+
+    Inductive T (n: nat) : Prop := C (phi: ~ p n -> T (S n)).
+
+    Definition I : forall n, p n -> T n.
+    Proof. intros n H. apply C. easy. Qed.
+
+    Definition D : forall n, T (S n) -> T n.
+    Proof. intros n H. apply C. easy. Qed.
+
+    Fact E:
+      decider p ->
+      forall q: nat -> Type,
+        (forall n, p n -> q n) ->
+        (forall n, q (S n) -> q n) ->
+        (forall n, T n -> q n).
+    Proof.
+      intros d q e1 e2.
+      exact (fix f n a := match a with
+                          | C _ phi => match d n with
+                                    | inl h => e1 n h
+                                    | inr h => e2 n (f (S n) (phi h))
+                                    end
+                          end).
+    Qed.
+  End EWO_nat_below.
+End EWO_Nat_Inter.
