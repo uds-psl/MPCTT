@@ -258,7 +258,7 @@ Qed.
 
 Fact R {X Y f g} :
   @inv (option X) (option Y) g f ->
-  forall x, Sigma y, match f (Some x) with Some y' => y = y' | None => f None = Some y end.
+  forall x, Sigma z, match f (Some x) with Some y => z = y | None => Some z = f None end.
 Proof.
   intros H x.
   destruct (f (Some x)) as [y|] eqn:E1.
@@ -279,7 +279,7 @@ Proof.
   revert H3 H4.  
   destruct (f (Some x)) as [y1|] eqn:E.
   - intros <-. rewrite <-E, H1. easy.
-  - intros <-.  rewrite H1. rewrite <-E, H1. congruence.
+  - intros ->.  rewrite H1. rewrite <-E, H1. congruence.
 Qed.
 
 Theorem bijection_option X Y : 
@@ -297,7 +297,7 @@ Proof.
   - hnf. intros [x|]; congruence.
   - hnf. intros [y|]; congruence.
 Qed.
-
+      
 (*** Numeral Types *)
 
 Fixpoint num n : Type :=
