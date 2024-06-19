@@ -1,5 +1,6 @@
 (*** MPCTT, Chapter Least Witness Operators *)
 
+Arguments Nat.sub : simpl nomatch.
 From Coq Require Import Lia.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
@@ -593,7 +594,18 @@ Section Extra.
       + destruct (d x) as [Hx|Hx].
         * split. easy. lia.
         *  apply safe_S; easy.
-  Qed.    
+    Qed.
+
+    Goal forall x, Sigma y, if S y - x then least p y else safe p x.
+    Proof.
+      induction x as [|x [y IH]].
+      - exists 0. cbn. easy. 
+      - destruct (S y - x) as [|a] eqn:E.
+        + exists y. replace  (S y - S x) with 0 by lia. exact IH.
+        + destruct (d x) as [Hx|Hx].
+          * exists x.  cbn. replace  (x - x) with 0 by lia. easy.
+          * exists (S x). cbn. replace  (S x - x) with 1 by lia. apply safe_S; easy.
+    Qed.
   
   Fact B: forall x, Sigma y, (least p y /\ y < x) \/ (safe p x /\ y = x).
   Proof.
@@ -656,4 +668,3 @@ Section Extra_prop.
         * exists (S x). right. split. 2:lia. apply safe_S; easy.
   Qed.
 End Extra_prop.
-

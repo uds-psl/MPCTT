@@ -1,6 +1,7 @@
 (*** MPCTT, Chapter More Computational Types *)
 
 From Coq Require Import Lia.
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
@@ -30,7 +31,7 @@ Proof.
   intros H d x x'.
   destruct (d (f x) (f x')) as [H1|H1].
   - left. apply H, H1.
-  - right. congruence.
+  - right. contradict H1.  congruence.
 Qed.
 
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) :=
@@ -69,7 +70,7 @@ Proof.
 Qed.
 
 Inductive injection (X Y: Type) : Type :=
-| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+| Injection {f: X -> Y} {g: Y -> X} (H: inv g f).
 
 Fact injection_refl X :
   injection X X.
@@ -93,13 +94,13 @@ Proof.
 Qed.
 
 Fact injection_Cantor X :
-  injection (X -> bool) X -> False.
+  ~ injection (X -> bool) X.
 Proof.
   intros [f g H].
   pose (h x := negb (g x x)).
   enough (g (f h) (f h) = h (f h)) as H1.
   { revert H1. unfold h at 3. destruct g; easy. }
-  congruence.
+  rewrite H. reflexivity.
 Qed.
     
 Inductive bijection (X Y: Type) : Type :=
@@ -171,10 +172,10 @@ Proof.
   - intros (f&g&H1&H2). reflexivity.
 Qed.
 
-Goal bijection nat bool -> False.
+Goal injection nat bool -> False.
 Proof.
-  intros [f g H _].
-  assert (f 0 = f 1 \/ f 0 = f 2 \/ f 1 = f 2) as [H3| [H3|H3]].
+  intros [f g H].
+  assert (f 0 = f 1 \/ f 0 = f 2 \/ f 1 = f 2) as [H3|[H3|H3]].
   { destruct (f 0), (f 1), (f 2); auto. }
   all: apply (f_equal g) in H3.
   all: rewrite !H in H3.
@@ -286,6 +287,15 @@ Theorem bijection_option X Y :
 Proof.
   intros [f g H1 H2].
   exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
+Qed.
+
+Goal forall X Y, bijection X Y -> bijection (option X) (option Y).
+Proof.
+  intros X Y [f g H1 H2].
+  exists (fun a => match a with Some x => Some (f x) | None => None end)
+    (fun b => match b with Some y => Some (g y) | None => None end).
+  - hnf. intros [x|]; congruence.
+  - hnf. intros [y|]; congruence.
 Qed.
 
 (*** Numeral Types *)

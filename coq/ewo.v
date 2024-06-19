@@ -30,7 +30,7 @@ Definition bijective {X Y} (f: X -> Y) :=
 Section EWO.
   Variable p: nat -> Prop.
 
-  Inductive T | (n: nat) : Prop := C (phi: ~p n -> T (S n)).
+  Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
 
   Definition T_elim (q: nat -> Type)
     : (forall n, (~p n -> q (S n)) -> q n) ->
@@ -382,3 +382,4 @@ Module EWO_Nat_Inter.
     Qed.
   End EWO_nat_below.
 End EWO_Nat_Inter.
+
