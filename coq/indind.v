@@ -1,4 +1,4 @@
-(*** Indexed Inductives *)
+(*** MPCTT, Chapter Indexed Inductives *)
 From Coq Require Import Lia.
 
 (*** Inductive Equality *)
