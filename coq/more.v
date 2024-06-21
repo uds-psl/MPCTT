@@ -297,7 +297,71 @@ Proof.
   - hnf. intros [x|]; congruence.
   - hnf. intros [y|]; congruence.
 Qed.
-      
+
+Fact skolem_trans {X Y} (p: X -> Y -> Prop) :
+  (forall x, Sigma y, p x y) -> Sigma f, forall x, p x (f x).
+Proof.
+  intros F.
+  exists (fun x => pi1 (F x)). intros x. exact (pi2 (F x)).
+Qed.
+
+Module Version2024.
+  
+  Definition lower' X Y (f: option X -> option Y) x z :=
+    match f (Some x) with
+    | Some y => z = y
+    | None => match f None with
+             | Some y => z = y
+             | None => False
+             end
+    end.
+
+  Definition lower X Y (f: option X -> option Y) f' :=
+    forall x, lower' X Y f x (f' x).
+
+  
+  Fact lower_sig {X Y} f :
+    injective f -> sig (lower X Y f).
+  Proof.
+    intros H.
+    apply skolem_trans.
+    intros x. unfold lower'.
+    destruct (f (Some x)) as [y|] eqn:E1.
+    - eauto.
+    - destruct (f None) as [y|] eqn:E2.
+      + eauto.
+      + enough (Some x = None) by easy.
+        apply H. congruence.
+  Qed.
+  
+  Fact lem_lower X Y f g f' g'  :
+    inv g f -> inv f g ->
+    lower X Y f f' -> lower Y X g g' -> inv g' f'.
+  Proof.
+    intros H1 H2 H3 H4 x.
+    specialize (H3 x). unfold lower' in H3.
+    destruct (f (Some x)) as [y|] eqn:E1.
+    - specialize (H4 y). unfold lower' in H4.
+      destruct (g (Some y)) as [x'|] eqn:E2; congruence.
+    - destruct (f None) as [y|] eqn:E2. 2:easy.
+      specialize (H4 y). unfold lower' in H4.
+      assert (E3: g (Some y) = None) by congruence.
+      rewrite E3 in H4.  
+      destruct (g None) as [x'|] eqn:E4; congruence.
+  Qed.
+
+  Theorem bijection_option X Y : 
+    bijection (option X) (option Y) -> bijection X Y.
+  Proof.
+    intros [f g H1 H2].
+    destruct (lower_sig f) as [f' H3].
+    { eapply inv_injective, H1. }
+    destruct (lower_sig g) as [g' H4].
+    { eapply inv_injective, H2. }
+    exists f' g'; eapply lem_lower; eassumption.
+  Qed.
+End Version2024.
+     
 (*** Numeral Types *)
 
 Fixpoint num n : Type :=
