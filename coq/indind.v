@@ -4,11 +4,20 @@ From Coq Require Import Lia.
 (*** Inductive Equality *)
 Module IndEquality.
   
-  Inductive eq X (x: X) | : X -> Prop :=
-  | Q : eq x.
+  Inductive eq X (x: X) : X -> Prop :=
+  | Q : eq X x x.
 
   Check eq.
   Check Q.
+
+  
+  Definition E 
+    : forall X  (x: X) (p: X -> Type),  p x -> forall y, eq X x y -> p y
+    := fun X x p a _ e =>
+         match e with
+         | Q _ _ => a
+         end.
+
 
   Definition R 
     : forall X  (x y: X) (p: X -> Type),  eq X x y -> p x -> p y
@@ -24,18 +33,18 @@ Section Star.
   Variable X : Type.
   Implicit Type R: X -> X -> Prop.
 
-  Inductive star R | (x : X) : X -> Prop :=
-  | Nil : star x x
-  | Cons y z : R x y -> star y z -> star x z.
+  Inductive star (R: X -> X -> Prop) (x: X) : X -> Prop :=
+  | Nil : star R x x
+  | Cons y z : R x y -> star R y z -> star R x z.
 
   Definition elim R (p: X -> X -> Prop)
     : (forall x, p x x) ->
       (forall x y z, R x y -> p y z -> p x z) -> 
       forall x y, star R x y -> p x y
-    := fun e1 e2 => fix f x _ a :=
+    := fun f1 f2 => fix f x _ a :=
       match a with
-      | Nil _ _ => e1 x
-      | Cons _ _ x' z r a => e2 x x' z r (f x' z a)
+      | Nil _ _ => f1 x
+      | Cons _ _ x' z r a => f2 x x' z r (f x' z a)
       end.
  
   Implicit Type p: X -> X -> Prop.
@@ -69,7 +78,7 @@ Section Star.
   Proof.
     induction 1 as [|x x' y r _ IH].
     - easy.
-    - intros H%IH. revert r H. apply Cons.
+    - intros H%IH. econstructor. exact r. exact H.
   Qed.
 
   Fact least R p :
@@ -119,9 +128,9 @@ End Star.
 (*** Inductive Comparisons *)
 
 Module LE.
-  Inductive le (x: nat) | : nat -> Prop :=
-  | leE : le x
-  | leS y : le y -> le (S y).
+  Inductive le (x: nat) : nat -> Prop :=
+  | leE : le x x 
+  | leS y : le x y -> le x (S y).
 
   Definition elim (x: nat) (p: nat -> Prop)
     : p x ->
