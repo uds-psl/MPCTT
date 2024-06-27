@@ -122,8 +122,68 @@ Section Star.
         eapply Cons. exact H1.
         apply IH, H2.
   Qed.
+
+  (*** Index Elimination *)
+
+  (** We can define R* as an inductive predicate without indices. **)
+
+  Inductive star' (R: X -> X -> Prop) (x: X) (y:X) : Prop :=
+  | Nil' : x = y -> star' R x y
+  | Cons' x' : R x x' -> star' R x' y -> star' R x y.
+
+  Definition elim' R (p: X -> Prop) (y: X)
+    : (forall x, x = y -> p x) ->
+      (forall x x', R x x' -> p x' -> p x) -> 
+      forall x, star' R x y -> p x
+    := fun f1 f2 => fix f x a :=
+      match a with
+      | Nil' _ _ _ e => f1 x e
+      | Cons' _ _ _ x' r a => f2 x x' r (f x' a)
+      end.
+
+  Goal forall R x y, star' R x y <-> star R x y.
+    Proof.
+      intros *; split.
+      - revert x. apply elim'.
+        + intros x <-. apply Nil.
+        + intros * r IH. eapply Cons; eassumption.
+      - revert x y. apply elim.
+        + intros *. apply Nil'. reflexivity.
+        + intros * r IH. eapply Cons'; eassumption.
+    Qed.
 End Star.
 End Star.
+
+ (** Index eliminatiom will not work for equality
+      since Leibniz equality doesnt give us rewriting at type. *)
+
+Section Eq_without_index.
+  Variable eq: forall X, X -> X -> Prop.
+  Variable Q: forall X x, eq X x x.
+  Variable R: forall X x y (p: X -> Prop), eq X x y -> p x -> p y.
+  
+  Inductive eq' X (x: X) (y: X) : Prop :=
+  | Q' : eq X x y -> eq' X x y.
+
+  Definition elim_eq' (X: Type) (x y: X) (Z: Type)
+    :  (eq X x y -> Z) -> eq' X x y -> Z
+    := fun f1 a => let (H) := a in f1 H.
+
+  Goal forall X x y, eq' X x y <-> eq X x y.
+  Proof.
+    intros *; split.
+    - apply elim_eq'. auto.
+    - intros e. apply Q'. exact e.
+  Qed.
+
+  Goal forall (X: Type) (x y: X) (p: X -> Type),
+      eq' X x y -> p x -> p y.
+  Proof.
+    intros * [H].
+    Fail exact (R X x y p H).
+  Abort.
+End Eq_without_index.
+
 
 (*** Inductive Comparisons *)
 
