@@ -157,33 +157,35 @@ End Star.
  (** Index eliminatiom will not work for equality
       since Leibniz equality doesnt give us rewriting at type. *)
 
-Section Eq_without_index.
-  Variable eq: forall X, X -> X -> Prop.
-  Variable Q: forall X x, eq X x x.
-  Variable R: forall X x y (p: X -> Prop), eq X x y -> p x -> p y.
-  
+Module Eq_without_index.
+    
   Inductive eq' X (x: X) (y: X) : Prop :=
-  | Q' : eq X x y -> eq' X x y.
+  | L : (forall p: X -> Type, p x -> p y) -> eq' X x y.
+    
+  Inductive eq'' X (x: X) (y: X) : Prop :=
+  | L' : (forall p: X -> Prop, p x -> p y) -> eq'' X x y.
 
-  Definition elim_eq' (X: Type) (x y: X) (Z: Type)
-    :  (eq X x y -> Z) -> eq' X x y -> Z
-    := fun f1 a => let (H) := a in f1 H.
-
-  Goal forall X x y, eq' X x y <-> eq X x y.
+  Goal forall X x y, eq' X x y <-> x = y.
   Proof.
     intros *; split.
-    - apply elim_eq'. auto.
-    - intros e. apply Q'. exact e.
+    - intros [H]. pattern y. apply H. reflexivity.
+    - intros <-. apply L. auto. 
   Qed.
 
-  Goal forall (X: Type) (x y: X) (p: X -> Type),
+  Goal forall X (x y: X) (p: X -> Type),
       eq' X x y -> p x -> p y.
   Proof.
-    intros * [H].
-    Fail exact (R X x y p H).
+    Fail intros * [H]. (* PDR kills it *)
   Abort.
-End Eq_without_index.
+  
+  Goal forall X x y, eq' X x y <-> eq'' X x y.
+  Proof.
+    intros *; split.
+    - intros [H]. pattern y. apply H. apply L'. auto.
+    - intros [H]. pattern y. apply H. apply L. auto.
+  Qed.
 
+End Eq_without_index.
 
 (*** Inductive Comparisons *)
 
