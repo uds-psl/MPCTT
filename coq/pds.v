@@ -309,6 +309,31 @@ Proof.
   - apply ndcC.
 Qed.
 
+Definition Peirce_ndc :=
+  forall A s t, (s ~> t) :: A |-c s -> A |-c s.
+Definition Contra_ndc :=
+  forall A s , -s :: A |-c bot  -> A |-c s.
+
+Goal Peirce_ndc.
+Proof.
+  intros A s t.
+  intros H %ndcII.
+  apply ndcC.
+  apply ndcIE with s. ndcA.
+  apply ndcIE with (s~>t).
+  { eapply Weakc. exact H. close. }
+  apply ndcII, Explosion.
+  apply ndcIE with s; ndcA.
+Qed.
+
+Goal Peirce_ndc -> Contra_ndc.
+(* We use Explosion, but not Contra *)
+Proof.
+  intros H A s H1.
+  specialize (H A s bot). apply H. clear H.
+  apply Explosion, H1.
+Qed.
+  
 (*** Glivenko *)
 
 Lemma Glivenko' A s :
