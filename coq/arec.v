@@ -1,4 +1,4 @@
-(*** Arithmetic Recursion *)
+(*** MPCTT, Chapter Arithmetic Recursion *)
 From Coq Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).

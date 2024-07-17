@@ -1,3 +1,5 @@
+(*** MPCTT, Chapter Propositional Deduction Systems *)
+
 From Coq Require Import List Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
