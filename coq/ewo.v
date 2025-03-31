@@ -1,4 +1,4 @@
-(*** EWOs *)
+(*** MPCTT, Chapter EWOs *)
 From Coq Require Import Lia.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
@@ -30,7 +30,7 @@ Definition bijective {X Y} (f: X -> Y) :=
 Section EWO.
   Variable p: nat -> Prop.
 
-  Inductive T | (n: nat) : Prop := C (phi: ~p n -> T (S n)).
+  Inductive T (n: nat) : Prop := C (phi: ~p n -> T (S n)).
 
   Definition T_elim (q: nat -> Type)
     : (forall n, (~p n -> q (S n)) -> q n) ->
@@ -82,7 +82,7 @@ Section EWO.
     intros H.
     refine (TE (fun _ => sig p) _ _ 0 _).
     - eauto.
-    - easy.
+    - auto.
     - destruct H as [n H]. apply (T_zero n), TI, H.
   Qed.
 
@@ -283,4 +283,103 @@ Section Step_indexed_eqdec.
     - apply f_prop. reflexivity.
   Qed.
 End Step_indexed_eqdec.
+
+(*** EWO with interface *)
+
+Definition safe p n := forall k, k < n -> ~p k.
+Definition least p n := p n /\ safe p n.
+
+Fact safe_S p n :
+  safe p n -> ~p n -> safe p (S n).
+Proof.
+  unfold safe; intros H1 H2 k H3.
+  assert (k < n \/ k = n) as [H| ->] by lia; auto.
+Qed.
+
+Module EWO_Nat_Inter.
+
+  Section EWO_nat_above.
+    Variable p : nat -> Prop.
+    Variable T' : nat -> Prop.
+    Variable I : forall n, p n -> T' n.
+    Variable D : forall n, T' (S n) -> T' n.
+    Variable E' :
+      decider p ->
+      forall q: nat -> Type,
+        (forall n, p n -> q n) ->
+        (forall n, q (S n) -> q n) ->
+        (forall n, T' n -> q n).
+
+    Lemma T'_sig :
+      decider p -> forall n, T' n -> sig p.
+    Proof.
+      intros d. apply (E' d); eauto.
+    Qed.
+
+    Lemma T'_zero :
+      forall n, T' n -> T' 0.
+    Proof.
+      induction n as [|n IH]. easy.
+      intros H. apply IH, D, H.
+    Qed.
+
+    Lemma ex_T'_zero :
+      ex p -> T' 0.
+    Proof.
+      intros [x H]. eapply T'_zero, I, H.
+    Qed.
+
+    Fact ewo_nat :
+      decider p -> ex p -> sig p.
+    Proof.
+      intros d H. apply (T'_sig d 0).
+      destruct H as [n H].
+      apply (T'_zero n), I, H.
+    Qed.
+
+    Lemma T'_least :
+      decider p -> forall n, T' n -> safe p n -> sig (least p).
+    Proof.
+      intros d.
+      refine (E' d _ _ _).
+      - intros n H1 H2. exists n. easy.
+      - intros n H1 H2.
+        destruct (d n) as [H3|H3].
+        + exists n. easy.
+        + apply H1, safe_S; easy.
+    Qed.
+
+    Fact ewo_nat_least :
+      decider p -> ex p -> sig (least p).
+    Proof.
+      intros d H.
+      apply (T'_least d 0). 2:easy.
+      apply ex_T'_zero, H.
+    Qed.
+
+  End EWO_nat_above.
+
+  Section EWO_nat_below.
+    Variable p : nat -> Prop.
+
+    Definition I : forall n, p n -> T p n.
+    Proof. intros n H. apply C. easy. Qed.
+
+    Definition D : forall n, T p (S n) -> T p n.
+    Proof. intros n H. apply C. easy. Qed.
+
+    Fact E':
+      decider p ->
+      forall q: nat -> Type,
+        (forall n, p n -> q n) ->
+        (forall n, q (S n) -> q n) ->
+        (forall n, T p n -> q n).
+    Proof.
+      intros d q e1 e2.
+       apply T_elim.
+      intros n IH.
+      destruct (d n) as [H|H]; auto.
+    Qed.
+  End EWO_nat_below.
+End EWO_Nat_Inter.
 

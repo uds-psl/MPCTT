@@ -1,11 +1,11 @@
-(*** Least Witness Operators *)
+(*** MPCTT, Chapter Least Witness Operators *)
+
+Arguments Nat.sub : simpl nomatch.
 From Coq Require Import Lia.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.
 Notation Sig := existT.
-Notation pi1 := projT1.
-Notation pi2 := projT2.
 Notation "'Sigma' x .. y , p" :=
   (sig (fun x => .. (sig (fun y => p%type)) ..))
     (at level 200, x binder, right associativity,
@@ -557,3 +557,114 @@ Proof.
       * left. apply H.
       * right. intros H1%H. easy.
 Qed.
+
+Section Extra.
+  Variable p: nat -> Prop.
+  Variable d: decider p.
+
+  Fact A: forall x, (Sigma y, least p y /\ y < x) + safe p x.
+  Proof.
+    induction x as [|x [[y IH]|IH]].
+    - right. easy.
+    - left. exists y. split. easy. lia.
+    - destruct (d x) as [Hx|Hx].
+      + left. exists x. split. easy. lia.
+      + right. apply safe_S; easy.
+  Qed.
+  
+  Fixpoint FA (x: nat) : option nat :=
+    match x with
+    | 0 => None
+    | S x => match FA x with
+            | Some y => Some y
+            | None => if d x then Some x else None
+            end
+    end.
+
+    Fact FA_correct x :
+      match FA x with
+      | Some y => least p y /\ y < x
+      | None => safe p x
+      end.
+    Proof.
+    induction x as [|x IH]; cbn.
+    - easy. 
+    - destruct (FA x) as [y|].
+      + split. easy. lia.
+      + destruct (d x) as [Hx|Hx].
+        * split. easy. lia.
+        *  apply safe_S; easy.
+    Qed.
+
+    Goal forall x, Sigma y, if S y - x then least p y else safe p x.
+    Proof.
+      induction x as [|x [y IH]].
+      - exists 0. cbn. easy. 
+      - destruct (S y - x) as [|a] eqn:E.
+        + exists y. replace  (S y - S x) with 0 by lia. exact IH.
+        + destruct (d x) as [Hx|Hx].
+          * exists x.  cbn. replace  (x - x) with 0 by lia. easy.
+          * exists (S x). cbn. replace  (S x - x) with 1 by lia. apply safe_S; easy.
+    Qed.
+  
+  Fact B: forall x, Sigma y, (least p y /\ y < x) \/ (safe p x /\ y = x).
+  Proof.
+    induction x as [|x [y IH]].
+    - exists 0. right. easy. 
+    - destruct (x - y) as [|a] eqn:E.
+      + assert (safe p x) as H by intuition lia. clear E IH.
+        destruct (d x) as [Hx|Hx].
+        * exists x. left. split. easy. lia.
+        * exists (S x). right. split. 2:easy. apply safe_S; easy.
+      + assert (least p y) as H by intuition lia. clear IH.
+        exists y. left. split. easy. lia.
+  Qed.
+
+  Fixpoint FB (x: nat) : nat :=
+    match x with
+    | 0 => 0
+    | S x => let y := FB x in
+            if x - y then if d x then x else S x else y
+    end.
+
+  Fact FB_correct x :
+    (least p (FB x) /\ FB x < x) \/ (safe p x /\ FB x = x).
+  Proof.
+    induction x as [|x IH]; cbn.
+    - right. easy. 
+    - destruct (x - FB x) as [|a] eqn:E.
+      + assert (safe p x) as H by intuition lia. clear E IH.
+        destruct (d x) as [Hx|Hx].
+        * left. split. easy. lia.
+        * right. split. 2:easy. apply safe_S; easy.
+      + assert (least p (FB x)) as H by intuition lia. clear IH.
+        left. split. easy. lia.
+  Qed.    
+    
+End Extra.
+
+Section Extra_prop.
+  Variable p: nat -> Prop.
+  Variable d: forall n, p n \/ ~p n.
+
+  Fact A': forall x, (exists y, least p y /\ y < x) \/ safe p x.
+  Proof.
+    induction x as [|x [[y IH]|IH]].
+    - right. easy.
+    - left. exists y. split. easy. lia.
+    - destruct (d x) as [Hx|Hx].
+      + left. exists x. split. easy. lia.
+      + right. apply safe_S; easy.
+  Qed.
+  
+  Fact B': forall x, exists y, (least p y /\ y < x) \/ (safe p x /\ y = x).
+  Proof.
+    induction x as [|x IH].
+    - exists 0. right. easy. 
+    - specialize IH as [y [IH|IH]].
+      + exists y. intuition lia.
+      + destruct (d x) as [Hx|Hx].
+        * exists x. left. split. easy. lia.
+        * exists (S x). right. split. 2:lia. apply safe_S; easy.
+  Qed.
+End Extra_prop.

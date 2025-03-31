@@ -1,4 +1,4 @@
-(*** MPCTT, Chapter 4 *)
+(*** MPCTT, Chapter 5 *)
 
 (* We define and apply inductive eliminators *)
 
@@ -173,6 +173,41 @@ Proof.
   - right. congruence.
 Qed.
 
+Fixpoint eq_nat (x y: nat) : bool :=
+  match x, y with
+  | 0, 0 => true
+  | 0, S _ => false
+  | S _, 0 => false
+  | S x, S y => eq_nat x y
+  end.
+
+Fact eq_nat_correct x y :
+  eq_nat x y = true <-> x = y.
+Proof.
+  revert x y.
+  refine (elim_nat _ _ _).
+  - refine (elim_nat _ _ _).
+    + cbn. easy.
+    + intros y _. cbn. easy.
+  - intros x IH.
+    refine (elim_nat _ _ _).
+    + cbn. easy.
+    + intros y _. cbn. specialize (IH y). split.
+      * intros H. f_equal. apply IH, H.
+      * intros H. apply IH. congruence.
+Qed.
+
+Goal forall x y: nat, x = y \/ x <> y.
+Proof.
+  intros x y.
+  assert (H:= eq_nat_correct x y).
+  destruct (eq_nat x y).
+  - left. apply H. easy.
+  - right. intros H1.
+    enough (false = true) by easy.
+    apply H, H1.
+Qed.
+  
 Module Exercise.
   Notation "x <= y" := (x - y = 0) : nat_scope.
   Fact antisymmetry x y :
@@ -216,8 +251,40 @@ Proof.
   - intros H. apply H2. rewrite H. exact H1.
   - split; unfold p. 
     + intros [|] [|] [|]; auto.
-    + intros H. specialize (H 0 1 2) as [H|[H|H]]; discriminate.
+    + intros H. specialize (H 0 1 2) as [H|[H|H]]; congruence.
 Qed.
+
+(*** Coq's Set considered harmful *)
+
+(* Coq has a subuniverse Set of Type and type inference uses
+    Set rather than type if it can.  In particular, the predefined
+    types bool and nat are typed with Set.  This can lead to
+    annoying problems.  An example follows. *)
+
+Check nat.
+Check bool.
+Set Printing All.
+Check nat <> bool.
+
+Lemma eq_not (X: Type) (x y : X) (p: X -> Prop) :
+  ~ p x -> p y -> x <> y.
+Proof.
+  intros H H1. contradict H. rewrite H. exact H1.
+Qed.
+
+Definition card_le2 (X: Type) :=
+  forall x y z : X, x = y \/ x = z \/ y = z.
+
+Goal nat <> bool.
+Proof.
+  Fail apply (eq_not Type nat bool card_le2).
+  enough (not (@eq Type nat bool)) as H.
+  - contradict H. rewrite H. reflexivity.
+  - apply (eq_not Type _ _ card_le2).
+    + intros H. specialize (H 0 1 2) as [H|[H|H]]; congruence.
+    + intros [|] [|] [|]; auto.
+Qed.
+Unset Printing All.
 
 (*** Coq derives eliminators *)
 Check bool_rect.

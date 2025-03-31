@@ -238,6 +238,15 @@ Section AbstractEquality.
     Show Proof.
   Qed.
 
+  Goal (forall X:Prop, X -> X) <> (forall X:Prop, X).
+  Proof.
+    intros e.
+    enough (forall X:Prop, X) as H.
+    - apply H.
+    - apply (R (fun X:Prop => X) e).
+      exact (fun X x => x).
+  Qed.
+
 End AbstractEquality.
 
 (*** Definition of Leibniz Equality *)

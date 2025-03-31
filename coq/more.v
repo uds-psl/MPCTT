@@ -1,5 +1,7 @@
-(*** More Types *)
+(*** MPCTT, Chapter More Computational Types *)
+
 From Coq Require Import Lia.
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
@@ -15,6 +17,13 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 
+Fact skolem_trans {X Y} (p: X -> Y -> Prop) :
+  (forall x, Sigma y, p x y) -> Sigma f, forall x, p x (f x).
+Proof.
+  intros F.
+  exists (fun x => pi1 (F x)). intros x. exact (pi2 (F x)).
+Qed.
+
 (*** Injections and Bijections *)
 
 
@@ -29,7 +38,7 @@ Proof.
   intros H d x x'.
   destruct (d (f x) (f x')) as [H1|H1].
   - left. apply H, H1.
-  - right. congruence.
+  - right. contradict H1.  congruence.
 Qed.
 
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) :=
@@ -68,7 +77,7 @@ Proof.
 Qed.
 
 Inductive injection (X Y: Type) : Type :=
-| Injection {f: X -> Y} {g: Y -> X} (_: inv g f).
+| Injection {f: X -> Y} {g: Y -> X} (H: inv g f).
 
 Fact injection_refl X :
   injection X X.
@@ -92,13 +101,13 @@ Proof.
 Qed.
 
 Fact injection_Cantor X :
-  injection (X -> bool) X -> False.
+  ~ injection (X -> bool) X.
 Proof.
   intros [f g H].
   pose (h x := negb (g x x)).
   enough (g (f h) (f h) = h (f h)) as H1.
   { revert H1. unfold h at 3. destruct g; easy. }
-  congruence.
+  rewrite H. reflexivity.
 Qed.
     
 Inductive bijection (X Y: Type) : Type :=
@@ -170,10 +179,10 @@ Proof.
   - intros (f&g&H1&H2). reflexivity.
 Qed.
 
-Goal bijection nat bool -> False.
+Goal injection nat bool -> False.
 Proof.
-  intros [f g H _].
-  assert (f 0 = f 1 \/ f 0 = f 2 \/ f 1 = f 2) as [H3| [H3|H3]].
+  intros [f g H].
+  assert (f 0 = f 1 \/ f 0 = f 2 \/ f 1 = f 2) as [H3|[H3|H3]].
   { destruct (f 0), (f 1), (f 2); auto. }
   all: apply (f_equal g) in H3.
   all: rewrite !H in H3.
@@ -254,37 +263,66 @@ Proof.
   - right. congruence.
 Qed.
 
-Fact R {X Y f g} :
-  @inv (option X) (option Y) g f ->
-  forall x, Sigma y, match f (Some x) with Some y' => y = y' | None => f None = Some y end.
+Goal forall X Y, bijection X Y -> bijection (option X) (option Y).
 Proof.
-  intros H x.
-  destruct (f (Some x)) as [y|] eqn:E1.
-  - exists y. reflexivity.
-  - destruct (f None) as [y|] eqn:E2.
-    + exists y. reflexivity.
-    + exfalso. congruence.
+  intros X Y [f g H1 H2].
+  exists (fun a => match a with Some x => Some (f x) | None => None end)
+    (fun b => match b with Some y => Some (g y) | None => None end).
+  - hnf. intros [x|]; congruence.
+  - hnf. intros [y|]; congruence.
 Qed.
 
-Fact R_inv {X Y f g} :
-  forall (H1: @inv (option X) (option Y) g f)
-    (H2: inv f g),
-    inv (fun y => pi1 (R H2 y)) (fun x => pi1 (R H1 x)).
+Definition lower' X Y (f: option X -> option Y) x z :=
+  match f (Some x) with
+  | Some y => z = y
+  | None => match f None with
+           | Some y => z = y
+           | None => False
+           end
+  end.
+
+Definition lower X Y (f: option X -> option Y) f' :=
+  forall x, lower' X Y f x (f' x).
+  
+Fact lower_sig {X Y} f :
+  injective f -> sig (lower X Y f).
 Proof.
-  intros H1 H2 x.
-  destruct (R H1 x) as [y H3]; cbn.
-  destruct (R H2 y) as [x' H4]; cbn.
-  revert H3 H4.  
-  destruct (f (Some x)) as [y1|] eqn:E.
-  - intros <-. rewrite <-E, H1. easy.
-  - intros <-.  rewrite H1. rewrite <-E, H1. congruence.
+  intros H.
+  apply skolem_trans.
+  intros x. unfold lower'.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  - eauto.
+  - destruct (f None) as [y|] eqn:E2.
+    + eauto.
+    + enough (Some x = None) by easy.
+      apply H. congruence.
+Qed.
+  
+Fact lem_lower X Y f g f' g'  :
+  inv g f -> inv f g ->
+  lower X Y f f' -> lower Y X g g' -> inv g' f'.
+Proof.
+  intros H1 H2 H3 H4 x.
+  specialize (H3 x). unfold lower' in H3.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  - specialize (H4 y). unfold lower' in H4.
+    destruct (g (Some y)) as [x'|] eqn:E2; congruence.
+  - destruct (f None) as [y|] eqn:E2. 2:easy.
+    specialize (H4 y). unfold lower' in H4.
+    assert (E3: g (Some y) = None) by congruence.
+    rewrite E3 in H4.  
+    destruct (g None) as [x'|] eqn:E4; congruence.
 Qed.
 
 Theorem bijection_option X Y : 
   bijection (option X) (option Y) -> bijection X Y.
 Proof.
   intros [f g H1 H2].
-  exists (fun y => pi1 (R H1 y)) (fun x => pi1 (R H2 x)); apply R_inv.
+  destruct (lower_sig f) as [f' H3].
+  { eapply inv_injective, H1. }
+  destruct (lower_sig g) as [g' H4].
+  { eapply inv_injective, H2. }
+  exists f' g'; eapply lem_lower; eassumption.
 Qed.
 
 (*** Numeral Types *)
