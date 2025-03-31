@@ -1,4 +1,4 @@
-# Directory of Coq Files
+# Directory of Rocq Files
 -  Getting Started	[gs.v](gs.v)
 -  Basic Computational Type Theory [bctt.v](bctt.v)
 -  Propositions as Types [pat.v](pat.v)
