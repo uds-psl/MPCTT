@@ -1,4 +1,4 @@
-From Coq Require Export Bool Lia List.
+From Stdlib Require Export Bool Lia List.
 From Equations Require Export Equations.
 Set Equations Transparent.
 

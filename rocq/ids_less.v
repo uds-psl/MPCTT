@@ -1,6 +1,6 @@
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-From Coq Require Import Arith Lia Eqdep_dec.
+From Stdlib Require Import Arith Lia Eqdep_dec.
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.

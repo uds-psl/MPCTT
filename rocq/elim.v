@@ -58,7 +58,7 @@ Definition elim_bool
   := fun p e1 e2 x => match x with true => e1 | false => e2 end.
 
 Print elim_bool.
-(* Note: Coq derives the return type function of the match *)
+(* Note: Rocq derives the return type function of the match *)
 
 Goal forall x, x = true \/ x = false.
 Proof.
@@ -254,9 +254,9 @@ Proof.
     + intros H. specialize (H 0 1 2) as [H|[H|H]]; congruence.
 Qed.
 
-(*** Coq's Set considered harmful *)
+(*** Rocq's Set considered harmful *)
 
-(* Coq has a subuniverse Set of Type and type inference uses
+(* Rocq has a subuniverse Set of Type and type inference uses
     Set rather than type if it can.  In particular, the predefined
     types bool and nat are typed with Set.  This can lead to
     annoying problems.  An example follows. *)
@@ -286,13 +286,13 @@ Proof.
 Qed.
 Unset Printing All.
 
-(*** Coq derives eliminators *)
+(*** Rocq derives eliminators *)
 Check bool_rect.
 Check nat_rect.
 Check prod_rect.
 Check False_rect.
 Check True_rect.
-(* Coq doesn't derive most general eliminator for True by default *)
+(* Rocq doesn't derive most general eliminator for True by default *)
 Check and_ind.
 Check and_rect.
 Check or_ind.

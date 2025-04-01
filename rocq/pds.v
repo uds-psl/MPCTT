@@ -1,5 +1,5 @@
 (*** MPCTT, Chapter Propositional Deduction Systems *)
-From Coq Require Import Lia List.
+From Stdlib Require Import Lia List.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation "'Sigma' x .. y , p" :=

@@ -1,4 +1,4 @@
-From Coq Require Import Lia List.
+From Stdlib Require Import Lia List.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition decider {X} (p: X -> Type) : Type := forall x, dec (p x).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
@@ -91,7 +91,7 @@ Qed.
 
 Fact injection_nat_x_nat : injection (nat * nat) nat.
 Proof.
-  From Coq Require Import Arith.Cantor.
+  From Stdlib Require Import Arith.Cantor.
   exists to_nat of_nat. exact cancel_of_to.
 Qed.
 
@@ -409,7 +409,7 @@ Fact ewo_nat : ewo nat.
 Proof.
   (* Proof is in file ewo.v *)
   intros p H1 H2.
-  From Coq Require Import ConstructiveEpsilon.
+  From Stdlib Require Import ConstructiveEpsilon.
   apply constructive_indefinite_ground_description_nat in H2.
   - destruct H2; eauto. 
   - intros n. destruct (H1 n); auto.

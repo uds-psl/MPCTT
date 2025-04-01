@@ -1,5 +1,5 @@
 (*** Euclidean Division *)
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Notation sig := sigT.
 Notation Sig := existT.
@@ -647,9 +647,9 @@ Proof.
   - generalize (Div_Mod_correct' x y y). unfold delta. lia.
 Qed.
 
-(*** Coq's Predefined Functions *)
+(*** Rocq's Predefined Functions *)
 
-From Coq Require Import Arith.
+From Stdlib Require Import Arith.
 
 Fact predefined_div_mod_delta x y :
   delta x y (x / S y) (x mod S y).

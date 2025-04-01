@@ -62,6 +62,16 @@ Proof.
     + right. exact H.
 Qed.
 
+Fact Peirce_DN :
+  Peirce <-> DN.
+Proof.
+  split; intros H.
+  - intros P H1. specialize (H P False). (* tauto. *)
+    apply H. intros H2. exfalso. apply H1. exact H2.
+  - intros P Q H1. apply H. clear H. (* tauto. *)
+    intros H2. apply H2. apply H1. intros H3. exfalso. apply H2. exact H3.
+Qed.
+
 (*** Stability *)
 
 Definition stable (P: Prop) := ~~P -> P.

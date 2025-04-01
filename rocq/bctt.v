@@ -1,6 +1,6 @@
 (*** MPCTT, Chapter 2 *)
 
-(* We show how Coq realizes basic CTT *)
+(* We show how Rocq realizes basic CTT *)
 
 (* We start with the definitions of the inductive types 
    for booleans, numbers, and pairs.  We also define 
@@ -159,7 +159,7 @@ Abort.
 
 (** Readability can be improved by folding in the constant $D$
     again after reduction of the recursive abstraction. 
-    This is routinely done by Coq's simplification tactics. *)          
+    This is routinely done by Rocq's simplification tactics. *)          
 
 Goal
   D 1 = 2.
@@ -223,7 +223,7 @@ Proof.
   reflexivity.
 Abort.
 
-(** Coq has also eta conversion, explained in Chapter 4 of MPCTT. *)
+(** Rocq has also eta conversion, explained in Chapter 4 of MPCTT. *)
 
 Goal forall X Y (f: X -> Y),
     (fun x => f x) = f.

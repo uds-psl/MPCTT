@@ -1,4 +1,4 @@
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Notation decidable p := (forall x, dec (p x)).

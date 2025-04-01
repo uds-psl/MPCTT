@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia.
+From Stdlib Require Import Arith Lia.
 Definition dec (X: Type) : Type :=  X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
@@ -27,7 +27,7 @@ Implicit Types (n k : nat).
 (*** Inductive Definition *)
 
 (* We develop the inductive definition of lists from first principles
-   not using Coq's automation support for inductive types. 
+   not using Rocq's automation support for inductive types. 
    This is for demonstration, not for practical use.
    Skip if not interested. *)       
 
@@ -91,7 +91,7 @@ Section IndDef.
         * right. intros [E _] %cons_injective. auto.
   Qed.
 
-  (* We now use Coq's automation support for inductive types *)
+  (* We now use Rocq's automation support for inductive types *)
 
   Fact progress' x A :
       cons x A <> A.
@@ -123,8 +123,8 @@ End IndDef.
 
 (*** Membership *)
 
-(* From now on we use Coq's predefined lists *)
-From Coq Require Import List.
+(* From now on we use Rocq's predefined lists *)
+From Stdlib Require Import List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Notation "x 'nel' A" := (~ In x A) (at level 70).

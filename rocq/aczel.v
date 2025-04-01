@@ -66,7 +66,7 @@ Module XM_PI.
     apply (H_irrefl u), H. eauto.
   Qed.
 
-  Theorem Coquand (A: Prop) (E: Prop -> A) (D: A -> Prop) :
+  Theorem Rocquand (A: Prop) (E: Prop -> A) (D: A -> Prop) :
     ~ forall P, D (E P) <-> P.
   Proof.
     intros H.
@@ -87,7 +87,7 @@ Module XM_PI.
   Proof.
     intros H A a b.
     destruct (H (a=b)) as [H1|H1]. exact H1. exfalso.
-    apply (Coquand A (fun P => if H P then a else b) (fun c => a = c)).
+    apply (Rocquand A (fun P => if H P then a else b) (fun c => a = c)).
     intros P.
     (* destruct (H P) as [H2|H2]; tauto. *)
     pattern (H P). apply elim_or; tauto.

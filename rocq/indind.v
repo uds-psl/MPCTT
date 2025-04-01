@@ -1,5 +1,5 @@
 (*** MPCTT, Chapter Indexed Inductives *)
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 
 (*** Inductive Equality *)
 Module IndEquality.
@@ -371,7 +371,7 @@ End Vector.
 
 (*** Post Correspondence Problem *)
 
-From Coq Require Import List.
+From Stdlib Require Import List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 

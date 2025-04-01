@@ -1,11 +1,11 @@
 ﻿(*** MPCTT, Chapter Abstract Syntax *)
 
-From Coq Require Import List.
+From Stdlib Require Import List.
 Import ListNotations.
 
 (*** Expressions and Codes *)
 
-(* First time we use Coq's BNF format for an inductive type *)
+(* First time we use Rocq's BNF format for an inductive type *)
 Inductive exp :=
   con (x: nat)
 | add (e: exp) (e: exp)
@@ -31,7 +31,7 @@ Fixpoint run C A : list nat :=
 
 Compute run [4+2;7+2;1] [].
 
-(* Coq compiles all matches into basic matches *)
+(* Rocq compiles all matches into basic matches *)
 Set Printing All.
 Print run.
 Unset Printing All.
@@ -187,7 +187,7 @@ End List.
 
 (*** Expression Basics *)
 
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 
 Module Exp.
   Inductive exp :=

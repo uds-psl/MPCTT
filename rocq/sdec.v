@@ -1,6 +1,6 @@
 (** Preliminaries, have been done before *)
 
-From Coq Require Import Bool.
+From Stdlib Require Import Bool.
 
 Definition iffT (X Y: Type) : Type :=
   (X -> Y) * (Y -> X).

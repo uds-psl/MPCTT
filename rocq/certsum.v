@@ -37,7 +37,7 @@ Module SumTypes.
   Qed.
 End SumTypes.
 
-(* From now on we use Coq's predefined sum types *)
+(* From now on we use Rocq's predefined sum types *)
 
 Locate "+".
 Print sum.
@@ -118,7 +118,7 @@ Section Exercise.
   Qed.
 End Exercise.
 
-From Coq Require Import Bool.
+From Stdlib Require Import Bool.
 Module Exercise.
   Goal forall x y : bool,
       x && y = false <=> (x = false) + (y = false).

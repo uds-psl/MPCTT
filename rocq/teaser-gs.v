@@ -1,4 +1,4 @@
-(** Step through the teaser file and relate what you see to what is discussed in the first chapter “Getting Started” of MPCTT. You want to understand the inductive proofs first. Next try to understand how the inductive functions “min” and “iter” are defined in Coq. Note that “Fixpoint” is Coq’s keyword for defining recursive functions. *)
+(** Step through the teaser file and relate what you see to what is discussed in the first chapter “Getting Started” of MPCTT. You want to understand the inductive proofs first. Next try to understand how the inductive functions “min” and “iter” are defined in Rocq. Note that “Fixpoint” is Rocq’s keyword for defining recursive functions. *)
 
 (** Addition is commutative *)
 

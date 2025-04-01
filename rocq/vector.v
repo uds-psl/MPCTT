@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia List.
+From Stdlib Require Import Arith Lia List.
 Import ListNotations.
 From Equations Require Import Equations.
 Ltac refl := reflexivity.

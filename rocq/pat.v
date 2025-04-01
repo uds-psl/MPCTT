@@ -1,6 +1,6 @@
 (*** MPCTT, Chapter 3 *)
 
-(* We show how Coq accommodates propositions and proofs. *)
+(* We show how Rocq accommodates propositions and proofs. *)
 
 Print False.
 Definition exfalso : forall X: Prop, False -> X :=
@@ -47,7 +47,7 @@ Section Demo.
   Goal X -> ~X -> Y.
   Proof.
     intros x f.
-    exfalso.  (* Coq's exfalso tactic *)
+    exfalso.  (* Rocq's exfalso tactic *)
     exact (f x).
     Show Proof.
   Qed.
@@ -133,7 +133,7 @@ Proof.
   exact (fun a => a).
 Qed.
 
-(** We use Coq's conjunctions, and disjunctions. *)
+(** We use Rocq's conjunctions, and disjunctions. *)
 
 Locate "/\".
 Print and.

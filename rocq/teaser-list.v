@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia List.
+From Stdlib Require Import Arith Lia List.
 Definition dec (X: Type) := sum X (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Import ListNotations.

@@ -1,10 +1,10 @@
 (*** MPCTT, Chapter Arithmetic Pairing *)
 
 (* This development is a pearl both mathematically
-   and regarding the Coq mechanization.  We will
+   and regarding the Rocq mechanization.  We will
    demonstrate several advanced tactic uses.  *)
 
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 
 Implicit Types (n x y: nat) (a: nat * nat).
 

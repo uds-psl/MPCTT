@@ -1,6 +1,6 @@
 (*** MPCTT, Chapter Sigma Types *)
 
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
@@ -82,10 +82,10 @@ Module SigmaTypes.
 
 End SigmaTypes.
 
-(* We shall use Coq's predefined sigma types from now on.
+(* We shall use Rocq's predefined sigma types from now on.
    We rename the constructors and projections to better fit MPCTT.  
    We also define the big sigma notation 
-   (replacing Coq's curly braces notation *)
+   (replacing Rocq's curly braces notation *)
 
 Notation sig := sigT.
 Notation Sig := existT.

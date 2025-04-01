@@ -1,7 +1,7 @@
 (*** MPCTT, Chapter Least Witness Operators *)
 
 Arguments Nat.sub : simpl nomatch.
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation sig := sigT.

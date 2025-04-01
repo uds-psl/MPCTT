@@ -1,6 +1,6 @@
 (** Post Correspondence Problem *)
 
-From Coq Require Import List.
+From Stdlib Require Import List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 

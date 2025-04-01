@@ -1,7 +1,7 @@
 (*** MPCTT, Chapter Linear Arithmetic *)
 
 Arguments Nat.sub : simpl nomatch.
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition dec (X: Type) : Type := X + (X -> False).
@@ -551,7 +551,7 @@ End BruteForce.
  
 (*** Deciders with Lia *)
 
-(* We now switch to Coq's definition of comparisons
+(* We now switch to Rocq's definition of comparisons
    and handle linear arithmetic with the automation tactic lia *)       
 
 Fact nat_eqdec :

@@ -1,5 +1,5 @@
 (*** Inductive Equality *)
-From Coq Require Import Arith Bool.
+From Stdlib Require Import Arith Bool.
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.

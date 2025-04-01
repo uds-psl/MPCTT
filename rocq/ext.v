@@ -100,7 +100,7 @@ Proof.
   - intros a. apply unique_top.
 Qed.
 
-Fact unique_Coquand (A: Prop) (E: Prop -> A) (D: A -> Prop) :
+Fact unique_Rocquand (A: Prop) (E: Prop -> A) (D: A -> Prop) :
   unique A -> (forall P: Prop, D (E P) <-> P) -> False.
 Proof.
   intros HA H.

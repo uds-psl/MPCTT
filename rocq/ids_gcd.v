@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia.
+From Stdlib Require Import Arith Lia.
 Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p)) ..))
     (at level 200, x binder, right associativity,

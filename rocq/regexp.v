@@ -1,5 +1,5 @@
 (*** Regular Expressions *)
-From Coq Require Import Arith Lia List.
+From Stdlib Require Import Arith Lia List.
 Import ListNotations.
 Definition dec X := sum X (X -> False).
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).

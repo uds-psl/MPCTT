@@ -11,7 +11,7 @@ Section Conversion.
   Check fun a : p (2 + 2) => a.
   Check fun a : p 4 => id (p (2 + 2)) a.
 
-  (* Coq uses the notation $s:t$ for applications "id t s" 
+  (* Rocq uses the notation $s:t$ for applications "id t s" 
      of the polymorphic identity function *)      
   Check fun a : p 4 => a : p (2 + 2).
   Check id (p 4 -> p (2 + 2)) (fun a : p 4 => a).
@@ -42,7 +42,7 @@ Section Conversion.
 
 End Conversion.
 
-(** Coq implements propositional negation 
+(** Rocq implements propositional negation 
     and propositional equivalence with
     predicates "not" and "iff". *)  
 
@@ -266,7 +266,7 @@ End EqLeibniz.
 Print EqLeibniz.R.
 
 (* We sandbox the import of EqLeibniz
-   since we will use Coq's predefined equality afterwards.
+   since we will use Rocq's predefined equality afterwards.
  *)
 
 Module Sandbox.
@@ -275,9 +275,9 @@ Module Sandbox.
   Print eq.
 End Sandbox.
 
-(*** Coq's Predefined Equality *)
+(*** Rocq's Predefined Equality *)
 
-(* From now on we use Coq's predefined equality 
+(* From now on we use Rocq's predefined equality 
    with the tactics "reflexivity" and "rewrite". *)
 
 Locate "=".

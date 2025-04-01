@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia List.
+From Stdlib Require Import Arith Lia List.
 Definition dec (X: Type) : Type := X + (X -> False).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).

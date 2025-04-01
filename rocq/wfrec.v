@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia.
+From Stdlib Require Import Arith Lia.
 Unset Elimination Schemes. 
 
 Section Acc.
@@ -86,7 +86,7 @@ Section Retract.
 End Retract.
 Arguments retract_wf {X Y R}.
 
-From Coq Require Import FunctionalExtensionality.
+From Stdlib Require Import FunctionalExtensionality.
 
 Fact Acc_unique X (R: X -> X -> Prop) :
   forall x (a a': Acc R x), a = a'.
@@ -325,7 +325,7 @@ End Padding.
 
 (** Classical Characterization *)
 
-From Coq Require Import Classical_Prop.
+From Stdlib Require Import Classical_Prop.
 
 Section Classical.
   Variables (X: Type) (R: X -> X -> Prop).

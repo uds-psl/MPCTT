@@ -1,5 +1,5 @@
-From Coq Require Import Lia.
-From Coq Require ConstructiveEpsilon Cantor.
+From Stdlib Require Import Lia.
+From Stdlib Require ConstructiveEpsilon Cantor.
 (** We use an EWO for nat and Cantor pairing from the library *)
 
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.

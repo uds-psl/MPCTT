@@ -150,7 +150,7 @@ Check swap (1,2).
 Check pair_eta.
 Set Printing Notations.
 
-(* ADVICE: Coq comes with lots of  notational conveniences,
+(* ADVICE: Rocq comes with lots of  notational conveniences,
    including infix operators, argument inference, and implicit arguments.
    This can be confusing.  It is important to understand 
    what a phrase elaborates to once all notational conveniences are removed. *)
@@ -347,7 +347,7 @@ Proof.
 Qed.
 
 (** Automation available for arithmetic proofs. *)
-From Coq Require Import Lia.
+From Stdlib Require Import Lia.
 
 Goal forall x y, x + y - y = x.
 Proof.

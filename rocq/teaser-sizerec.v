@@ -1,4 +1,4 @@
-From Coq Require Import Arith Lia.
+From Stdlib Require Import Arith Lia.
 
 Definition size_rec {X: Type} (sigma: X -> nat) {p: X -> Type} :
   (forall x, (forall y, sigma y < sigma x -> p y) -> p x) ->
