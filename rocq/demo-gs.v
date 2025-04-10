@@ -60,8 +60,7 @@ Qed.
 
 Fixpoint D x y :=
   match x, y with
-  | 0, 0 => 0
-  | 0, S y => S y
+  | 0, y => y
   | S x, 0 => S x
   | S x, S y => D x y
   end.
