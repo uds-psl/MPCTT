@@ -111,3 +111,50 @@ Proof.
   lia.
 Qed.
 
+
+(** Iteration *)
+
+Fixpoint iter (X: Type) (f: X -> X) (n:nat) (x:X) : X :=
+  match n with
+  | 0 => x
+  | S n => f (iter X f n x)
+  end.
+
+Fact iter_add n x :
+  n + x = iter nat S n x.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+Fact iter_mul n x :
+  n * x = iter nat (Nat.add x) n 0.
+Proof.
+  induction n as [|n IH]; cbn.
+  - reflexivity.
+  - f_equal. exact IH.
+Qed.
+
+(* demo "_" *)
+
+(* goto gs.v for implicit arguments *)
+
+Inductive Pair (X Y: Type) : Type :=
+| pair : X -> Y -> Pair X Y.
+
+Check Pair.
+Check pair.
+
+Definition swap X Y (a: Pair X Y) :=
+  match a with
+  | pair _ _ x y => pair _ _ y x
+  end.
+
+Goal forall X Y (a: Pair X Y),
+    swap _ _ (swap _ _ a) = a.
+Proof.
+  intros X Y.
+  destruct a as [x y].
+  reflexivity.
+Qed.
