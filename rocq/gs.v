@@ -84,6 +84,9 @@ Fixpoint D x y :=
   | S x, S y => D x y
   end.
 
+(* Ensure that cbn does not show matches *)
+Arguments D : simpl nomatch.
+
 Compute D 7 3.
 Compute D 3 7.
 
@@ -272,6 +275,8 @@ Fixpoint fib_bool' n b :=
   | S n, false => fib_bool' n true
   | S n, true => fib_bool' n false + fib_bool' n true
   end.
+
+Arguments fib_bool' : simpl nomatch.
 
 Definition fib_bool n := fib_bool' n false.
 
