@@ -300,9 +300,11 @@ Compute fib_iter 10.
 Fact fib_iter_correct n :
   fib_iter n = Fib fib_iter n.
 Proof.
-  destruct n. reflexivity.
-  destruct n. reflexivity.
-  reflexivity.
+  destruct n.
+  - cbn. reflexivity.
+  - destruct n.
+    + cbn. reflexivity.
+    + cbn. unfold fib_iter. reflexivity.
 Qed.
 
 (** Ackermann function *)
