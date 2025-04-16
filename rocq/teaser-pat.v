@@ -1,6 +1,36 @@
 Section Demo.
   Variables X Y Z: Prop.
 
+  Goal X -> Y -> X.
+  Proof.
+    intros x y. exact x.
+    Show Proof.
+  Qed.
+
+  Goal X -> Y -> X.
+  Proof.
+    refine (fun x y => _).
+    Show Proof.
+    exact x.
+  Qed.
+
+  Goal (X -> Y -> Z) -> X /\ Y -> Z.
+  Proof.
+    intros f [x y]. exact (f x y).
+    Show Proof.
+  Qed.
+
+  Goal (X -> Y -> Z) <-> (X /\ Y -> Z).
+  Proof.
+    split.
+    Show Proof.
+    - intros f [x y]. exact (f x y).
+    - intros f x y. apply f. split.
+      + exact x.
+      + exact y.
+    Show Proof.
+  Qed.
+
   Goal X -> ~X -> False.
   Proof.
     exact (fun x f => f x).
