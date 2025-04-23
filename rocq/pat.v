@@ -79,6 +79,16 @@ Section Demo.
       Show Proof.
   Qed.
 
+   
+  Goal ~ (X <-> ~X).
+  Proof.
+    refine (fun a => match a with conj f g => _ end).
+    unshelve refine (let x:X := _ in _).
+    - refine (g (fun x => _)). exact (f x x).
+    - exact (f x x).
+    Show Proof.
+  Qed.
+
   Goal X -> ~ ~ X.
   Proof.
     intros x f. exact (f x).
@@ -348,4 +358,14 @@ Proof.
   - apply H. intros H1. apply H1.
     right. contradict H1. auto.
 Qed.
-  
+
+
+Fact XM_CDM :
+  (forall X: Prop, X \/ ~X) -> forall X Y : Prop, ~(X /\ Y) -> ~X \/ ~Y.
+Proof.
+  intros H X Y f.
+  specialize (H X) as [x|H].
+  - right. intros y. exact (f (conj x y)).
+  - left. exact H.
+    Show Proof.
+Qed.
