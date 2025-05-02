@@ -94,15 +94,16 @@ Qed.
 Inductive unit : Type := U.
 Inductive void : Type := .
 
-Definition elim_void (Z: Prop)
-  : void -> Z
-  := fun v => match v with end.
+Lemma elim_void (Z: Prop) :
+  void -> Z.
+  intros x. destruct x.
+Qed.
 
-Definition elim_unit (p: unit -> Prop)
-  : p U -> forall x, p x
-  := fun a x => match x with U => a end.
-
-
+Lemma elim_unit (p: unit -> Prop) :
+  p U -> forall x, p x.
+Proof.
+  intros H. destruct x. exact H.
+Qed.
 
 
 
