@@ -89,5 +89,38 @@ Proof.
   revert H. apply Lawvere.
 Qed.
 
+(** Unit and void *)
+
+Inductive unit : Type := U.
+Inductive void : Type := .
+
+Definition elim_void (Z: Prop)
+  : void -> Z
+  := fun v => match v with end.
+
+Definition elim_unit (p: unit -> Prop)
+  : p U -> forall x, p x
+  := fun a x => match x with U => a end.
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+Definition void : Type := forall X : Type, X.
+
+Goal void -> False.
+Proof.
+  intros f. exact (f False).
+Qed.
+
+(* Universe inconsistency *)
+Fail Check (fun f: void => f void).
