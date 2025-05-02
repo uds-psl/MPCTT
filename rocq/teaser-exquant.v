@@ -8,7 +8,7 @@ Module Demo.
     : ex p -> (forall x, p x -> Z) -> Z
     := fun a e => match a with E _ x b => e x b end.
 
-  Lemma deMorgan X (p: X -> Prop) :
+  Lemma deMorgan_exists X (p: X -> Prop) :
     ~ ex (fun x => p x) <-> forall x, ~ p x.
   Proof.
     split.
@@ -21,12 +21,20 @@ Module Demo.
   Qed.
 End Demo.
 
-Lemma deMorgan X (p: X -> Prop) :
+Lemma deMorgan_exists X (p: X -> Prop) :
   ~ (exists x, p x) <-> forall x, ~ p x.
 Proof.
   split.
   - intros H x H1. apply H. exists x. exact H1.
   - intros H [x Hx]. apply (H x Hx).
+Qed.
+
+Lemma forall_exists X (p: X -> Prop) (Z: Prop) :
+  (forall x, p x -> Z) <-> ((exists x, p x) -> Z).
+Proof.
+  split.
+  - intros H [x H1]. apply (H x H1).
+  - intros H x H1. apply H. exists x. exact H1.
 Qed.
 
 
@@ -89,39 +97,7 @@ Proof.
   revert H. apply Lawvere.
 Qed.
 
-(** Unit and void *)
-
-Inductive unit : Type := U.
-Inductive void : Type := .
-
-Lemma elim_void (Z: Prop) :
-  void -> Z.
-  intros x. destruct x.
-Qed.
-
-Lemma elim_unit (p: unit -> Prop) :
-  p U -> forall x, p x.
-Proof.
-  intros H. destruct x. exact H.
-Qed.
-
-
-
-
-
-
-
-
-
-
-
-
 Definition void : Type := forall X : Type, X.
-
-Goal void -> False.
-Proof.
-  intros f. exact (f False).
-Qed.
 
 (* Universe inconsistency *)
 Fail Check (fun f: void => f void).

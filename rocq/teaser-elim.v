@@ -131,3 +131,20 @@ Proof.
   destruct x.
   exact H.
 Qed.
+
+(** Unit and void *)
+
+Inductive unit : Type := U.
+Inductive void : Type := .
+
+Lemma elim_void (Z: Prop) :
+  void -> Z.
+  intros x. destruct x.
+Qed.
+
+Lemma elim_unit (p: unit -> Prop) :
+  p U -> forall x, p x.
+Proof.
+  intros H. destruct x. exact H.
+Qed.
+
