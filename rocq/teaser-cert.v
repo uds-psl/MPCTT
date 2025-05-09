@@ -1,6 +1,4 @@
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 
 Inductive void : Type := .
 Inductive unit : Type := U.
