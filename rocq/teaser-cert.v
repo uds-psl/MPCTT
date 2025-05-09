@@ -2,6 +2,8 @@ Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 
+Inductive void : Type := .
+Inductive unit : Type := U.
 
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) :=
   forall x, g (f x) = x.
@@ -73,39 +75,111 @@ Inductive bijection (X Y: Type) : Type :=
 
 Goal bijection bool (unit + unit).
 Proof.
-  exists (fun b => if b:bool then inl tt else inr tt)
+  exists (fun b => if b:bool then inl U else inr U)
     (fun a => match a with inl _ => true | inr _ => false end).
   - intros b. destruct b; reflexivity.
   - intros a. destruct a; destruct u; reflexivity.
   (* needs reduction for  matches *)
 Qed.
 
-Lemma eqdec_nat :
-  forall x y : nat, (x = y) + (x <> y).
+Goal forall X, bijection (X + void) X.
 Proof.
-  induction x; destruct y.
-  - auto.
-  - auto.
-  - auto.
-  - destruct (IHx y) as [H|H].
-    + left.  auto.
-    + right. auto.
+  intros X.
+  exists (fun a: X + void => match a with inl x => x | inr v => match v with end end)
+    inl.
+  - intros [x|[]]. reflexivity.
+  - intros x. reflexivity.
 Qed.
 
-Goal forall X (p: X -> Prop),
-    (forall x, p x + ~ p x) -> exists f: X -> bool, forall x, if f x then p x else ~ p x.
+Goal bijection (nat + nat) nat.
+(* Takes too much arithmetic for now, will do later *)
+Abort.
+
+Goal bijection (nat + unit) nat.
 Proof.
-  intros * D.
-  exists (fun x => if D x then true else false).
-  intros x.
-  destruct (D x) as [H|H]; exact H.
-  (* needs reduction for boolean matches *)
+  exists (fun a: nat + unit => match a with inl x => S x | inr _ => 0 end)
+    (fun x: nat => match x with 0 => inr U | S x => inl x end).
+  - intros [x|[]]; reflexivity.
+  - intros [|x]; reflexivity.
+Qed.
+
+Goal ~ injection unit void.
+Proof.
+  intros [f g H].
+  destruct (f U).
+Qed.
+
+(* All empty types are in bijection *)
+Goal forall X Y, ~ X ->  ~ Y -> bijection X Y.
+Proof.
+  intros * FX FY.
+  exists (fun x:X => match FX x with end)
+    (fun y:Y => match FY y with end).
+  - intros x. destruct (FX x).
+  - intros y. destruct (FY y).
+  (* Computational falsity elimination *)
+Qed.
+
+
+Definition dec (X: Type) : Type := X + (X -> False).
+
+Goal forall X Y,
+    dec X -> dec Y -> dec (X + Y).
+Proof.
+  unfold dec. tauto.
+Qed.
+
+Definition eqdec X := forall x y: X, dec (x = y).
+
+Fact eqdec_void : eqdec void.
+Proof.
+  intros [].
+Qed.
+
+Fact eqdec_bot : eqdec False.
+Proof.
+  intros [].
+  (* Computational falsity elimination *)
+Qed.
+
+Fact eqdec_nat : eqdec nat.
+Proof.
+  hnf.
+  induction x; destruct y.
+  all: unfold dec.
+  1-3: intuition congruence.
+  destruct (IHx y) as [H|H]; intuition congruence.
+Qed.
+
+Fact eqdec_prod X Y :
+  eqdec X -> eqdec Y -> eqdec (X*Y).
+Proof.
+  intros dX dY [x y] [x' y'].
+  destruct (dX x x') as [H1|H1].
+  - destruct (dY y y') as [H2|H2].
+    + left. congruence.
+    + right. congruence.
+  - right. congruence.
+Qed.
+ 
+Fact eqdec_injective {X Y f} :
+  @injective X Y f -> eqdec Y -> eqdec X.
+Proof.
+  intros H d x x'. specialize (H x x').
+  destruct (d (f x) (f x')) as [H1|H1];
+    unfold dec in *; intuition congruence.
+Qed.
+
+Fact eqdec_injection X Y :
+  injection X Y -> eqdec Y -> eqdec X.
+Proof.
+  intros [f g H] H1.
+  apply inv_injective in H.
+  revert H H1. apply eqdec_injective.
 Qed.
   
-Goal forall X (p: X -> Prop),
-    (forall x, p x \/ ~ p x) -> exists f: X -> bool, forall x, if f x then p x else ~ p x.
-Proof.
-  intros * D.
-  Fail exists (fun x => if D x then true else false).
-  (* PDR *)
-Abort.
+  
+  
+
+
+
