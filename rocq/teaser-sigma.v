@@ -88,7 +88,8 @@ Proof.
   - intros [x y]. cbn. reflexivity.
 Qed.
 
-Definition bijection_sum X Y :
+(* Note first use of tactic "unshelve eexists" *)
+Fact bijection_sum X Y :
   bijection (X + Y) (sig (fun b:bool => if b then X else Y)).
 Proof.
   unshelve eexists.
@@ -103,6 +104,20 @@ Proof.
   (* inlined boolean discrimination yields best type checking *)
   - intros [x|y]. all:reflexivity.
   - intros [[|] a]. all:reflexivity.
+Qed.
+
+Inductive injection (X Y: Type) : Type :=
+| Injection {f: X -> Y} {g: Y -> X} (H: inv g f).
+
+(* Note: First time we construct a reducible function with tactics *)   
+Fact bijection_injection X Y :
+  bijection (injection X Y) (Sigma f g, @inv X Y g f).
+Proof.
+  unshelve eexists.
+  - intros [f g H]. exists f, g. exact H.
+  - intros [f [g H]]. exists f g. exact H.
+  - hnf. intros [f g H]. reflexivity.
+  - hnf. intros [f [g H]]. reflexivity.
 Qed.
 
 (** Translations *)
