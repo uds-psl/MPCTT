@@ -7,8 +7,13 @@ Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sig (fun y => p)) ..))
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-  : type_scope.
+    : type_scope.
 
+Fact dependent_eta X p :
+  forall a, @Sig X p (pi1 a) (pi2 a) = a.
+Proof.
+  intros [x y]. cbn. reflexivity.
+Qed.
 
 (** Euclidean Division *)
 
@@ -38,8 +43,9 @@ Fact delta_unique x y a b a' b' :
   delta x y a b  -> delta x y a' b' -> a = a' /\ b = b'.
 Proof.
   unfold delta. intros [H1 H2] [H3 H4].
-  revert H3. subst x. revert a'.
-  induction a; destruct a'; cbn.
+  subst x.
+  enough (a = a') by lia.
+  revert a a' H3. induction a; destruct a'; cbn.
   1-3: lia.
   specialize (IHa a'). lia.
 Qed.
@@ -61,7 +67,15 @@ Proof.
   apply delta_unique. apply DM_delta.
 Qed.
     
-Fact DMS x y :
+Fact DS x y :
+  D (x + S y) y = S (D x y) /\ M (x + S y) y = M x y.
+Proof.
+  apply DM_unique.
+  generalize (DM_delta x y).
+  unfold delta. lia.
+Qed.
+    
+Fact MS x y :
   D (x + S y) y = S (D x y) /\ M (x + S y) y = M x y.
 Proof.
   apply DM_unique.
@@ -215,3 +229,33 @@ Proof.
   - intros F. apply F. apply Truncation.
 Qed.
 
+(** Dependent pair injectivity *)
+
+Fact DPI1 X p x y x' y' :
+  @Sig X p x y = @Sig X p x' y' -> x = x'.
+Proof.
+  intros H.
+  change x with (pi1 (Sig p x y)).
+  rewrite H. reflexivity.
+Qed.
+
+(* Dependent pair injectivity in the 2nd component
+   can be only be shown  with inductive equality and PI.   
+   We will see a proof once we have indexed inductive types. *)        
+
+Definition DPI2:= forall X p x y y', @Sig X p x y = @Sig X p x y' -> y = y'.
+
+(** Equality decider for sigma types *)
+
+Fact sigma_eqdec X p :
+  DPI2 -> eqdec X -> (forall x, eqdec (p x)) -> eqdec (@sig X p).
+Proof.
+  intros H D F [x y] [x' y'].
+  destruct (D x x') as [H1|H1].
+  - subst x'.
+    destruct (F x y y') as [H2|H2].
+    + subst y'. left. reflexivity.
+    + right. intros H3. eapply H2, H, H3.
+  - right. intros H2. apply H1.
+    eapply DPI1, H2.
+Qed.
