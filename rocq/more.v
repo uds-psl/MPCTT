@@ -299,10 +299,10 @@ Proof.
 Qed.
   
 Fact lem_lower X Y f g f' g'  :
-  inv g f -> inv f g ->
+  inv g f -> 
   lower X Y f f' -> lower Y X g g' -> inv g' f'.
 Proof.
-  intros H1 H2 H3 H4 x.
+  intros H1 H3 H4 x.
   specialize (H3 x). unfold lower' in H3.
   destruct (f (Some x)) as [y|] eqn:E1.
   - specialize (H4 y). unfold lower' in H4.
