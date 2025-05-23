@@ -205,14 +205,21 @@ Proof.
 Qed.
 
 Fact skolem_trans X Y (p: X -> Y -> Type) :
+  (forall x, Sigma y, p x y) -> Sigma f: X -> Y, forall x, p x (f x).
+Proof.
+  intros F.
+  exists (fun x => pi1 (F x)).
+  intros x. destruct (F x) as [y H]. cbn. exact H.
+Qed.
+
+Fact skolem_bitrans X Y (p: X -> Y -> Type) :
   (forall x, Sigma y, p x y) <=> Sigma f: X -> Y, forall x, p x (f x).
 Proof.
   split.
-  - intros F.
-    exists (fun x => pi1 (F x)).
-    intros x. destruct (F x) as [y H]. cbn. exact H.
+  - apply skolem_trans.
   - intros [f H] x. exists (f x). apply H.
 Qed.
+
 
 (** Truncation *)
 
@@ -291,16 +298,22 @@ Proof.
     eapply DPI1, H2.
 Qed.
 
-(** Bijection theorem for option types *)
+(** Injection theorem for option types *)
 
-Lemma lower_f X Y f g :
-  @inv (option X) (option Y) g f ->
-  forall x, Sigma y, match f (Some x) with
-            | Some y' => y = y'
-            | None => Some y = f None
-            end.
+Definition lower_f' X Y (f: option X -> option Y) x y :=
+  match f (Some x) with
+  | Some y' => y = y'
+  | None => Some y = f None
+  end.
+
+Definition lower_f X Y f f' :=
+  forall x, lower_f' X Y f x (f' x).
+
+Lemma lower_f_sig X Y f g :
+  inv g f -> sig (lower_f X Y f).
 Proof.
-  intros H x.
+  intros H.
+  apply skolem_trans. intros x. unfold lower_f'.
   destruct (f (Some x)) as [y|] eqn:H1.
   - exists y. reflexivity.
   - destruct (f None) as [y|] eqn:H2.
@@ -308,50 +321,56 @@ Proof.
     + exfalso. congruence.
 Qed.
 
-(** Injection Theorem for option types, under construction 
+Definition lower_g' X Y (f: option X -> option Y) (g: option Y -> option X) x0 y x :=
+  match g (Some y) with
+  | Some x' => x = x'
+  | None => match f None with
+           | None => x = x0
+           | Some _ => match g None with
+                      | None => x = x0
+                      | Some x' => x = x'
+                      end
+           end
+  end.
 
-Lemma lower_g X Y f g x0 :
-  @inv (option X) (option Y) g f -> 
-  forall y, Sigma x, match g (Some y) with
-            | Some x' => x = x'
-            | None => match f None with
-                     | None => x = x0
-                     | Some y' => False end
-            end.
+Definition lower_g X Y f g x0 g' :=
+  forall y, lower_g' X Y f g x0 y (g' y).
+
+Lemma lower_g_sig X Y f g x0 :
+  sig (lower_g X Y f g x0).
 Proof.
-  intros H y.
+  apply skolem_trans. intros y. unfold lower_g'.
   destruct (g (Some y)) as [x|] eqn:H1.
   - exists x. reflexivity.
-  - exists x0. destruct (f None) as [y'|] eqn:H2.
-    + admit.
-    + congruence.
+  - destruct (f None) as [y'|] eqn:H2.
+    + destruct (g None) as [x'|]; eauto.
+    + eauto.
 Qed.
 
-Lemma lower X Y (x0: X) f g f' g' :
-  @inv (option X) (option Y) g f ->
-  (forall x, match f (Some x) with Some y => f' x = y | None => Some (f' x) = f None end) ->
-  (forall y, match g (Some y) with Some x => g' y = x | None => g' y = x0 end) ->
-  @inv X Y g' f'.
+Fact lem_lower X Y f g x0 f' g'  :
+  lower_f X Y f f' -> lower_g X Y f g x0 g' ->
+  inv g f -> inv g' f'.
 Proof.
-  intros H H1 H2 x.
-  assert (H1' := H1 x).
-  assert (H2' := H2 (f' x)).
-   clear H1 H2.
-  destruct (f (Some x)) as [y|] eqn:H3.
-  - destruct (g (Some (f' x))) as [x'|] eqn:H4; congruence.
-  - destruct (g (Some (f' x))) as [x'|] eqn:H4.
-    + congruence.
-    + destruct (g None) as [x'|] eqn:H5.
-      * destruct (f None) as [y'|] eqn:H6.
-        -- assert (H7: f' x = y') by congruence. clear H1'.
-           rewrite H7 in H4, H2'.
-           rewrite H7. clear H7.
-           subst (f' x).
-           
-      * exfalso. congruence.
+  intros H1 H2 H3 x.
+  specialize (H1 x). unfold lower_f' in H1.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  -  specialize (H2 y). unfold lower_g' in H2.
+     destruct (g (Some y)) as [x'|] eqn:E2; congruence.
+  - destruct (f None) as [y|] eqn:E2. 2:congruence.
+    specialize (H2 y). unfold lower_g' in H2.
+    replace (g (Some y)) with (@None X) in H2. 2:congruence.
+    rewrite E2 in H2.
+    destruct (g None) as [x'|] eqn:E3; congruence.
 Qed.
 
-*)
+Theorem injection_option X Y (x0: X) : 
+  injection (option X) (option Y) -> injection X Y.
+Proof.
+  intros [f g H].
+  destruct (lower_f_sig X Y f g) as [f' H1]. exact H.
+  destruct (lower_g_sig X Y f g x0) as [g' H2].
+  exists f' g'. eapply lem_lower; eassumption.
+Qed.
 
       
 
