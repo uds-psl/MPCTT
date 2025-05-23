@@ -9,6 +9,16 @@ Notation "'Sigma' x .. y , p" :=
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
 
+
+Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) :=
+  forall x, g (f x) = x.
+
+Inductive bijection (X Y: Type) : Type :=
+| Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
+
+Inductive injection (X Y: Type) : Type :=
+| Injection {f: X -> Y} {g: Y -> X} (H: inv g f).
+
 Fact dependent_eta X p :
   forall a, @Sig X p (pi1 a) (pi2 a) = a.
 Proof.
@@ -71,25 +81,51 @@ Fact DS x y :
   D (x + S y) y = S (D x y) /\ M (x + S y) y = M x y.
 Proof.
   apply DM_unique.
-  generalize (DM_delta x y).
-  unfold delta. lia.
+  destruct  (DM_delta x y) as [H1 H2].
+  unfold delta in *. lia.
 Qed.
-    
-Fact MS x y :
-  D (x + S y) y = S (D x y) /\ M (x + S y) y = M x y.
+
+Fixpoint ediv (x y: nat) : nat * nat :=
+  match x with
+  | 0 => (0,0)
+  | S x => let (a,b) := ediv x y in
+          if S b - y then (a, S b) else (S a, 0)
+  end.
+
+Fact ediv_correct x y :
+  let (a,b) := ediv x y in delta x y a b.
 Proof.
-  apply DM_unique.
-  generalize (DM_delta x y).
-  unfold delta. lia.
+  induction x.
+  - cbn. hnf. lia.
+  - unfold ediv; fold ediv.
+    (* important idiom in Rocq to mimique inductive functions *)
+    destruct (ediv x y) as [a b].
+    cbn in IHx. destruct IHx as [IH1 IH2].
+    destruct (S b - y) eqn:H; cbn; unfold delta; lia.
+Qed.
+          
+Goal bijection (nat + nat) nat.
+Proof.
+  unshelve eexists.
+  - exact (fun a => match a with inl n => 2*n | inr n => 2*n+1 end).
+  - exact (fun n => if M n 1 then inl (D n 1) else inr (D n 1)).
+  - hnf. intros [n|n].
+    + destruct (DM_delta (2*n) 1) as [H1 H2].
+      destruct (M (2*n) 1) eqn:H3.
+      * f_equal. lia.
+      * lia.
+    + destruct (DM_delta (2*n+1) 1) as [H1 H2].
+      destruct (M (2*n+1) 1) eqn:H3.
+      * exfalso. lia. 
+      * f_equal. lia.
+  - hnf. intros x.
+    destruct (DM_delta x 1) as [H1 H2].
+    destruct (M x 1) eqn:H3.
+      * lia.
+      * lia.
 Qed.
 
 (** Bijections *)
-
-Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) :=
-  forall x, g (f x) = x.
-
-Inductive bijection (X Y: Type) : Type :=
-| Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
 
 Fact Sigma_product X Y :
   bijection (X * Y) (Sigma _:X, Y).
@@ -119,9 +155,6 @@ Proof.
   - intros [x|y]. all:reflexivity.
   - intros [[|] a]. all:reflexivity.
 Qed.
-
-Inductive injection (X Y: Type) : Type :=
-| Injection {f: X -> Y} {g: Y -> X} (H: inv g f).
 
 (* Note: First time we construct a reducible function with tactics *)   
 Fact bijection_injection X Y :
@@ -243,12 +276,10 @@ Qed.
    can be only be shown  with inductive equality and PI.   
    We will see a proof once we have indexed inductive types. *)        
 
-Definition DPI2:= forall X p x y y', @Sig X p x y = @Sig X p x y' -> y = y'.
-
-(** Equality decider for sigma types *)
+Definition DPI := forall X p x y y', @Sig X p x y = @Sig X p x y' -> y = y'.
 
 Fact sigma_eqdec X p :
-  DPI2 -> eqdec X -> (forall x, eqdec (p x)) -> eqdec (@sig X p).
+  DPI -> eqdec X -> (forall x, eqdec (p x)) -> eqdec (@sig X p).
 Proof.
   intros H D F [x y] [x' y'].
   destruct (D x x') as [H1|H1].
@@ -259,3 +290,69 @@ Proof.
   - right. intros H2. apply H1.
     eapply DPI1, H2.
 Qed.
+
+(** Bijection theorem for option types *)
+
+Lemma lower_f X Y f g :
+  @inv (option X) (option Y) g f ->
+  forall x, Sigma y, match f (Some x) with
+            | Some y' => y = y'
+            | None => Some y = f None
+            end.
+Proof.
+  intros H x.
+  destruct (f (Some x)) as [y|] eqn:H1.
+  - exists y. reflexivity.
+  - destruct (f None) as [y|] eqn:H2.
+    + exists y. reflexivity.
+    + exfalso. congruence.
+Qed.
+
+(** Injection Theorem for option types, under construction 
+
+Lemma lower_g X Y f g x0 :
+  @inv (option X) (option Y) g f -> 
+  forall y, Sigma x, match g (Some y) with
+            | Some x' => x = x'
+            | None => match f None with
+                     | None => x = x0
+                     | Some y' => False end
+            end.
+Proof.
+  intros H y.
+  destruct (g (Some y)) as [x|] eqn:H1.
+  - exists x. reflexivity.
+  - exists x0. destruct (f None) as [y'|] eqn:H2.
+    + admit.
+    + congruence.
+Qed.
+
+Lemma lower X Y (x0: X) f g f' g' :
+  @inv (option X) (option Y) g f ->
+  (forall x, match f (Some x) with Some y => f' x = y | None => Some (f' x) = f None end) ->
+  (forall y, match g (Some y) with Some x => g' y = x | None => g' y = x0 end) ->
+  @inv X Y g' f'.
+Proof.
+  intros H H1 H2 x.
+  assert (H1' := H1 x).
+  assert (H2' := H2 (f' x)).
+   clear H1 H2.
+  destruct (f (Some x)) as [y|] eqn:H3.
+  - destruct (g (Some (f' x))) as [x'|] eqn:H4; congruence.
+  - destruct (g (Some (f' x))) as [x'|] eqn:H4.
+    + congruence.
+    + destruct (g None) as [x'|] eqn:H5.
+      * destruct (f None) as [y'|] eqn:H6.
+        -- assert (H7: f' x = y') by congruence. clear H1'.
+           rewrite H7 in H4, H2'.
+           rewrite H7. clear H7.
+           subst (f' x).
+           
+      * exfalso. congruence.
+Qed.
+
+*)
+
+      
+
+

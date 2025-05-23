@@ -275,10 +275,7 @@ Qed.
 Definition lower' X Y (f: option X -> option Y) x z :=
   match f (Some x) with
   | Some y => z = y
-  | None => match f None with
-           | Some y => z = y
-           | None => False
-           end
+  | None => f None = Some z 
   end.
 
 Definition lower X Y (f: option X -> option Y) f' :=
