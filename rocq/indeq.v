@@ -100,7 +100,7 @@ Section UIP.
     intros H p x.
     enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, cast e (pi2 a) = pi2 b) as H'.
     - intros u v e'. apply (H' _ _ e' eq_refl).
-    - intros a b []. apply H.
+    - intros a b <-. apply H.
   Qed.
   
   Goal DPI -> UIP'.
@@ -109,7 +109,7 @@ Section UIP.
     apply (H (eq x)). revert e.
     enough (forall y (e: x = y), Sig (eq x) y e = Sig (eq x) x eq_refl) as H'.
     - apply H'. 
-    - intros y []. reflexivity.
+    - intros y <-. reflexivity.
   Qed.
   
   Lemma cast_eq {x y: X} :
@@ -194,7 +194,7 @@ Module UIP_nat.
   Proof.
     intros e.
     generalize (UIP_nat' x x e).
-    rewrite nat_eqdec_eq. intros []. reflexivity.
+    rewrite nat_eqdec_eq. intros <-. reflexivity.
   Qed.
 End UIP_nat.
   
