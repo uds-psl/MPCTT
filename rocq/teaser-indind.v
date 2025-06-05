@@ -131,5 +131,16 @@ Section Star.
     - intros x y z H%H3. apply H2, H.
   Qed.
 
+  Fact idempotent R x y:
+    star (star R) x y <-> star R x y.
+  Proof.
+    split.
+    - apply least.
+      + intros z. constructor.
+      + apply star_trans.
+      + easy.
+    - apply star_incl.
+  Qed.
+
 End Star.
 End Star.
