@@ -192,14 +192,18 @@ Section UIP_DPI.
   Lemma L2 : K_Streicher -> CD.
   Proof.
     intros H p x a. hnf in H.  apply H. reflexivity.
+    (* cast reduction used *)
   Qed.
   
   Lemma L3 : CD -> DPI'.
   Proof.
     intros H p x.
     enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, cast e (pi2 a) = pi2 b) as H'.
-    - intros u v e'. apply (H' _ _ e' (eq_refl x)).
-    - intros a b <-. hnf in H. apply H.
+    - intros u v e'. specialize (H' _ _ e' (eq_refl x)). exact H'.
+    (* cast reduction used *)
+    - intros a b e. rewrite <-e.  intros e'.
+      hnf in H. specialize (H p (pi1 a) (pi2 a)).
+      exact (H e').
   Qed.
 End UIP_DPI.
 
