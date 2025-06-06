@@ -141,6 +141,61 @@ Section Star.
       + easy.
     - apply star_incl.
   Qed.
+End Star.
+End Star.
 
-End Star.
-End Star.
+(*** PI -> DPI ***)
+
+Notation sig := sigT.
+Notation Sig := existT.
+Notation pi1 := projT1.
+Notation pi2 := projT2.
+
+Definition DPI := forall X (p: X -> Type) x u v, Sig p x u = Sig p x v -> u = v.
+Definition PI := forall (P: Prop) (a b : P), a = b.
+
+Definition cast {X} [p: X -> Type] {x y: X}
+  : x = y -> p x -> p y
+  := fun e a => match e with eq_refl => a end.
+
+Fact cast_eq X (x y: X) p (a: p x):
+  cast eq_refl a = a.
+Proof.
+  reflexivity.
+Qed.
+
+Section UIP_DPI.
+  Variable X: Type.
+
+  Definition UIP := forall (x : X) (e: x = x), e = eq_refl.
+  Definition K_Streicher := forall (x: X) (p: x = x -> Prop), p (eq_refl x) -> forall e, p e.
+  Definition CD := forall (p: X -> Type) (x: X) (a: p x) (e: x = x), cast e a = a.
+  Definition DPI' := forall (p: X -> Type) x u v, Sig p x u = Sig p x v -> u = v.
+  
+  Lemma L1 : UIP -> K_Streicher.
+  Proof.
+    intros H x p a e. hnf in H. rewrite H. exact a.
+  Qed.
+
+  Lemma L2 : K_Streicher -> CD.
+  Proof.
+    intros H p x a. hnf in H.  apply H. reflexivity.
+  Qed.
+  
+  Lemma L3 : CD -> DPI'.
+  Proof.
+    intros H p x.
+    enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, cast e (pi2 a) = pi2 b) as H'.
+    - intros u v e'. apply (H' _ _ e' (eq_refl x)).
+    - intros a b <-. hnf in H. apply H.
+  Qed.
+End UIP_DPI.
+
+Goal PI -> DPI.
+Proof.
+  intros H X.
+  apply L3, L2, L1.
+  intros x e. apply H.
+Qed.
+
+
