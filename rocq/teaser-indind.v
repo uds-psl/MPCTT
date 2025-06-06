@@ -45,7 +45,9 @@ Qed.
 
 
 (*** Inductive Equality *)
- 
+
+Module EQ.
+
 Inductive eq X (x: X) : X -> Prop :=
 | Q : eq X x x.
 
@@ -61,6 +63,7 @@ Proof.
   - intros H. generalize (eq_refl x). apply R, H.
   - intros <-. apply Q.
 Qed.
+End EQ.
 
 
 (*** Reflexive Transitive Closure *)
@@ -152,6 +155,15 @@ Notation pi1 := projT1.
 Notation pi2 := projT2.
 
 Definition DPI := forall X (p: X -> Type) x u v, Sig p x u = Sig p x v -> u = v.
+
+Goal DPI.
+Proof.
+  intros X p x u v e.
+  change u with (pi2 (Sig p x u)).
+  Fail rewrite e.
+  Fail pattern (Sig p x u).
+Abort.
+
 Definition PI := forall (P: Prop) (a b : P), a = b.
 
 Definition cast {X} [p: X -> Type] {x y: X}
