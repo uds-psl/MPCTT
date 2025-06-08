@@ -43,29 +43,6 @@ Proof.
   - lia.
 Qed.
 
-
-(*** Inductive Equality *)
-
-Module EQ.
-
-Inductive eq X (x: X) : X -> Prop :=
-| Q : eq X x x.
-
-Definition R 
-  : forall X  (x y: X) (p: X -> Type),  eq X x y -> p x -> p y
-  := fun X x _ p e => match e with
-                   | Q _ _ => fun a => a
-                   end.
-
-Goal forall X x y, eq X x y <-> x = y.
-Proof.
-  intros *. split.
-  - intros H. generalize (eq_refl x). apply R, H.
-  - intros <-. apply Q.
-Qed.
-End EQ.
-
-
 (*** Reflexive Transitive Closure *)
 
 Module Star.
@@ -147,7 +124,37 @@ Section Star.
 End Star.
 End Star.
 
-(*** PI -> DPI ***)
+
+(*** Inductive Equality *)
+
+Inductive eq X (x: X) : X -> Prop :=
+| Q : eq X x x.
+
+Arguments eq {X}.
+Arguments Q {X}.
+
+Definition R {X}  {x y: X} (p: X -> Type)
+  : eq x y -> p x -> p y
+  := fun e => match e with
+           | Q _ => fun a => a
+           end.
+
+Goal forall X (x y: X) p (a: p x),
+    R p (Q x) a = a.
+Proof.
+  reflexivity.
+Qed.
+  
+Goal forall X (x y: X), eq x y <-> x = y.
+Proof.
+  intros *. split.
+  - intros H. apply (R _ H). reflexivity.
+  - intros <-. apply Q.
+Qed.
+
+Notation "x = y" := (eq x y) : type_scope.
+
+(** PI -> DPI ***)
 
 Notation sig := sigT.
 Notation Sig := existT.
@@ -166,25 +173,17 @@ Abort.
 
 Definition PI := forall (P: Prop) (a b : P), a = b.
 
-Definition cast {X} {p: X -> Type} {x y: X}
-  : x = y -> p x -> p y
-  := fun e a => match e with eq_refl => a end.
-
-Goal forall X (x y: X) p (a: p x),
-  cast eq_refl a = a.
-Proof.
-  reflexivity.
-Qed.
-
 Goal PI -> DPI.
 Proof.
   intros H X p x.
-  enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, cast e (pi2 a) = pi2 b) as H'.
-  - intros u v e. specialize (H' _ _ e (eq_refl x)). exact H'.
-    (* cast reduction used *)
-  - intros a b <-. intros e.
-    enough (e = eq_refl) as -> by reflexivity.
-    (* cast reduction used *)
-    apply H.
+  enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, R p e (pi2 a) = pi2 b) as H'.
+  - intros u v e. specialize (H' _ _ e (Q x)). exact H'.
+    (* R reduction used *)
+  - intros a b e1.
+    pattern b. apply (R _ e1).
+    intros e.
+    assert (e2: Q (pi1 a) = e) by apply H.
+    pattern e. apply (R _ e2). apply Q.
+    (* R reduction used *)
 Qed.
 
