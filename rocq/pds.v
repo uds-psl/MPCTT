@@ -1,5 +1,6 @@
 (*** MPCTT, Chapter Propositional Deduction Systems *)
 From Stdlib Require Import Lia List.
+Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Notation "'Sigma' x .. y , p" :=
@@ -7,7 +8,7 @@ Notation "'Sigma' x .. y , p" :=
     (at level 200, x binder, right associativity,
      format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
     : type_scope.
-Definition dec (X: Type) : Type := X + (X -> False).
+Definition dec (X: Type) : Type := X + ~X.
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition nat_eqdec: eqdec nat.
 Proof.
@@ -16,6 +17,7 @@ Proof.
 Qed.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
+Definition incl {X} (A B: list X) := forall x, x el A -> x el B.
 Notation "A <<= B" := (incl A B) (at level 70).
 Ltac close := cbn; auto; firstorder; intuition congruence.
 
@@ -64,7 +66,6 @@ Proof.
   - auto.
   - destruct (form_eqdec t s) as [->|H]; close.
 Qed.
-
 
 Reserved Notation "A |- s" (at level 70).
 Inductive nd A : form -> Type :=
