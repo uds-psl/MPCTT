@@ -156,8 +156,6 @@ Qed.
 
 (*** Uniqueness of gamma *)
 
-(** uniqueness of gamma *)
-
 Fact divides_zero n :
   (n | 0).
 Proof.
@@ -234,9 +232,8 @@ Qed.
 Fact sat_gamma_Gamma f :
   sat gamma f <-> f == Gamma f.
 Proof.
-  split; intros H.
-  - apply gcd_sat_Gamma_unique, gcd_sat_gamma_unique, H.
-  - apply gcd_sat_gamma_unique, gcd_sat_Gamma_unique, H.
+  rewrite gcd_sat_gamma_unique.
+  symmetry. apply gcd_sat_Gamma_unique.
 Qed.
 
 
