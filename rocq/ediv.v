@@ -284,48 +284,19 @@ Proof.
     + right. intros H1 %divides_M. lia.
 Qed.
 
-Fact divides_zero n :
-  (n | 0).
-Proof.
-  exists 0. reflexivity.
-Qed.
-
-Fact divides_self x :
-  (x | x).
-Proof.
-  exists 1. lia.
-Qed.
-
-Fact divides_bnd n x :
-  x > 0 -> (n | x) -> n <= x.
-Proof.
-  intros H [k ->]. destruct k; lia.
-Qed.
-
-Fact divides_bnd' n x :
-  n > x -> (n | x) -> x = 0.
-Proof.
-  intros H [k ->]. destruct k; lia.
-Qed.
- 
 Lemma divides_le x y :
   (forall n, (n | x) <-> (n | y)) -> x <= y.
 Proof.
   intros H.
   destruct y.
-  - enough (x = 0) by lia.
-    apply divides_bnd' with (n:= S x). lia.
-    apply H, divides_zero.
-  - apply divides_bnd. lia.
-    apply H, divides_self.
-Qed.
-
-Fact divides_eq x y :
-  (forall n, (n | x) <-> (n | y)) -> x = y.
-Proof.
-  intros H.
-  enough (x <= y /\ y <= x) by lia.
-  split; apply divides_le; firstorder.
+  - specialize (H (S x)).
+    assert (S x | x) as [k H1].
+    { apply H. exists 0. lia. }
+    destruct k; lia.
+  - specialize (H x).
+    assert (x | S y) as [k H1].
+    { apply H. exists 1. lia. }
+    destruct k; lia.
 Qed.
 
 (*** Decidability of Primality *)
@@ -343,9 +314,10 @@ Proof.
   split.
   - firstorder.
   - intros [H1 H2]. split. exact H1.
-    intros n H3. apply H2. 2:exact H3.
-    enough (n <= x) by lia.
-    apply divides_bnd. lia. exact H3.
+    intros n H3.  specialize (H2 n).
+    apply H2. 2:exact H3.
+    destruct H3 as [k H3]. 
+    destruct k; lia.
 Qed.
 
 Definition nat_eqdec : eqdec nat.
@@ -413,11 +385,12 @@ Definition gamma x y z : Prop :=
 Fact gamma_unique x y z z' :
   gamma x y z -> gamma x y z' -> z = z'.
 Proof.
-  intros H1 H2.
-  apply divides_eq. intros n.
-  unfold gamma in *. rewrite H1, H2. easy.
+  unfold gamma. intros H1 H2.
+  enough (z <= z' /\ z' <= z) by lia.
+  split; apply divides_le.
+  - intros n. rewrite H1, H2. easy.
+  - intros n. rewrite H1, H2. easy.
 Qed.
-
 
 Fact divides_sub x y n :
   x <= y -> (n | x) -> (n | y) <->  (n | y - x).
