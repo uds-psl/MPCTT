@@ -162,14 +162,13 @@ Proof.
   intros H.
   destruct y.
   - specialize (H (S x)).
-    destruct x. lia. exfalso.
-    enough (S (S x) | S x) as [k H1].
-    + destruct k; lia.
-    + apply H. exists 0. lia.
+    assert (S x | x) as [k H1].
+    { apply H. exists 0. lia. }
+    destruct k; lia.
   - specialize (H x).
-    assert ( x | S y) as [k H1].
-    + apply H. exists 1. lia.
-    + destruct k; lia.
+    assert (x | S y) as [k H1].
+    { apply H. exists 1. lia. }
+    destruct k; lia.
 Qed.
 
 Fact gamma_unique x y z z' :
