@@ -126,47 +126,41 @@ Section LWO.
 
   Fact lsearch_cert' :
     forall n k, safe p k ->
-           Sigma a, (a < (n + k)%nat /\ least p a)
-                + (a = (n + k)%nat /\ safe p a).
+           Sigma a, (a < (n + k)%nat /\ least p a) + (a = (n + k)%nat /\ safe p (n + k)).
   Proof.
     induction n; intros k H.
     - exists k. right. easy.
-    - specialize (IHn k H) as [a [[IH1 IH2]|[IH1 IH2]]].
-      + exists a. left. intuition lia.
-      + destruct (p_dec a) as [H1|H1].
-        * exists a. left. split. lia. easy.
-        * exists (S a). right. split. lia.
-          apply safe_S; assumption.
+    - destruct (p_dec k) as [H1|H1].
+      + exists k. left. split. lia. easy.
+      + specialize (IHn (S k)) as [a IH].
+        * apply safe_S; assumption.
+        * exists a.
+          destruct IH as [[IH1 IH2]|[IH1 IH2]].
+          -- left. split. lia. easy.
+          -- right. replace (S n + k) with (n + S k) by lia. easy.
   Qed.
 
   Fixpoint lsearch' n k : nat :=
     match n with
     | 0 => k
-    | S n => let a := lsearch' n k in
-            if S a - (n + k) then a  (* a < n + k *)
-            else if p_dec a then a else S a
+    | S n => if p_dec k then k
+            else lsearch' n (S k)
     end.
 
-  Fact lsearch'_correct n k :
-    safe p k ->
-    let a := lsearch' n k in
-    if S a - (n + k) then least p a
-    else a = n + k /\ safe p a.
+  Definition psi n k a :=
+    (a < n + k /\ least p a) \/ (a = n + k /\ safe p (n +k)).
+
+  Fact lsearch'_correct :
+    forall n k, safe p k -> psi n k (lsearch' n k).
   Proof.
-    revert n k; induction n; intros k H.
-    - cbn. replace (S k - k) with 1 by lia. easy.
-    - specialize (IHn k H). cbn in IHn.
-      simpl lsearch'. cbv zeta.
-      set (a:= lsearch' n k) in *. (* important for readability *)
-      destruct (S a - (n + k)) eqn:H1.
-      + replace (_ - _) with 0 by lia. easy.
-      + destruct IHn as [IH1 IH2].
-        destruct (p_dec a) as [H2|H2].
-        * replace (_ - _) with 0 by lia.
-          easy.
-        * replace (_ - _) with 1 by lia.
-          split. lia.
-          apply safe_S; assumption.
+    induction n; intros k H.
+    - right. easy.
+    - cbn. destruct (p_dec k) as [H1|H1].
+      + left. split. lia. easy.
+      + specialize (IHn (S k)) as [[IH1 IH2]|[IH1 IH2]].
+        * apply safe_S; assumption.
+        * left. split. lia. easy.
+        * right. replace (S n + k) with (n + S k) by lia. easy. 
   Qed.
   
   Fact safe_dec n :
