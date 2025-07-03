@@ -45,10 +45,12 @@ Section LWO.
   Variable p : nat -> Prop.
   Variable p_dec : decider p.
 
+  (*** Certifying LWO *)
+
   Lemma lwo_cert :
     forall n, (Sigma k, k < n /\ least p k) + safe p n.
   Proof.
-    hnf. induction n as [|n IH].
+    induction n as [|n IH].
     - right. apply safe_O.
     - destruct IH as [[k H1]|H1].
       + left. exists k. destruct H1 as [H1 H2]. split. lia. exact H2.
@@ -75,33 +77,15 @@ Section LWO.
   Lemma lwo_correct n :
     phi n (lwo n).
   Proof.
-    unfold phi.
-    induction n; cbn.
+    hnf; induction n; cbn.
     - apply safe_O.
     - destruct (lwo n) as [k|].
-      + intuition lia.
+      + split. lia. easy.
       + destruct (p_dec n) as [H|H].
         * split. lia. easy.
         * apply safe_S; easy.
   Qed.
 
-  Fixpoint lsearch n k : option nat :=
-    match n with
-    | 0 => None
-    | S n => if p_dec k then Some k else lsearch n (S k)
-    end.
-
-  Lemma lsearch_correct n k :
-    safe p k -> phi (n + k) (lsearch n k).
-  Proof.
-    revert k; induction n; intros k H; cbn.
-    - exact H.
-    - destruct (p_dec k) as [H1|H1]; cbn.
-      + split. lia. easy. 
-      + specialize (IHn (S k)).
-        replace (S(n + k)) with (n + S k) by lia.
-        apply IHn. apply safe_S; assumption.
-  Qed.
   
   Fact phi_unique n a a' :
     phi n a -> phi n a' -> a = a'.
@@ -112,55 +96,6 @@ Section LWO.
     - firstorder.
     - firstorder.
     - easy.
-  Qed.
-  
-  Fact lwo_lsearch_agree n :
-    lwo n = lsearch n 0.
-  Proof.
-    apply (phi_unique n).
-    - apply lwo_correct.
-    - replace n with (n + 0) at 1 by lia.
-      apply lsearch_correct.
-      easy.
-  Qed.
-
-  Fact lsearch_cert' :
-    forall n k, safe p k ->
-           Sigma a, (a < (n + k)%nat /\ least p a) + (a = (n + k)%nat /\ safe p (n + k)).
-  Proof.
-    induction n; intros k H.
-    - exists k. right. easy.
-    - destruct (p_dec k) as [H1|H1].
-      + exists k. left. split. lia. easy.
-      + specialize (IHn (S k)) as [a IH].
-        * apply safe_S; assumption.
-        * exists a.
-          destruct IH as [[IH1 IH2]|[IH1 IH2]].
-          -- left. split. lia. easy.
-          -- right. replace (S n + k) with (n + S k) by lia. easy.
-  Qed.
-
-  Fixpoint lsearch' n k : nat :=
-    match n with
-    | 0 => k
-    | S n => if p_dec k then k
-            else lsearch' n (S k)
-    end.
-
-  Definition psi n k a :=
-    (a < n + k /\ least p a) \/ (a = n + k /\ safe p (n +k)).
-
-  Fact lsearch'_correct :
-    forall n k, safe p k -> psi n k (lsearch' n k).
-  Proof.
-    induction n; intros k H.
-    - right. easy.
-    - cbn. destruct (p_dec k) as [H1|H1].
-      + left. split. lia. easy.
-      + specialize (IHn (S k)) as [[IH1 IH2]|[IH1 IH2]].
-        * apply safe_S; assumption.
-        * left. split. lia. easy.
-        * right. replace (S n + k) with (n + S k) by lia. easy. 
   Qed.
   
   Fact safe_dec n :
@@ -183,6 +118,103 @@ Section LWO.
     - right. tauto.
   Qed.
 
+  Fact lwo_sig :
+    sig p -> sig (least p).
+  Proof.
+    intros [n H].
+    destruct (lwo_cert n) as [(k&H1&H2)|H2].
+    - eauto.
+    - exists n. easy.
+  Qed.
+
+  (*** LWO with no options *)
+
+  Definition psi n a :=
+    (a < n /\ least p a) \/ (a = n /\ safe p n).
+
+  Fixpoint lwo' n : nat :=
+    match n with
+    | 0 => 0
+    | S n => let a := lwo' n in
+            if S a - n then a
+            else if p_dec n then n else S n
+    end.
+
+  Lemma lwo'_correct n :
+    psi n (lwo' n).
+  Proof.
+    hnf; induction n; cbn.
+    - right. easy.
+    - specialize (IHn) as [[IH1 IH2]|[IH1 IH2]].
+      + replace (S (lwo' n) - n) with 0 by lia.
+        auto.
+      + rewrite IH1.
+        replace (S n - n) with 1 by lia.
+        destruct (p_dec n) as [H|H].
+        * left. split. lia. easy.
+        * right. split. easy. apply safe_S; easy.
+  Qed.
+
+  (*** Linear Search *)
+
+  Fact ls_cert' :
+    forall n k, safe p k -> sig (psi (n + k)).
+  Proof.
+    induction n; intros k H.
+    - exists k. right. easy.
+    - destruct (p_dec k) as [H1|H1].
+      + exists k. left. split. lia. easy.
+      + destruct (IHn (S k)) as [a IH].
+        * apply safe_S; easy.
+        * exists a.
+          destruct IH as [[IH1 IH2]|[IH1 IH2]].
+          -- left. split. lia. easy.
+          -- right. replace (S n + k) with (n + S k) by lia. easy.
+  Qed.
+
+  Fixpoint ls n k : nat :=
+    match n with
+    | 0 => k
+    | S n => if p_dec k then k else ls n (S k)
+    end.
+
+  Fact ls_correct :
+    forall n k, safe p k -> psi (n + k) (ls n k).
+  Proof.
+    induction n; intros k H; cbn.
+    - right. easy.
+    - destruct (p_dec k) as [H1|H1]; cbn.
+      +left. split. lia. easy.
+      + destruct (IHn (S k)) as [[IH1 IH2]|[IH1 IH2]].
+        * apply safe_S; easy.
+        * left. split. lia. easy.
+        * right. replace (S (n + k)) with (n + S k) by lia. easy.
+  Qed.
+  
+  Fact ls_correct' n :
+    psi n (ls n 0).
+  Proof.
+    replace n with (n + 0) at 1 by lia.
+    apply ls_correct. apply safe_O.
+  Qed.
+
+  Fact psi_unique n a a' :
+    psi n a -> psi n a' -> a = a'.
+  Proof.
+    intros [(H1&H2)|(H1&H2)] [(H1'&H2')|(H1'&H2')].
+    - eapply least_unique; eassumption.
+    - exfalso. firstorder.
+    - exfalso. firstorder.
+    - congruence.
+  Qed.
+
+  Fact lwo'_agree  n :
+    lwo' n = ls n 0.
+  Proof.
+    eapply psi_unique.
+    - apply lwo'_correct.
+    - apply ls_correct'.
+  Qed.
 End LWO.
 
 
