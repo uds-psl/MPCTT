@@ -115,17 +115,6 @@ Section LWO.
         * apply safe_S; easy.
   Qed.
 
-  Fact phi_unique n a a' :
-    phi n a -> phi n a' -> a = a'.
-  Proof.
-    destruct a as [k|], a' as [k'|]; cbn.
-    - generalize (least_unique p k k').
-      intuition congruence.
-    - firstorder.
-    - firstorder.
-    - easy.
-  Qed.
-
   (*** LWO without options *)
 
   Definition psi n x :=
@@ -172,6 +161,29 @@ Section LWO.
     -  assert (H:= G_correct n).
        unfold phi in H. unfold psi.
       destruct (G n) as [x|]; auto.
+  Qed.
+
+  Fact phi_unique n a a' :
+    phi n a -> phi n a' -> a = a'.
+  Proof.
+    destruct a as [k|], a' as [k'|]; cbn.
+    - generalize (least_unique p k k').
+      intuition congruence.
+    - firstorder.
+    - firstorder.
+    - easy.
+  Qed.
+  
+  Lemma G_agree n :
+    G n = let x:= G' n in if S x - n then Some x else None.
+  Proof.
+    apply (phi_unique n).
+    - apply G_correct.
+    - assert (H:= G'_correct n).
+      cbn zeta. 
+      destruct H as [H|H].
+      + replace (S (G' n) - n) with 0 by lia. easy.
+      + replace (S (G' n) - n) with 1 by lia. easy.
   Qed.
     
   (*** Linear Search *)
