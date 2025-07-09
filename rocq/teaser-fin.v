@@ -216,7 +216,39 @@ Proof.
     split. exact D. exists A. apply H.
 Qed.
 
-(** Construction of injections and bijections *)
+Fact nat_not_finite :
+  ~finite nat.
+Proof.
+  intros (_&A&H).
+  revert H.
+  enough (exists n, forall k, k el A -> n > k) as [n H].
+  { intros H2. apply (H n) in H2. lia. }
+  induction A as [|a A IH].
+  - cbn.  exists 0. easy.
+  - destruct IH as [n IH].
+    exists (S a + n). intros k [->|H]. lia.
+    specialize (IH k H). lia.
+Qed.
+
+Fact bijection_fin_fin X Y n :
+  bijection X Y -> fin n X -> fin n Y.
+Proof.
+  intros H (D&A&H1&H2). hnf.
+  split.
+  - eapply injection_eqdec. 2:exact D.
+    apply bijection_injection, bijection_sym, H.
+ - destruct H as [f g H3 H4].
+   exists (map f A). split.
+   + split.
+     * apply nrep_map.
+       -- eapply inv_injective, H3.
+       -- apply H1.
+     * intros x. eapply in_map_iff. exists (g x). 
+       split. apply H4. apply H1.
+   + rewrite length_map. exact H2.
+Qed.
+
+(** Construction of  bijections *)
 
 Section SubPos.
   Variable X : Type.
@@ -286,24 +318,6 @@ End SubPos.
 Arguments sub {X}.
 Arguments pos {X}.
 
-Fact bijection_fin_fin X Y n :
-  bijection X Y -> fin n X -> fin n Y.
-Proof.
-  intros H (D&A&H1&H2). hnf.
-  split.
-  - eapply injection_eqdec. 2:exact D.
-    apply bijection_injection, bijection_sym, H.
- - destruct H as [f g H3 H4].
-   exists (map f A). split.
-   + split.
-     * apply nrep_map.
-       -- eapply inv_injective, H3.
-       -- apply H1.
-     * intros x. eapply in_map_iff. exists (g x). 
-       split. apply H4. apply H1.
-   + rewrite length_map. exact H2.
-Qed.
-
 Fact fin_fin_bijection n X Y:
   fin n X -> fin n Y -> bijection X Y.
 Proof.
@@ -361,30 +375,6 @@ Proof.
     + apply H4.
     + enough (pos D (a::A) x < length (a::A)) by lia.
       apply pos_bnd, H2.
-Qed.
-
-Fact finite_fin X :
-  finite X <=> Sigma n, fin n X.
-Proof.
-  split.
-  - intros [D [A H]].
-    destruct (covering_listing D A H) as [B H1].
-    exists (length B). split. exact D. exists B. auto.
-  - intros [_ [D (A&[_ H]&_)]]. hnf. eauto.
-Qed.
-
-Fact nat_not_finite :
-  ~finite nat.
-Proof.
-  intros (_&A&H).
-  revert H.
-  enough (exists n, forall k, k el A -> n > k) as [n H].
-  { intros H2. apply (H n) in H2. lia. }
-  induction A as [|a A IH].
-  - cbn.  exists 0. easy.
-  - destruct IH as [n IH].
-    exists (S a + n). intros k [->|H]. lia.
-    specialize (IH k H). lia.
 Qed.
 
 (** Discriminating elements *)
