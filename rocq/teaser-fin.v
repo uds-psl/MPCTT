@@ -46,6 +46,13 @@ Inductive injection (X Y: Type) : Type :=
 Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
 
+
+Fact bijection_refl X :
+  bijection X X.
+Proof.
+  exists (fun x => x) (fun x => x); easy.
+Qed.
+
 Fact bijection_sym X Y :
   bijection X Y -> bijection Y X.
 Proof.
@@ -472,20 +479,24 @@ Proof.
     exact H1.
 Qed.
 
-Fact injection_refl X  :
-  injection X X.
+Theorem fin_card_eq X Y m n :
+  fin m X -> fin n Y -> bijection X Y -> m = n.
 Proof.
-  exists (fun x => x) (fun x => x). easy.
+  intros H1 H2 H3.
+  enough (m <= n /\ n <= m) by lia.
+  split.
+  - apply  bijection_injection in H3.
+    eapply fin_card_le; eassumption.
+  - apply  bijection_sym, bijection_injection in H3.
+    eapply fin_card_le; eassumption.
 Qed.
 
-Theorem fin_card_eq X m n :
+Theorem fin_card_unique X m n :
   fin m X -> fin n X -> m = n.
 Proof.
   intros H1 H2.
-  enough (m <= n /\ n <= m) by lia.
-  split.
-  all: generalize (injection_refl X).
-  all: apply fin_card_le; easy.
+  eapply fin_card_eq. exact H1. exact H2.
+  apply bijection_refl.
 Qed.
 
 (** Exercises *)
@@ -497,7 +508,7 @@ Proof.
   destruct (injection_fin_trans n H2 H3) as (k&H4&H5).
   edestruct (injection_fin_trans k H1 H4) as (l&H6&H7).
   enough (k=n) by congruence.
-  assert (n=l) by (eapply fin_card_eq; eassumption).
+  assert (n=l) by (eapply fin_card_unique; eassumption).
   lia.
 Qed.
 
@@ -513,7 +524,7 @@ Fact fin_fin_bij_card_eq  X Y m n :
   fin m X -> fin n Y -> (bijection X Y <=> m = n).
 Proof.
   intros H1 H2. split.
-  - intros H3. eapply fin_card_eq. exact H1.
+  - intros H3. eapply fin_card_unique. exact H1.
     eapply bijection_fin_trans. 2: exact H2.
     apply bijection_sym, H3.
   - intros ->. eapply fin_fin_bijection; eassumption.
@@ -523,7 +534,7 @@ Fact bijection_num m n :
   bijection (num m) (num n) -> m = n.
 Proof.
   intros H.
-  eapply fin_card_eq.
+  eapply fin_card_unique.
   - apply fin_num.
   - eapply bijection_fin_trans.
     + apply bijection_sym, H.
