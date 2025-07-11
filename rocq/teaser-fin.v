@@ -58,6 +58,15 @@ Proof.
   intros [f g H1 H2]. econstructor; eassumption. 
 Qed.
 
+Fact bijection_void X Y :
+  ~X -> ~Y -> bijection X Y.
+Proof.
+  intros H1 H2.
+  exists (fun x => match (H1 x) with end)
+    (fun y => match (H2 y) with end).
+  easy. easy.
+Qed.
+
 Fact injection_eqdec X Y :
   injection X Y -> eqdec Y -> eqdec X.
 Proof.
@@ -88,6 +97,30 @@ Definition listing X A :=
 
 Definition fin n X : Type :=
   eqdec X * Sigma A, listing X A /\ length A = n.
+
+Fact fin_void X :
+  fin 0 X <=> ~X.
+Proof.
+  split.
+  - intros (_&A&[H1 _]&H2) x.
+    specialize (H1 x). destruct A; easy.
+  - intros H. split. intros x; easy.
+    exists nil. easy.
+Qed.
+
+Fact nat_not_finite :
+  ~finite nat.
+Proof.
+  intros (_&A&H).
+  revert H.
+  enough (exists n, forall k, k el A -> n > k) as [n H].
+  { intros H2. apply (H n) in H2. lia. }
+  induction A as [|a A IH].
+  - cbn.  exists 0. easy.
+  - destruct IH as [n IH].
+    exists (S a + n). intros k [->|H]. lia.
+    specialize (IH k H). lia.
+Qed.
 
 Fact option_eqdec X :
   eqdec X -> eqdec (option X).
@@ -153,30 +186,6 @@ Proof.
   - apply fin_option, IHn.
 Qed.
 
-Fact fin_void X :
-  fin 0 X <=> ~X.
-Proof.
-  split.
-  - intros (_&A&[H1 _]&H2) x.
-    specialize (H1 x). destruct A; easy.
-  - intros H. split. intros x; easy.
-    exists nil. easy.
-Qed.
-
-Fact nat_not_finite :
-  ~finite nat.
-Proof.
-  intros (_&A&H).
-  revert H.
-  enough (exists n, forall k, k el A -> n > k) as [n H].
-  { intros H2. apply (H n) in H2. lia. }
-  induction A as [|a A IH].
-  - cbn.  exists 0. easy.
-  - destruct IH as [n IH].
-    exists (S a + n). intros k [->|H]. lia.
-    specialize (IH k H). lia.
-Qed.
-
 Section Covering_Listing.
   Variable X : Type.
   Variables X_eqdec: eqdec X.
@@ -199,27 +208,21 @@ Section Covering_Listing.
   Qed.
  
   Fact nrep_equiv :
-    forall A, Sigma B, B == A /\ nrep B.
+    forall A, Sigma B, B == A /\ nrep B /\ length B <= length A.
   Proof.
-    induction A as [|x A (B&IH1&IH2)].
-    - exists nil. cbn. auto using equi_refl.
+    induction A as [|x A (B&IH1&IH2&IH3)].
+    - exists nil. easy. 
     - destruct (mem_dec x A) as [H3|H3].
-      + exists B. split. 2:exact IH2.
-        split; intros z H.
-        * cbn. right. apply IH1, H.
-        * specialize H as [->|H]; apply IH1; assumption.
-      + exists (x::B); cbn. split.
-        * split; intros z [->|H]; cbn; auto; right; apply IH1, H.
-        * split. 2: exact IH2. contradict H3. apply IH1, H3.
+      + exists B. repeat split; cbn; firstorder (congruence||lia).
+      + exists (x::B); repeat split; cbn; firstorder lia.
   Qed.
 
-  Fact covering_listing :
-    sig (covering X) -> sig (listing X).
+  Fact covering_listing A :
+    covering X A -> Sigma B, listing X B /\ length B <= length A.
   Proof.
-    intros [A H].
-    destruct (nrep_equiv A) as (B&H1&H2).
-    exists B. split. 2:easy.
-    intros x. apply H1, H.
+    intros H.
+    destruct (nrep_equiv A) as (B&H1&H2&H3).
+    exists B. split. firstorder. easy.
   Qed.
 End Covering_Listing.
 Arguments mem_dec {X}.
@@ -229,15 +232,14 @@ Theorem finite_fin X :
 Proof.
   split.
   - intros (D&A&H).
-    destruct (covering_listing X) as [B HB].
-    + easy.
-    + eauto.
+    destruct (covering_listing X D A) as (B&H1&H2).
+    + exact H.
     + exists (length B). split. exact D. exists B. easy.
   - intros (n&D&A&H&_).
     split. exact D. exists A. apply H.
 Qed.
 
-Theorem bijection_fin_fin X Y n :
+Theorem bijection_fin_trans X Y n :
   bijection X Y -> fin n X -> fin n Y.
 Proof.
   intros H (D&A&H1&H2). hnf.
@@ -255,24 +257,18 @@ Proof.
    + rewrite length_map. exact H2.
 Qed.
 
-Fact injection_covering {X Y}:
-  injection X Y -> sig (covering Y) -> sig (covering X).
+Theorem injection_fin_trans {X Y} n :
+  injection X Y -> fin n Y -> Sigma m, (fin m X) * (m <= n).
 Proof.
-  intros [f g H] [A H1].
-  exists (map g A). intros x.
-  specialize (H1 (f x)).
-  apply in_map_iff. exists (f x). auto.
-Qed.
-
-Theorem injection_fin X Y :
-  injection X Y -> finite Y -> finite X.
-Proof.
-  intros H1 (D&B&H2).
-  destruct (injection_covering H1) as [A H3].
-  - eauto.
-  - split.
-    + revert H1 D. apply injection_eqdec.
-    + eauto.
+  intros H (H1&B&H2&H3).
+  assert (D: eqdec X).
+  { eapply injection_eqdec; eauto. }
+  destruct H as [f g H].
+  destruct (covering_listing X D (map g B)) as (A&H4&H5).
+  { intros x.  eapply in_map_iff. exists (f x). split. easy. apply H2. }
+  exists (length A). split.
+  - split. exact D. eauto.
+  - rewrite length_map in H5. lia.
 Qed.
 
 (** Construction of injections and bijections *)
@@ -345,172 +341,164 @@ End SubPos.
 Arguments sub {X}.
 Arguments pos {X}.
 
-Theorem fin_fin_bijection n X Y:
-  fin n X -> fin n Y -> bijection X Y.
+Fact fin_injection_nat X n :
+  fin (S n) X -> injection X nat.
 Proof.
-  (* beautiful proof script *)
-  intros (D&A&(H1&H2)&H3) (E&B&(H4&H5)&H6).
-  destruct n as [|n], A as [|a A], B as [|b B];
-    try discriminate H3; try discriminate H6.
-  - exists (fun x => match (H1 x) with end)
-      (fun y => match (H4 y) with end).
-    + intros x. destruct (H1 x).
-    + intros y. destruct (H4 y).
-  - assert (length (a::A) = length (b::B)) as H  by congruence.
-    exists (fun x => sub b (b::B) (pos D (a::A) x))
-      (fun y => sub a (a::A) (pos E (b::B) y)).
-    + intros x. rewrite pos_sub, sub_pos; trivial.
-      rewrite <-H. apply pos_bnd, H1.
-    + intros y. rewrite pos_sub, sub_pos; trivial.
-      rewrite H. apply pos_bnd, H4.
+  intros (D&A&(H1&H2)&H3).
+  assert (a:X).
+  {destruct A as [|a A]; cbn in *. lia. easy. }
+  exists (pos D A) (sub a A).
+    intros x. apply sub_pos. easy.
 Qed.
 
 Fact fin_fin_le_injection X Y m n :
-  fin m X -> fin n Y -> 1 <= m <= n -> injection X Y.
+  fin (S m) X -> fin (S n) Y -> m <= n -> injection X Y.
 Proof.
   intros (D&A&(H1&H2)&H3) (E&B&(H4&H5)&H6) H.
-  destruct A as [|a A].
-  { exfalso. cbn in H3. lia. }
-  destruct B as [|b B].
-  { exfalso. cbn in H6. lia. }
+  destruct A as [|a A]. easy.
+  destruct B as [|b B]. easy.
   exists (fun x => sub b (b::B) (pos D (a::A) x))
     (fun y => sub a (a::A) (pos E (b::B) y)).
   hnf. intros x. 
-  - rewrite pos_sub. apply sub_pos.
-    + apply H1.
-    + apply H5.
-    + enough (pos D (a::A) x < length (a::A)) by lia.
-      apply pos_bnd, H1.
+  rewrite pos_sub, sub_pos; trivial.
+  enough (pos D (a::A) x < length (a::A)) by lia. 
+  apply pos_bnd. easy.
 Qed.
 
-(** Discriminating elements *)
-
-Section List.
-  Variable X : Type.
-  Variables X_eqdec: eqdec X.
-  Implicit Types (x y z: X) (A B: list X).
- 
-  Fact mem_sum x a A :
-    x el a :: A -> (x = a) + (x el A).
-  Proof.
-    intros H.
-    destruct (X_eqdec x a) as [H1|H1].
-    - left. exact H1.
-    - right. destruct H as [H|H].
-      + exfalso. auto.
-      + exact H.
-  Qed.
- 
-  Fact mem_sig x A :
-    x el A -> Sigma A1 A2, A = A1 ++ x::A2.
-  Proof.
-    intros H.
-    induction A as [|y A IH].
-    - contradict H.
-    - apply mem_sum in H as [<-|H1].
-      + exists [], A. reflexivity.
-      + destruct (IH H1) as (A1&A2&->).
-        exists (y::A1), A2. reflexivity.
-  Qed.
-  
-  Fact mem_rear_sig {x A} :
-    x el A -> Sigma A', A == x::A' /\ length A = S (length A').
-  Proof.
-    intros (A1&A2&->) %mem_sig.
-    exists (A1++A2). cbn. split.
-    - split; intros z; cbn; rewrite !in_app_iff; cbn; intuition.
-    (* Note the use of setoid rewriting *)
-    - rewrite !length_app. cbn. lia.
-  Qed.
- 
-  Fact nrep_discriminate {A B} :
-    nrep A -> length B < length A -> Sigma x, x el A /\ x nel B.
-  Proof.
-    induction A as [|a A IH] in B |-*; cbn.
-    - lia.  (* computational falsity elimination *)
-    - intros [H1 H2] H3.
-      destruct (mem_dec X_eqdec a B) as [H|H].
-      2: {exists a. auto. }
-      destruct (mem_rear_sig H) as (B'&H4&H5).
-      destruct (IH B' H2 ltac:(lia)) as (x&H6&H7).
-      exists x. split.
-      + auto.
-      + contradict H7. apply H4 in H7 as [->|H7]; easy.
-  Qed.
- 
-  Fact nrep_le A B :
-    nrep A -> A <<= B -> length A <= length B.
-  Proof.
-    intros H1 H2.
-    enough (length B < length A -> False) by lia.
-    intros H3.
-    destruct (nrep_discriminate H1 H3) as (x&H4&H5).
-    auto.
-   Qed.
-
-  Fact nrep_incl A B :
-    nrep A -> A <<= B -> length B <= length A -> B <<= A.
-  Proof.
-    intros H1 H2 H3 x H4.
-    destruct (mem_dec X_eqdec x A) as [H5|H5]. exact H5. exfalso.
-    destruct (@nrep_discriminate (x::A) B) as (z&H6&H7).
-    - easy.
-    - cbn; lia.
-    - destruct H6 as [->|H6]; auto.
-  Qed.
-
-  Fact listing_length_unique A B :
-    listing X A -> listing X B -> length A = length B.
-  Proof.
-    intros [H1 H2] [H3 H4].
-    enough (length A <= length B /\ length B <= length A) by lia.
-    split; apply nrep_le; try assumption.
-    - intros x _. apply H3.
-   - intros x _. apply H1.
-  Qed.
-End List.
-
-Fact fin_unique X m n :
-  fin m X -> fin n X -> m = n.
+Theorem fin_fin_bijection n X Y:
+  fin n X -> fin n Y -> bijection X Y.
 Proof.
-  intros [D (A&H1&H2)] [_ (B&H3&H4)].
-  subst m n. apply listing_length_unique; assumption.
+  intros (D&A&(H1&H2)&H3) (E&B&(H4&H5)&H6).
+  destruct n as [|n], A as [|a A], B as [|b B]; try easy.
+  - apply bijection_void; easy.
+  - assert (H: length (a::A) = length (b::B))  by congruence.
+    exists (fun x => sub b (b::B) (pos D (a::A) x))
+      (fun y => sub a (a::A) (pos E (b::B) y)).
+    + intros x. rewrite pos_sub, sub_pos; trivial.
+      rewrite <-H. apply pos_bnd. easy.
+    + intros y. rewrite pos_sub, sub_pos; trivial.
+      rewrite H. apply pos_bnd. easy.
 Qed.
- 
-(** Injections *)
 
-Fact fin_fin_injection_le X Y m n :
+Theorem fin_num_equiv n X :
+  fin n X  <=> bijection X (num n).
+Proof.
+  split; intros H.
+  - eapply fin_fin_bijection. exact H. apply fin_num.
+  - eapply bijection_fin_trans.
+    + apply bijection_sym. exact H.
+    + apply fin_num.
+Qed.
+
+(** Injection Lowering *)
+
+Definition lower X Y (f: option X -> option Y) (g: option Y -> option X) y0 x :=
+  match f (Some x) with
+  | Some y' => y'
+  | None => match f None with
+           | Some y => y
+           | None => y0
+           end
+  end.
+
+Lemma lower_inv X Y f g x0 y0 :
+  inv g f -> inv (lower Y X g f x0) (lower X Y f g y0).
+Proof.
+  intros H. intros x. unfold lower.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  - destruct (g (Some y)) as [x'|] eqn:E2.
+    + congruence.
+    + exfalso. congruence.
+  - destruct (f None) as [y|] eqn:E2. 
+    + destruct (g (Some y))  as [y'|] eqn:E3.
+      * exfalso. congruence.
+      * destruct (g None) as [x'|] eqn:E4.
+        -- congruence.
+        -- exfalso. congruence.
+    + exfalso. congruence.
+Qed.
+
+Lemma option_lower_injection X Y :
+  X -> Y -> injection (option X) (option Y) -> injection X Y.
+Proof.
+  intros x0 y0 [f g H].
+  exists (lower X Y f g y0) (lower Y X g f x0).
+  eapply lower_inv, H.
+Qed.
+
+(** Cardinality theorems *)
+
+Lemma num_card_le_S m n :
+  injection (num (S m)) (num (S n)) -> m <= n.
+Proof.
+  revert n. induction m. lia.
+  intros n H.
+  destruct n.
+  - exfalso. destruct H as [f g Hfg].
+    assert (H: f None <> f (Some None)).
+    { intros H %(f_equal g). congruence. }
+    destruct (f None) eqn:H1; destruct (f (Some None)) eqn:H2; easy.
+  - enough (m <= n) by lia.
+    apply IHm, option_lower_injection.
+    exact None. exact None. exact H.
+Qed.
+
+Lemma num_card_le m n :
+  injection (num m) (num n) -> m <= n.
+Proof.
+  destruct m. lia.
+  destruct n.
+  { intros [f _ _]. destruct (f None). }
+  intros H. enough (m <= n) by lia. apply num_card_le_S, H.
+Qed.
+
+Fact injection_trans X Y Z :
+  injection X Y -> injection Y Z -> injection X Z.
+Proof.
+  intros [f g H] [f' g' H'].
+  exists (fun x => f' (f x)) (fun z => g (g' z)).
+  intros x. congruence.
+Qed.
+
+Theorem fin_card_le X Y m n :
   fin m X -> fin n Y -> injection X Y -> m <= n.
 Proof.
-  intros (D&A&(H1&H2)&H3) (E&B&H4&H5) [f g H6].
-  subst m n.
-  erewrite <-(length_map f).
-  apply nrep_le.
-  - exact E.
-  - apply nrep_map. 2:exact H2. eapply inv_injective, H6.
-  - intros y _. apply H4.
+  intros H1%fin_num_equiv H2%fin_num_equiv H3.
+  apply num_card_le.
+  apply bijection_sym, bijection_injection in H1.
+  apply  bijection_injection in H2.
+    revert H2; apply injection_trans.
+    revert H3; apply injection_trans.
+    exact H1.
 Qed.
 
-Fact injection_fin_sigma X Y n :
-  injection X Y -> fin n Y -> Sigma m, fin m X * (m <= n).
+Fact injection_refl X  :
+  injection X X.
+Proof.
+  exists (fun x => x) (fun x => x). easy.
+Qed.
+
+Theorem fin_card_eq X m n :
+  fin m X -> fin n X -> m = n.
 Proof.
   intros H1 H2.
-  assert { m & fin m X } as [m H3].
-  { eapply finite_fin, injection_fin. exact H1.
-    eapply finite_fin. eauto. }
-  exists m. split. exact H3.
-  eapply fin_fin_injection_le; eassumption.
+  enough (m <= n /\ n <= m) by lia.
+  split.
+  all: generalize (injection_refl X).
+  all: apply fin_card_le; easy.
 Qed.
+
+(** Exercises *)
 
 Fact fin_sandwich X Y n :
   injection X Y -> injection Y X -> fin n X -> fin n Y.
 Proof.
   intros H1 H2 H3.
-  edestruct injection_fin_sigma as (m&H4&H5). exact H2. exact H3.
-  edestruct injection_fin_sigma as (k&H6&H7). exact H1. exact H4.
-  assert (k=n) as -> by (eapply fin_unique; eassumption).
-  assert (m=n) as -> by lia.
-  exact H4.
+  destruct (injection_fin_trans n H2 H3) as (k&H4&H5).
+  edestruct (injection_fin_trans k H1 H4) as (l&H6&H7).
+  enough (k=n) by congruence.
+  assert (n=l) by (eapply fin_card_eq; eassumption).
+  lia.
 Qed.
 
 Fact finite_sandwich X Y :
@@ -521,23 +509,33 @@ Proof.
   eapply fin_sandwich; eassumption.
 Qed.
 
-Corollary fin_fin_bij_card_eq  X Y m n :
+Fact fin_fin_bij_card_eq  X Y m n :
   fin m X -> fin n Y -> (bijection X Y <=> m = n).
 Proof.
   intros H1 H2. split.
-  - intros H3. eapply fin_unique. exact H1.
-    eapply bijection_fin_fin. 2: exact H2.
+  - intros H3. eapply fin_card_eq. exact H1.
+    eapply bijection_fin_trans. 2: exact H2.
     apply bijection_sym, H3.
   - intros ->. eapply fin_fin_bijection; eassumption.
 Qed.
   
-Corollary bijection_num m n :
+Fact bijection_num m n :
   bijection (num m) (num n) -> m = n.
 Proof.
-  intros H. eapply fin_unique.
+  intros H.
+  eapply fin_card_eq.
   - apply fin_num.
-  - eapply bijection_fin_fin.
+  - eapply bijection_fin_trans.
     + apply bijection_sym, H.
     + apply fin_num.
 Qed.
 
+Fact injection_covering {X Y}:
+  injection X Y -> sig (covering Y) -> sig (covering X).
+Proof.
+  intros [f g H] [A H1].
+  exists (map g A). intros x.
+  specialize (H1 (f x)).
+  apply in_map_iff. exists (f x). auto.
+Qed.
+ 
