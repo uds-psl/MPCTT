@@ -296,7 +296,7 @@ Section SubPos.
 
   Fixpoint pos A x : nat :=
     match A with
-      [] => 0
+    | [] => 0
     | y::A' => if X_eqdec y x then 0 else S (pos A' x)
     end.
   
@@ -399,9 +399,9 @@ Qed.
 
 (** Injection Lowering *)
 
-Definition lower X Y (f: option X -> option Y) (g: option Y -> option X) y0 x :=
+Definition lower X Y (f: option X -> option Y) (g: option Y -> option X) y0 : X -> Y := fun x =>
   match f (Some x) with
-  | Some y' => y'
+  | Some y => y
   | None => match f None with
            | Some y => y
            | None => y0
@@ -444,7 +444,7 @@ Proof.
   - exfalso. destruct H as [f g Hfg].
     assert (H: f None <> f (Some None)).
     { intros H %(f_equal g). congruence. }
-    destruct (f None) eqn:H1; destruct (f (Some None)) eqn:H2; easy.
+    destruct (f None); destruct (f (Some None)); easy.
   - enough (m <= n) by lia.
     apply IHm, option_lower_injection.
     exact None. exact None. exact H.
