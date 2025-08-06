@@ -298,11 +298,11 @@ Proof.
     eapply DPI1, H2.
 Qed.
 
-(** Lowering theorems for option types *)
+(*** Lowering theorems for option types *)
 
-(* Straightforward if both sides are assumed inhabited *)
+(** With escape values *)
 
-Definition lower X Y (f: option X -> option Y) (g: option Y -> option X) y0 x :=
+Definition lower {X Y} (f: option X -> option Y) y0 x :=
   match f (Some x) with
   | Some y' => y'
   | None => match f None with
@@ -312,7 +312,7 @@ Definition lower X Y (f: option X -> option Y) (g: option Y -> option X) y0 x :=
   end.
 
 Lemma lower_inv X Y f g x0 y0 :
-  inv g f -> inv (lower Y X g f x0) (lower X Y f g y0).
+  @inv (option X) (option Y) g f -> @inv X Y (lower g x0) (lower f y0).
 Proof.
   intros H. intros x. unfold lower.
   destruct (f (Some x)) as [y|] eqn:E1.
@@ -328,103 +328,115 @@ Proof.
     + exfalso. congruence.
 Qed.
 
-Theorem injection_option' X Y (x0: X) (y0: Y) : 
+Theorem injection_lower_esc X Y (x0: X) (y0: Y) : 
   injection (option X) (option Y) -> injection X Y.
 Proof.
   intros [f g H].
-  exists (lower X Y f g y0) (lower Y X g f x0).
+  exists (lower f y0) (lower g x0).
   eapply lower_inv, H.
 Qed.
 
-Theorem bijection_option' X Y (x0: X) (y0: Y) : 
+Theorem bijection_lower_esc X Y (x0: X) (y0: Y) : 
   bijection (option X) (option Y) -> bijection X Y.
 Proof.
   intros [f g H1 H2].
-  exists (lower X Y f g y0) (lower Y X g f x0).
+  exists (lower f y0) (lower g x0).
   - eapply lower_inv, H1.
   - eapply lower_inv, H2.
 Qed.
 
-(* Inhabitation not needed for bijection lowering *)
+Inductive void : Type := .
 
-Definition Lower' X Y (f: option X -> option Y) x y :=
+Fixpoint num n : Type :=
+  match n with 0 => void | S n => option (num n) end.
+
+Lemma num_card_le_S m n :
+  injection (num (S m)) (num (S n)) -> m <= n.
+Proof.
+  revert n. induction m. lia.
+  intros n H.
+  destruct n.
+  - exfalso. destruct H as [f g Hfg].
+    assert (H: f None <> f (Some None)).
+    { intros H %(f_equal g). congruence. }
+    destruct (f None); destruct (f (Some None)); easy.
+  - enough (m <= n) by lia.
+    apply IHm, injection_lower_esc.
+    exact None. exact None. exact H.
+Qed.
+
+(** Without escape values *)
+
+Definition lower_rel X Y (f: option X -> option Y) x y :=
   match f (Some x) with
   | Some y' => y = y'
   | None => Some y = f None
   end.
 
-Definition Lower X Y f f' :=
-  forall x, Lower' X Y f x (f' x).
+Definition lowering X Y f f' :=
+  forall x, lower_rel X Y f x (f' x).
 
-Lemma Lower_sig X Y f g :
-  inv g f -> sig (Lower X Y f).
+Lemma inv_lowering {X Y} f g :
+  inv g f -> sig (lowering X Y f).
 Proof.
   intros H.
-  apply skolem_trans. intros x. unfold Lower'.
+  apply skolem_trans. intros x. unfold lower_rel.
   destruct (f (Some x)) as [y|] eqn:H1.
   - eauto.
   - destruct (f None) as [y|] eqn:H2.
     + eauto.
     + exfalso. congruence.
 Qed.
- 
-Fact lem_Lower X Y f g f' g'  :
-  Lower X Y f f' -> Lower Y X g g' -> inv g f -> inv g' f'.
-Proof.
-  intros H3 H4 H1 x.
-  specialize (H3 x). unfold Lower' in H3.
-  destruct (f (Some x)) as [y|] eqn:E1.
-  - specialize (H4 y). unfold Lower' in H4.
-    destruct (g (Some y)) as [x'|] eqn:E2; congruence.
-  - destruct (f None) as [y|] eqn:E2.
-    + specialize (H4 y). unfold Lower' in H4.
-      replace (g (Some y)) with (@None X) in H4; congruence.
-    + congruence.
- Qed.
 
-Theorem bijection_option X Y : 
+Fact lowering_inv X Y f g f' g'  :
+  lowering X Y f f' -> lowering Y X g g' -> inv g f -> inv g' f'.
+Proof.
+  intros H3 H4 H5 x.
+  specialize (H3 x). hnf in H3.
+  destruct (f (Some x)) as [y|] eqn:E1.
+  - specialize (H4 y). hnf in H4.
+    replace (g (Some y)) with (Some x) in H4; congruence.
+  - destruct (f None) as [y|] eqn:E2.
+    + specialize (H4 y). hnf in H4.
+      replace (g (Some y)) with (@None X) in H4; congruence.
+    + exfalso. clear H3 H4. congruence.
+Qed.
+
+Theorem bijection_lowering X Y : 
   bijection (option X) (option Y) -> bijection X Y.
 Proof.
   intros [f g H1 H2].
-  destruct (Lower_sig X Y f g H1) as [f' H3].
-  destruct (Lower_sig Y X g f H2) as [g' H4].
+  destruct (inv_lowering f g H1) as [f' H3].
+  destruct (inv_lowering g f H2) as [g' H4].
   - exists f' g'.
-    + revert H1. apply lem_Lower; assumption.
-    + revert H2. apply lem_Lower; assumption.
+    + revert H1. apply lowering_inv; assumption.
+    + revert H2. apply lowering_inv; assumption.
 Qed.
 
-(* Only left inhabitation needed for injection lowering *)
+(** Only left inhabitation needed for injection lowering *)
 
-Fact Lower_lower X Y f g x0 :
-  inv g f -> Lower X Y f (lower X Y f g x0).
+Lemma lowering_inv' X Y f g f' x0 :
+  lowering X Y f  f'-> inv g f -> inv (lower g x0) f'.
 Proof.
-  intros H x. unfold Lower', lower.
-  destruct (f (Some x)) as [y|] eqn:E1.
-  - reflexivity.
-  - destruct (f None) as [y|] eqn:E2. 
-    + reflexivity.
-    + exfalso. congruence.
+  intros H1 H x.
+  specialize (H1 x). hnf in H1.
+  destruct (f (Some x)) as [y|] eqn:E1; unfold lower.
+  - replace (g (Some (f' x))) with (Some x); congruence.
+  - replace (g (Some (f' x))) with (@None X) by congruence.
+    replace (g None) with (Some x); congruence.
 Qed.
 
-Theorem injection_option X Y (x0: X) : 
-  injection (option X) (option Y) -> injection X Y.
+Theorem injection_lowering X Y : 
+  X -> injection (option X) (option Y) -> injection X Y.
 Proof.
-  intros [f g H].
-  destruct (Lower_sig X Y f g H) as [f' H1].
-  exists f' (lower Y X g f x0).
-  intros x.
-  specialize (H1 x). unfold Lower' in H1. unfold lower.
-  destruct (f (Some x)) as [y|] eqn:E1.
-  - rewrite H1.
-    destruct (g (Some y)) as [x'|] eqn:E2.
-    + congruence.
-    + exfalso. congruence.
-  - rewrite H1.
-    destruct (f None) as [y|] eqn:E2. 
-    + destruct (g (Some y))  as [y'|] eqn:E3.
-      * exfalso. congruence.
-      * destruct (g None) as [x'|] eqn:E4.
-        -- congruence.
-        -- exfalso. congruence.
-    + exfalso. congruence.
+  intros x0 [f g H].
+  destruct (inv_lowering f g H) as [f' H1].
+  exists f' (lower g x0).
+  eapply lowering_inv'; eassumption.
 Qed.
+
+
+
+
+
+
