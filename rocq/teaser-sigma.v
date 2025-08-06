@@ -365,7 +365,7 @@ Proof.
     exact None. exact None. exact H.
 Qed.
 
-(** Without escape values *)
+(** Certifying construction not using escape values *)
 
 Definition lower_rel X Y (f: option X -> option Y) x y :=
   match f (Some x) with
