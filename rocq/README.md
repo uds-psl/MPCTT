@@ -22,6 +22,7 @@
 -  EWOs [ewo.v](ewo.v) 
 -  Finite Types [finty.v](finty.v) 
 -  Countable Types [cty.v](cty.v) 
+-  Prime Factorization [pfac.v](pfac.v) 
 -  Propositional Deduction [pds.v](pds.v), [solver.v](solver.v)
 -  Boolean Satisfiability [bsat.v](bsat.v)
 -  Regular Expression Matching [regexp.v](regexp.v)
