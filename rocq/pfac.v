@@ -47,7 +47,7 @@ Proof.
 Qed.
 
 Fact divides_le x y :
-  (x | y) -> y > 0 -> x <= y.
+  (x | y) -> y > 0 -> 0 < x <= y.
 Proof.
   intros [a H1] H2. destruct a; lia.
 Qed.
@@ -66,6 +66,14 @@ Proof.
   intros H1 H2. apply H2. assumption. apply divides_refl.
 Qed.
 
+Fact gamma_back x k n :
+  gamma x k -> (n|x) -> gamma n k.
+Proof.
+  intros H1 H2 m H3 H4.
+  apply H1. assumption.
+  eapply divides_trans; eassumption.
+Qed.
+
 Fact gamma_eq x k :
   x > 0 -> k > 1 -> (k|x) ->  gamma x x -> k = x.
 Proof.
@@ -73,14 +81,6 @@ Proof.
   enough (k <= x /\ x <= k) by lia. split.
   - destruct H3 as [a ->]. destruct a; lia.
   - apply H4; assumption.
-Qed.
-
-Fact gamma_back x k n :
-  gamma x k -> (n|x) -> gamma n k.
-Proof.
-  intros H1 H2 m H3 H4.
-  apply H1. assumption.
-  eapply divides_trans; eassumption.
 Qed.
 
 Fact prime_or x k :
@@ -91,6 +91,16 @@ Proof.
   assert (k = 1 \/ k > 1) as [-> |H3] by lia.
   - left; easy.
   - right. destruct H1; apply gamma_eq; assumption||lia.
+Qed.
+
+Fact prime_naive_char x :
+  prime x <-> x > 1 /\ forall n, (n | x) -> n = 1 \/ n = x.
+Proof.
+  split.
+  - intros H. assert (x > 1) by apply H.
+    split. assumption. intro n. apply prime_or. assumption.
+  - intros [H1 H2]. split. assumption.
+    intros n H3 H4. specialize (H2 _ H4). intuition lia.
 Qed.
 
 Fact prime_not x y :
