@@ -361,19 +361,19 @@ Lemma Euclid_coprime x y n :
   coprime n x -> (n | x * y) -> (n | y).
 Proof.
   revert x y n.
-  refine (size_ind2 (fun x y => x * y) _).
+  refine (size_ind2 (fun x y => x + y) _).
   intros x y IH n H1 [k H2].
   assert (y = 0 \/ y > 0) as [-> |H3] by lia. exists 0; lia.
   assert (x > 0) as H0 by apply H1.
   assert (n = x \/ n < x \/ n > x) as [<-|[H |H]] by lia.
   - apply coprime_eq in H1 as ->. exists y. lia.
   - apply (IH (x - n)).
-    + nia.
+    + lia.
     + apply coprime_sub; assumption.
     + exists (k - y). nia.
   - enough (n - x | y - k) as [a H4] by (exists a; nia).
     apply (IH x).
-    + nia.
+    + lia.
     + apply coprime_sym, coprime_sub, coprime_sym; assumption.
     + exists k. nia.
 Qed.
