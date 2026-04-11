@@ -297,6 +297,11 @@ Definition fib_iter n := fst (iter fib_step n (0,1)).
 Check fib_iter.
 Compute fib_iter 10.
 
+Goal forall n, fib_iter (S (S n)) = fib_iter n + fib_iter (S n).
+Proof.
+  unfold fib_iter. cbn. reflexivity.
+Qed.
+
 Fact fib_iter_correct n :
   fib_iter n = Fib fib_iter n.
 Proof.
@@ -306,6 +311,7 @@ Proof.
     + cbn. reflexivity.
     + cbn. unfold fib_iter. reflexivity.
 Qed.
+
 
 (** Ackermann function *)
 
