@@ -37,4 +37,4 @@
 Some chapters have teaser files 
 that may be used for demos in lectures.
 For instance,
-[teaser-gs.v](teaser-gs.v) and [demo-gs.v](demo-gs.v) for "Getting Started".
+[teaser_gs.v](teaser_gs.v) for "Getting Started".
