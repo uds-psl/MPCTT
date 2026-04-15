@@ -12,7 +12,6 @@ Definition F1 (X Y Z : Prop) (f: X -> Y) (g: Y -> Z) (x: X) : Z
   := g (f x).
 Print F1.
 
-
 Fact F2 (X Y Z : Prop) :
   (X -> Y) -> (Y -> Z) -> (X -> Z).
 Proof.
@@ -20,13 +19,44 @@ Proof.
 Qed.
 Print F2.
 
-Fact F3 X Y Z :
+Fact F3 (X Y Z : Prop) :
   (X -> Y -> Z) -> (X -> Y) -> (X -> Z).
 Proof.
   intros f g x. exact (f x (g x)).
 Qed.
 Print F3.
 
+Fact F3' (X Y Z : Prop) :
+  (X -> Y -> Z) -> (X -> Y) -> (X -> Z).
+Proof.
+  exact (fun f g x => f x (g x)).
+Qed.
+Print F3'.
+
+Fact F3'' (X Y Z : Prop) :
+  (X -> Y -> Z) -> (X -> Y) -> (X -> Z).
+Proof.
+  refine (fun f g x => _).
+  Show Proof.
+  exact (f x (g x)).
+Qed.
+Print F3''.
+
+(* We can also use the  command [Goal] *)
+
+Goal forall (X Y Z : Prop), (X -> Y -> Z) -> (X -> Y) -> (X -> Z).
+Proof.
+  intros X Y Z f g x.
+  Show Proof.
+  exact (f x (g x)).
+Qed.
+(* We loose the ability to display the final proof term *)
+
+(** Falsity and Negation *)
+
+(* We define falsity and negation and in a module
+   to preserve the predefined versions *)  
+Module Falsity.
 Notation "'False'" := (forall X: Prop, X) : type_scope. (* False prints [False] *)
 Notation "~ X" := (X -> False) : type_scope.
 
@@ -70,3 +100,4 @@ Proof.
   - apply g. intros x. exact (f x x).
 Qed.
 Print N4'.
+End Falsity.
