@@ -246,9 +246,7 @@ Compute Fib 10.
 Goal forall n, Fib (S (S n)) = Fib n + Fib (S n).
 Proof.
   intros n. unfold Fib. cbn.
+  (* pattern (iter Step n (0,1)). explains it. *)
   destruct (iter Step n (0, 1)) as [x y].
   cbn. reflexivity.
 Qed.
-
-
-

@@ -194,15 +194,15 @@ Module Functional_and_or.
 End Functional_and_or.
 
 Module Inductive_and_or.
-  Inductive and (X Y: Prop) : Prop :=
-  | and_intro : X  -> Y -> and X Y.
+  Inductive and (X Y: Prop) : Prop := 
+  | and_intro (x:X) (y:Y).
 
   Definition and_elim (X Y: Prop) (a: and X Y) (Z: Prop) (f: X -> Y -> Z) : Z :=
     match a with and_intro _ _ x y => f x y end.
   
   Inductive or (X Y: Prop) : Prop :=
-  | or_intro_l : X -> or X Y
-  | or_intro_r : Y -> or X Y.
+  | or_intro_l (x:X)
+  | or_intro_r (y:Y).
 
   Definition or_elim (X Y: Prop) (a: or X Y) (Z: Prop) (f: X -> Z) (g: Y -> Z) : Z :=
     match a with
@@ -227,7 +227,7 @@ End Inductive_and_or.
    - application of introduction constructors:
      [split], [left], [right]
    - application of eliminators:
-     [destruct], [intros] with pattterns, [exfalso]     
+     [destruct], [intros] with destructuring pattterns, [exfalso]     
  *)
 
 Fact and_char' (X Y: Prop) :
@@ -239,7 +239,6 @@ Proof.
     split. exact x. exact y.
 Qed.
 Print and_char'.
-(* Rocq does eliminator applications with matches *)
 
 Fact and_char (X Y: Prop) :
   X /\ Y <-> forall Z: Prop, (X -> Y -> Z) -> Z.
@@ -282,12 +281,73 @@ Qed.
 
 Goal forall X Y: Prop, X -> ~X -> Y.
   intros X Y x f.
-  exfalso.  Show Proof.
+  exfalso. Show Proof.
   exact (f x).
 Qed.
-  
 
+(* Typing rules *)
+
+Check nat -> Prop.
+Check forall (p: nat -> Prop) (x:nat), p x.
+
+Goal Type.
+  exact (nat -> Prop).
+Qed.
+
+Goal Prop.
+  exact (forall (p: nat -> Prop) (x:nat), p x).
+Qed.
+
+
+(** assert / let as abstract function *)
+
+Lemma Assert (X Z: Prop) :
+  X -> (X -> Z) -> Z.
+Proof.
+  exact (fun x f => f x).
+Qed.
+
+Goal forall X: Prop, (X -> ~X) -> ~(~X -> X).
+Proof.
+  intros X f g.
+  apply (Assert (~X)).
+  - exact (fun x => f x x).
+  - intros h. exact (h (g h)).
+Qed.
+
+(** abstract constants *)
+
+Definition a : nat.
+  exact 0.
+Qed.
+ 
+Definition b : nat.
+  exact 0.
+Qed.
+
+Print a.
+Print b.
+
+Goal a = b.
+  Fail reflexivity.
+Abort.
+
+Module And_fun_mixed.
   
+  Definition and (X Y : Prop) : Prop
+    := forall Z, (X -> Y -> Z) -> Z.
+
+  Print and.
+ 
+  Definition and_intro (X Y : Prop) 
+    : X -> Y -> and X Y
+    := fun x y => fun Z f => f x y.
+ 
+  Definition and_elim (X Y : Prop) 
+    : and X Y -> forall Z: Prop, (X -> Y -> Z) -> Z
+    := fun a => a.
+  
+End And_fun_mixed.
 
   
     
