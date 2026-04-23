@@ -195,12 +195,11 @@ Module Pair.
   Check Pair_ind.  (* Discrimination rule for pairs *)
   Arguments pair {X Y}.  (* declare arguments 'X' and 'Y' as implixit *)
 
-  Definition swap {X Y} (a: Pair X Y) :=
-    match a with
-    | pair x y => pair y x
-    end.
+  Definition swap {X Y} (a: Pair X Y) : Pair Y X :=
+    match a with pair x y => pair y x end.
   (* Curly braces declare type arguments of swap implicit *)
-    Goal forall X Y (a: Pair X Y),
+  
+  Goal forall X Y (a: Pair X Y),
       swap (swap a) = a.
   Proof.
     intros X Y.
@@ -220,6 +219,17 @@ Module Pair.
     destruct a as [x y]. cbn. reflexivity.
   Qed.
 
+  
+  Definition swap' {X Y} (a: Pair X Y) : Pair Y X :=
+    pair (snd a) (fst a).
+
+  Goal forall X Y (a: Pair X Y),
+      swap' (swap' a) = a.
+  Proof.
+    intros X Y a.
+    unfold swap'.
+    destruct a as [x y]. cbn. reflexivity.
+  Qed.
 End Pair.
 
 (** Fibonacci sequence with iteration on pairs *)

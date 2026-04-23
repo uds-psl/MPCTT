@@ -59,7 +59,7 @@ Qed.
 (* We define a constant for falsity and a notation for negation.
    We do this in a module to preserve the predefined versions *)        
 Module Falsity.
-  Definition False : Prop := forall X: Prop, X.  (* False prints [False] *)
+  Notation False := (forall X: Prop, X).
   Notation "~ X" := (X -> False) : type_scope.
 
   Fact N1 (X: Prop) :
@@ -349,5 +349,10 @@ Module And_fun_mixed.
   
 End And_fun_mixed.
 
-  
-    
+(** Excluded Middle *)
+
+Goal (forall X, X \/ ~X) <-> (forall X, ~(~X) -> X).
+  split; intros H X.
+  - specialize (H X). tauto.
+  - apply H. tauto.
+Qed.
