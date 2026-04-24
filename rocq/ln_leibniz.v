@@ -1,5 +1,18 @@
-Module Abstract_equality.
-Section Abstract_equality.
+Module Fun_eq.
+  Definition eq : forall X: Type , X -> X -> Prop :=
+    fun X x y => forall p: X -> Prop, p x -> p y.
+  
+  Definition  Q (X: Type) (x: X) : eq X x x :=
+    fun p a => a.
+
+   
+  Definition  R (X: Type) (x y: X)
+    : eq X x y -> forall p: X -> Prop, p x -> p y
+    :=  fun a => a.
+End Fun_eq.
+
+Module Abstract_eq.
+Section Abstract_eq.
   Variable eq : forall X, X -> X -> Prop.
   Variable Q  : forall X x, eq X x x.
   Variable R  : forall X x y, eq X x y -> forall p: X -> Prop, p x -> p y.
@@ -34,6 +47,8 @@ Section Abstract_equality.
   Qed.
 
   Print eq_trans.
+
+  Inductive True : Prop := I.
    
   Fact neq_True_False:
     True <> False.
@@ -47,36 +62,53 @@ Section Abstract_equality.
   
   Check fun (e : True = False) =>
           R e (fun X => X) I.
-
   
-  Fact neq_true_false :
-    true <> false.
+  Fact neq_O_S n :
+    0 <> S n.
   Proof.
-    intros e.
-    change ((fun b:bool => if b then True else False) false).  (* can be omitted *)
+    intros e.    
+    change ((fun n => match n with 0 => True | S n => False end) (S n)).
     apply (R e).
     exact I.
   Qed.
-  Print neq_true_false.
-
-  Check fun (e : true = false) =>
-          R e (fun b:bool => if b then True else False) I.
-
+  Print neq_O_S.
+ 
   Fact S_injective x y :
     S x = S y -> x = y.
   Proof.
-    intros e.
-    change ((fun n => match n with 0 => x = 0 | S y => x = y end) (S y)).
+    intros e.    
+    change ((fun n => match n with 0 => True | S y => x = y end) (S y)).
     apply (R e).
     apply Q.
   Qed.
   
-  Check fun x y (e : S x = S y) =>
-          R e (fun n => match n with 0 => x = 0 | S y => x = y end) (Q x).
+  Definition match_nat
+    : nat -> forall Z: Type, Z -> (nat -> Z) -> Z
+    := fun n Z z f => match n with 0 => z | S n => f n end.
 
-End Abstract_equality.
-End Abstract_equality.
+  Fact neq_O_S' n :
+    0 <> S n.
+  Proof.
+    intros e.    
+    change ((fun n => match_nat n Prop True (fun _ => False)) (S n)).
+    apply (R e).
+    exact I.
+  Qed.
 
+  Fact S_injective' x y :
+    S x = S y -> x = y.
+  Proof.
+    intros e.    
+    change ((fun n => match_nat n Prop True (fun y => x = y)) (S y)).
+    apply (R e).
+    apply Q.
+  Qed.
+ 
+End Abstract_eq.
+End Abstract_eq.
+
+(** Using equality as provided by Rocq *)
+ 
 Fact eq_sym  X (x y: X) :
   x = y -> y = x.
 Proof.
@@ -100,23 +132,23 @@ Proof.
   rewrite <-e.
   exact I.
 Qed.
-  
-Fact neq_true_false :
-  true <> false.
-Proof.
-  intros e.
-  change (if true then False else True).
-  rewrite e.
-  exact I.
-Qed.
 
 Fact S_injective x y :
   S x = S y -> x = y.
 Proof.
   intros e.
-  change (match S x with 0 => False | S x => x = y end).
-    rewrite e.
-    reflexivity.
+  change match S x with 0 => False | S x => x = y end.
+  rewrite e.
+  reflexivity.
 Qed.
 
+
+Fact neq_O_S n :
+  0 <> S n.
+Proof.
+  intros e.    
+  change match S n with 0 => True | S n => False end.
+  rewrite <-e.
+  exact I.
+Qed.
     

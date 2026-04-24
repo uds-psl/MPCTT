@@ -315,6 +315,14 @@ Proof.
   - intros h. exact (h (g h)).
 Qed.
 
+(** Excluded Middle *)
+
+Goal (forall X, X \/ ~X) <-> (forall X, ~(~X) -> X).
+  split; intros H X.
+  - specialize (H X). tauto.
+  - apply H. clear H. tauto.
+Qed.
+
 (** abstract constants *)
 
 Definition a : nat.
@@ -325,34 +333,31 @@ Definition b : nat.
   exact 0.
 Qed.
 
-Print a.
-Print b.
-
 Goal a = b.
   Fail reflexivity.
 Abort.
 
-Module And_fun_mixed.
-  
+Module And_def_abstract.
+
   Definition and (X Y : Prop) : Prop
     := forall Z, (X -> Y -> Z) -> Z.
 
-  Print and.
+  (* doesn't work
+  Definition and (X Y : Prop) : Prop.
+    exact (forall Z, (X -> Y -> Z) -> Z).
+  Qed.
+   *)
+
+  Definition and_intro (X Y : Prop) :
+    X -> Y -> and X Y.
+  Proof.
+    exact (fun x y => fun Z f => f x y).
+  Qed.
  
-  Definition and_intro (X Y : Prop) 
-    : X -> Y -> and X Y
-    := fun x y => fun Z f => f x y.
- 
-  Definition and_elim (X Y : Prop) 
-    : and X Y -> forall Z: Prop, (X -> Y -> Z) -> Z
-    := fun a => a.
+  Definition and_elim (X Y : Prop) :
+    and X Y -> forall Z: Prop, (X -> Y -> Z) -> Z.
+  Proof.
+    exact (fun a => a).
+  Qed.
   
-End And_fun_mixed.
-
-(** Excluded Middle *)
-
-Goal (forall X, X \/ ~X) <-> (forall X, ~(~X) -> X).
-  split; intros H X.
-  - specialize (H X). tauto.
-  - apply H. tauto.
-Qed.
+End And_def_abstract.
