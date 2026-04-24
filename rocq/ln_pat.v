@@ -323,6 +323,10 @@ Goal (forall X, X \/ ~X) <-> (forall X, ~(~X) -> X).
   - apply H. clear H. tauto.
 Qed.
 
+(* tauto is an automation tactic
+   for quantifier-free propositions
+   involving [False, True, ->, ~, /\, \/, <->] *)   
+
 (** abstract constants *)
 
 Definition a : nat.

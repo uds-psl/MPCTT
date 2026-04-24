@@ -133,15 +133,6 @@ Proof.
   exact I.
 Qed.
 
-Fact S_injective x y :
-  S x = S y -> x = y.
-Proof.
-  intros e.
-  change match S x with 0 => False | S x => x = y end.
-  rewrite e.
-  reflexivity.
-Qed.
-
 
 Fact neq_O_S n :
   0 <> S n.
@@ -152,3 +143,21 @@ Proof.
   exact I.
 Qed.
     
+Fact S_injective x y :
+  S x = S y -> x = y.
+Proof.
+  intros e.
+  change match S x with 0 => False | S x => x = y end.
+  rewrite e.
+  reflexivity.
+Qed.
+
+(* The equality laws proved above can be proved
+   by the automation tactic congruence
+   except for [True <> False] *)
+
+Fact S_injective' x y :
+  S x = S y -> x = y.
+Proof.
+  congruence.
+Qed.
