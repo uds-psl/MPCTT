@@ -56,7 +56,7 @@ Qed.
 
 (** Falsity and Negation *)
 
-(* We define a constant for falsity and a notation for negation.
+(* We define notations for falsity and negation.
    We do this in a module to preserve the predefined versions *)        
 Module Falsity.
   Notation False := (forall X: Prop, X).
