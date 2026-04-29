@@ -8,7 +8,7 @@ From Stdlib Require Import Lia.
 
 Implicit Types (n x y: nat) (a: nat * nat).
 
-Definition next a : nat * nat :=
+Definition eta a : nat * nat :=
   match a with
   | (0,y) => (S y, 0)
   | (S x, y) => (x, S y)
@@ -17,7 +17,7 @@ Definition next a : nat * nat :=
 Fixpoint decode n : nat * nat :=
   match n with
   | 0 => (0,0)
-  | S n' => next (decode n')
+  | S n' => eta (decode n')
   end.
 
 Fixpoint sum n : nat :=
@@ -29,45 +29,48 @@ Fixpoint sum n : nat :=
 Definition encode '(x, y) : nat :=
   sum (x + y) + y.
 
-Fact encode_next a :
-  encode (next a) = S (encode a).
+Fact encode_eta a :
+  encode (eta a) = S (encode a).
 Proof.
   destruct a as [[|x] y]; cbn.
   - replace (y + 0) with y; lia.
   - replace (x + S y) with (S (x + y)); cbn; lia.
 Qed.
 
-Opaque encode.
-(* Disables simplification of encode;
-   doesn't affect reflexivity and easy. *)
-
 Fact encode_decode n :
   encode (decode n) = n.
 Proof.
   induction n as [|n IH]; cbn.
   - reflexivity.
-  - rewrite encode_next. congruence.
+  - rewrite encode_eta. congruence.
 Qed.
 
+Definition pi a :=
+  match a with
+  | (0,0) => (0,0)
+  | (S x,0) => (0,x)
+  | (x, S y) => (S x, y)
+  end.
+Arguments pi : simpl nomatch.
 
-Fact encode_zero a :
-  encode a = 0 -> a = (0,0).
+Fact pi_eta a :
+  pi (eta a) = a.
 Proof.
-  destruct a as [[|x] [|y]]; easy.
+  destruct a as [[|x] [|y]]; cbn.
+  - easy.
+  - easy.
+  - destruct x; reflexivity.
+  - destruct x; reflexivity.
 Qed.
 
-Fact encode_eq_zero x n :
-  encode (S x, 0) = S n -> encode (0, x) = n.
+Fact eta_pi a :
+  a <> (0,0) -> eta (pi  a) = a.
 Proof.
-  change (S x, 0) with (next (0,x)).
-  rewrite encode_next. congruence.
-Qed.
-
-Fact encode_eq_S x y n :
-  encode (x, S y) = S n -> encode (S x, y) = n.
-Proof.
-  change (x, S y) with (next (S x, y)). 
-  rewrite encode_next. congruence.
+  destruct a as [[|x] [|y]]; cbn.
+  - easy.
+  - easy.
+  - destruct x; reflexivity.
+  - destruct x; reflexivity.
 Qed.
 
 Fact decode_encode a :
@@ -75,14 +78,15 @@ Fact decode_encode a :
 Proof.
   revert a.
   enough (forall n a, encode a = n -> decode n = a) by eauto.
-  induction n as [|n IH]; cbn.
-  - intros a H%encode_zero. easy.
-  - destruct a as [x [|y]].
-    + destruct x. easy.
-      intros <-%encode_eq_zero.
-      rewrite (IH (0,x)); reflexivity.
-    + intros <-%encode_eq_S.
-      rewrite (IH (S x,y)); reflexivity.
+  induction n as [|n IH]; cbn; intros a.
+  - destruct a as [[|x] [|y]]; cbn; easy.
+  - assert (a = (0,0) \/ a <> (0,0)) as [-> |H].
+    + destruct a as [[|x] [|y]]; intuition easy.
+    + cbn. easy.
+    + rewrite <- (eta_pi a H).
+      rewrite encode_eta.
+      intros [= H1]. f_equal.
+      auto.
 Qed.
 
 Fact Gauss n :
