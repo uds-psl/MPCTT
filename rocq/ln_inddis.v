@@ -58,11 +58,11 @@ Qed.
 
 (* Eta law for pairs *)
 
-Goal forall X Y, forall p: X * Y -> Prop,
-    (forall x y, p (x,y)) -> forall a, p a.
+Goal forall X Y, forall a: X * Y, a = (fst a, snd a).
 Proof.
-  intros * f.
-  refine (discriminate_pair _ _ _ _). exact f.
+  intros X Y.
+  refine (discriminate_pair _ _ _ _).
+  cbn. reflexivity.
 Qed.
 
 (** Order on numbers *)
@@ -123,8 +123,8 @@ Fact plus_and x y :
   x + y = 0 <-> x = 0 /\ y = 0.
 Proof.
   split.
-  - destruct x. easy. easy.
-  - intros [-> ->]. easy.
+  - destruct x; cbn. easy. easy.
+  - intros [-> ->]; cbn. reflexivity.
 Qed.
 
 Goal forall x y, x = y <-> (x - y) + (y - x) = 0.
