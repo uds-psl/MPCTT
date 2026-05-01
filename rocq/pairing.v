@@ -52,21 +52,17 @@ Definition pi a :=
   end.
 Arguments pi : simpl nomatch.
 
-Fact eta_pi a :
-  a = (0,0) \/ a = eta (pi  a).
-Proof.
-  destruct a as [[|x] [|y]]; cbn; auto.
-Qed.
-
 Fact decode_encode a :
   decode (encode a) = a.
 Proof.
   revert a.
   enough (forall n a, encode a = n -> decode n = a) by eauto.
   induction n as [|n IH]; cbn; intros a.
-  - destruct a as [[|x] [|y]]; cbn; (lia || easy).
-  - destruct (eta_pi a) as [-> | ->]; cbn. easy.
-    rewrite encode_eta. intros [= H1%IH]. congruence.
+  - destruct a as [[|x] [|y]]; cbn; auto; lia.
+  - assert (a = (0,0) \/ a = eta (pi  a)) as [-> | ->]; cbn.
+    + destruct a as [[|x] [|y]]; cbn; auto.
+    + easy.
+    + rewrite encode_eta. intros [= H1%IH]. congruence.
 Qed.
 
 Fact Gauss n :
