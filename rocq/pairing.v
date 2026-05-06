@@ -13,6 +13,25 @@ Definition sigma a :=
   | (S x, y) => (x, S y)
   end.
 
+Definition pi a :=
+  match a with
+  | (0,0) => (0,0)
+  | (S x,0) => (0,x)
+  | (x, S y) => (S x, y)
+  end.
+Arguments pi : simpl nomatch.
+
+Goal forall a, pi (sigma a) = a.
+Proof.
+  intros [[|[|x]] [|y]]; cbn; easy.
+Qed.
+
+Fact sigma_pii a :
+  a = (0,0) \/ a = sigma (pi  a).
+Proof.
+  destruct a as [[|x] [|y]]; cbn; auto.
+Qed.
+
 Fixpoint D n :=
   match n with
   | 0 => (0,0)
@@ -27,6 +46,9 @@ Fixpoint gamma n :=
 
 Definition E '(x, y) :=
   gamma (x + y) + y.
+
+Compute E (7,6).
+Compute D 97.
 
 Fact E_sigma a :
   E (sigma a) = S (E a).
@@ -43,14 +65,6 @@ Proof.
   - reflexivity.
   - rewrite E_sigma. congruence.
 Qed.
-
-Definition pi a :=
-  match a with
-  | (0,0) => (0,0)
-  | (S x,0) => (0,x)
-  | (x, S y) => (S x, y)
-  end.
-Arguments pi : simpl nomatch.
 
 Fact D_E a :
   D (E a) = a.
@@ -69,9 +83,4 @@ Fact Gauss n :
   2 * gamma n = n * S n.
 Proof.
   induction n as [|n IH]; cbn; lia.
-Qed.
-
-Goal forall a, pi (sigma a) = a.
-Proof.
-  intros [[|[|x]] [|y]]; cbn; easy.
 Qed.
