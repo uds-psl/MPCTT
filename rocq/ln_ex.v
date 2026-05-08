@@ -73,22 +73,47 @@ Qed.
 
 From Stdlib Require Import Lia.
 
+Lemma eq_fun {X Y} {f g: X -> Y} x :
+  f = g -> f x = g x.
+Proof.
+  congruence.
+Qed.
+
 Fact Cantor (f: nat -> nat -> nat) :
   exists g,  forall n, f n <> g.
 Proof.
   exists (fun n => S (f n n)).
   intros n H.
-  apply (f_equal (fun h => h n)) in H.
+  apply (eq_fun n) in H. cbn in H.
   lia.
 Qed.
 
-Fact Lawvere X Y (f: X -> X -> Y) :
-  (forall g, exists x, f x = g) -> forall g, exists y:Y, g y = y.
+Definition surjective {X Y} (f: X -> Y) :=
+  forall y, exists x, f x = y.
+
+Fact Lawvere {X Y} {f: X -> X -> Y} :
+  surjective f -> forall g, exists y:Y, g y = y.
 Proof.
   intros H g.
   specialize (H (fun x => g (f x x))) as [x H].
-  apply (f_equal (fun h => h x)) in H.
-  eauto.
+  exists (f x x).
+  apply (eq_fun x) in H.
+  easy.
+Qed.
+
+Goal forall f: bool -> bool -> bool, ~surjective f.
+Proof.
+  intros f H.
+  destruct (Lawvere H negb) as [b H1].
+  destruct b; easy.
+Qed.
+
+Goal forall f: bool -> bool -> Prop, ~surjective f.
+Proof.
+  intros f H.
+  destruct (Lawvere H (fun X:Prop => ~X)) as [X H1].
+  enough (X <-> ~X) by tauto.
+  rewrite H1; tauto.
 Qed.
 
 Definition LDN := forall X:Prop, ~ ~X -> X.
