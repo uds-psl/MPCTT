@@ -16,9 +16,14 @@ Section ExAbstract.
   Proof.
     intros X p H H1.
     apply (exE _ _ H).
-    intros x. specialize (H1 x). auto.
+    intros x H2. exact (H2 (H1 x)).
   Qed.
 
+  Goal forall X (p: X -> Prop), ex X (fun x => ~p x) -> ~forall x, p x.
+  Proof.
+    refine (fun X p a H => exE _ _ a _ (fun x f => f (H x))).
+  Qed.
+ 
   Goal forall X (p: X -> Prop) (Z: Prop),
     (forall x, p x -> Z) <-> (ex X p -> Z).
   Proof.
@@ -27,7 +32,7 @@ Section ExAbstract.
       apply (exE _ _ H1). intros x H2. eauto.
     - intros H x H1. apply H. apply (exI _ _ x H1).
   Qed.
-
+ 
 End ExAbstract.
 
 Module ExDef.
@@ -126,3 +131,13 @@ Proof.
   apply H2. exists x. exact H3.
 Qed.
 
+Fact Lawvere' {X Y} {f: X -> X -> Y} :
+  surjective f -> forall g, exists y:Y, g y = y.
+Proof.
+  intros H g.
+  assert (H1:= H (fun x => g (f x x))).
+  destruct H1 as [x H2].
+  exists (f x x).
+  assert (H3:= eq_fun x H2). cbn in H3.
+  easy.
+Qed.
