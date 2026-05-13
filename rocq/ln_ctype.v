@@ -49,7 +49,7 @@ Qed.
 (** Injections and bijections *)
 
 Inductive injection (X Y: Type) : Type :=
-| Injection {f: X -> Y} {g: Y -> X} (H: inv g f).
+| Injection (f: X -> Y) (g: Y -> X) (H: inv g f).
 
 Fact injection_refl X :
   injection X X.
@@ -62,8 +62,24 @@ Fact injection_trans X Y Z :
 Proof.
   intros [f g H] [f' g' H'].
   exists (fun x => f' (f x)) (fun z => g (g' z)).
-  intros x. congruence.
+  hnf. congruence.
 Qed.
+
+Fact discriminate_injection {X Y} :
+  injection X Y -> forall Z:Type, (forall f g, @inv X Y g f -> Z) -> Z.
+Proof.
+  intros [f g H] Z H1. eapply H1, H.
+Qed.
+
+Fact injection_trans' X Y Z :
+  injection X Y -> injection Y Z -> injection X Z.
+Proof.
+  intros H1 H2.
+  apply (discriminate_injection H1). intros f g H.
+  apply (discriminate_injection H2). intros f' g' H'.
+  apply (Injection _ _ (fun x => f' (f x)) (fun z => g (g' z))).
+  hnf. congruence.
+Qed.  
 
 Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
@@ -74,11 +90,13 @@ Proof.
   exists (fun x => x) (fun x => x); hnf; reflexivity.
 Qed.
 
-(** Unit, sums, option types *)
+(** Unit, bool, option types, sum types, product types *)
 
 Print unit.
-Print sum.
+Print bool.
 Print option.
+Print sum.
+Print prod.
 
 (* need reducing simply typed match functions *)
 
