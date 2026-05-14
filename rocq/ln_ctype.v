@@ -317,4 +317,46 @@ Proof.
   - intros x. exfalso. exact (f x).
   - intros [].
 Qed.
-   
+
+
+(*** Truncation *)
+
+Definition truncation (X: Type) : Prop := forall Z:Prop, (X -> Z) -> Z.
+Notation "□ X" := (truncation X) (at level 30, right associativity).
+
+Goal forall P Q, P /\ Q <-> □ (P * Q).
+Proof.
+  split.
+  - intros [H1 H2] Z. auto.
+  - intros H. apply H. tauto.
+Qed.
+
+Goal forall P Q, P \/ Q <-> □ (P + Q).
+Proof.
+  split.
+  - intros [H1|H2] Z; auto.
+  - intros H. apply H. tauto.
+Qed.
+
+Goal forall P: Prop, □ P <-> P.
+Proof.
+  split.
+  - intros H. apply H. auto.
+  - intros H Z. auto.
+Qed.
+
+Goal □ void <-> False.
+Proof.
+  split.
+  - intros H. apply H. intros [].
+  - intros H Z H1. apply H1. apply CFE, H.
+Qed.
+
+Inductive up (P: Prop) : Type := Up : P -> up P.
+
+Goal forall P:Prop, □ (up P) <-> P.
+Proof.
+  split.
+  - intros H. apply H. intros [a]. exact a.
+  - intros a Z H. apply H. apply Up. exact a.
+Qed.
