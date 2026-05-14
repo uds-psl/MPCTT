@@ -1,4 +1,4 @@
-(** Inverse functions *)
+(*** Inverse functions *)
 
 Definition inv {X Y: Type} (g: Y -> X) (f: X -> Y) :=
   forall x, g (f x) = x.
@@ -46,7 +46,7 @@ Proof.
   congruence.
 Qed.  
 
-(** Injections and bijections *)
+(*** Injections and bijections *)
 
 Inductive injection (X Y: Type) : Type :=
 | Injection (f: X -> Y) (g: Y -> X) (H: inv g f).
@@ -79,7 +79,7 @@ Proof.
   apply (discriminate_injection H2). intros f' g' H'.
   apply (Injection _ _ (fun x => f' (f x)) (fun z => g (g' z))).
   hnf. congruence.
-Qed.  
+Qed.
 
 Inductive bijection (X Y: Type) : Type :=
 | Bijection: forall (f: X -> Y) (g: Y -> X), inv g f -> inv f g -> bijection X Y.
@@ -90,15 +90,14 @@ Proof.
   exists (fun x => x) (fun x => x); hnf; reflexivity.
 Qed.
 
-(** Unit, bool, option types, sum types, product types *)
+(*** Unit, bool, option types,
+sum types, product types *)
 
 Print unit.
 Print bool.
 Print option.
 Print sum.
 Print prod.
-
-(* need reducing simply typed match functions *)
 
 Goal bijection bool (unit + unit).
 Proof.
@@ -137,8 +136,78 @@ Proof.
   - easy.
   - intros []. reflexivity.
 Qed.
-  
-(** Nonexistence of injections *)
+
+Goal bijection (nat + unit) nat.
+Proof.
+  exists (fun a: nat + unit => match a with inl x => S x | inr _ => 0 end)
+    (fun x: nat => match x with 0 => inr tt | S x => inl x end).
+  - intros [x|[]]; reflexivity.
+  - intros [|x]; reflexivity.
+Qed.
+
+(** Discrimination rules *)
+
+Definition discriminate_unit (p: unit -> Prop)
+  (e: p tt) a : p a
+  :=
+  match a return p a with tt => e end.
+
+Definition discriminate_bool (p: bool -> Prop)
+  (e1: p true) (e2: p false) a : p a
+  :=
+  match a return p a with true => e1 | false => e2 end.
+
+Goal forall x:bool, x = true \/ x = false.
+Proof.
+  refine (discriminate_bool _ _ _).
+  all: auto.
+Qed.
+
+Definition discriminate_option X (p: option X -> Prop)
+  (e1: forall x, p (Some x)) (e2: p None) a : p a
+  :=
+  match a return p a with Some x => e1 x | None => e2 end.
+
+Definition discriminate_sum X Y (p: X + Y -> Prop)
+  (e1: forall x, p (inl x)) (e2: forall y, p (inr y)) a : p a
+  :=
+  match a return p a with inl x => e1 x | inr y => e2 y end.
+
+Definition discriminate_product X Y (p: X * Y -> Prop)
+  (e: forall x y, p (x, y)) a : p a
+  :=
+  match a return p a with (x,y) => e x y end.
+
+(*** Arithmetic Eliminator *)
+
+Fixpoint elim_nat (p: nat -> Type) (e1: p 0) (e2: forall n, p n -> p (S n)) (n: nat) : p n
+  := match n with 0 => e1 | S n => e2 n (elim_nat p e1 e2 n) end.
+
+Check fun p: nat -> Prop => elim_nat p.
+
+Definition match_nat n Z e1 e2 := elim_nat (fun _ => Z) e1 (fun n _ => e2 n) n.
+Check match_nat.
+
+Goal forall Z e1 e2, match_nat 0 Z e1 e2 = e1.
+  reflexivity.
+Qed.
+
+Goal forall Z e1 e2 n, match_nat (S n) Z e1 e2 = e2 n.
+  reflexivity.
+Qed.
+
+Definition plus x y := elim_nat (fun _ => nat) y (fun _ => S) x.
+Check plus.
+
+Goal forall y, plus 0 y = y.
+  reflexivity.
+Qed.
+
+Goal forall x y, plus (S x) y = S (plus x y).
+  reflexivity.
+Qed.
+
+(*** Nonexistence of Injections *)
 
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 
@@ -162,95 +231,58 @@ Proof.
     destruct (f n) as [|]; auto.
 Qed.
 
+Lemma eq_fun {X Y} {f g: X -> Y} x :
+  f = g -> f x = g x.
+Proof.
+  congruence.
+Qed.
+
+Definition fixed_point {X} f (x:X) := f x = x.
+
+Fact Lawvere {X Y} (f: X -> X -> Y) :
+  surjective f -> forall g: Y -> Y, ex (fixed_point g).
+Proof.
+  intros H g.
+  specialize (H (fun x => g (f x x))) as [x H].
+  exists (f x x). hnf.
+  apply (eq_fun x) in H. cbn in H.
+  easy.
+Qed.
+
 Fact no_injection_Cantor X :
   ~ injection (X -> bool) X.
 Proof.
   intros [f g H].
-  pose (h x := negb (g x x)). (* must be reducible *)
-  enough (g (f h) (f h) = h (f h)) as H1.
-  { revert H1. unfold h at 3. destruct g; easy. }
-  rewrite H. reflexivity.
+  enough (ex (fixed_point negb)) as [x Hx].
+  - destruct x; easy.
+  - apply (Lawvere g).
+    eapply inv_surjective, H.
 Qed.
 
-(** Elimination functions *)
-
-Definition discriminate_bool (p: bool -> Type)
-  (H1: p true) (H2: p false) (x: bool) : p x
-  :=
-  match x return p x with true => H1 | false => H2 end.
-
-Definition match_bool
-  : bool -> forall Z: Type, Z -> Z -> Z
-  := fun x Z H1 H2 => discriminate_bool (fun _ => Z) H1 H2 x.
-
-Compute match_bool true nat 0 1.
-
-Fact discriminate_bool_prop :
-  forall p: bool -> Prop, p true -> p false -> forall x, p x.
-Proof.
-  intros p. exact (discriminate_bool p).
-Qed.
-
-Goal forall x:bool, x = true \/ x = false.
-Proof.
-  refine (discriminate_bool_prop _ _ _).
-  all: auto.
-Qed.
-
-Fixpoint recursion_nat (p: nat -> Type)
-  (H1: p 0) (H2: forall n, p n -> p (S n)) (x: nat) : p x
-  :=
-  match x return p x with
-  | 0 => H1
-  | S n => H2 n (recursion_nat p H1 H2 n)
-  end.
-
-Fact induction_nat (p: nat -> Prop) :
-  p 0 -> (forall n, p n -> p (S n)) -> forall x, p x.
-Proof.
-  exact (recursion_nat p).
-Qed.
-
-Definition discrimination_nat (p: nat -> Type) :
-  p 0 -> (forall n, p (S n)) -> forall x, p x
-  := fun H1 H2 => recursion_nat p H1 (fun n _ => H2 n).
-
-Definition match_nat
-  : nat -> forall Z, Z -> (nat -> Z) -> Z
-  := fun x Z H1 H2 => discrimination_nat (fun _ => Z) H1 H2 x.
-
-Compute match_nat 7 (option nat) None (fun n => Some n).
-
-Fact discrimination_nat_prop (p: nat -> Prop) :
-  p 0 -> (forall n, p (S n)) -> forall x, p x.
-Proof.
-  exact (discrimination_nat p).
-Qed.
-
-Definition double: nat -> nat :=
-  recursion_nat (fun _ => nat) 0 (fun _ a => S (S a)).
-
-Compute double 5.
-
-(** Void *)
+(*** Void *)
 
 Inductive void : Type := .
+
+Definition elim_void
+  : void -> forall X:Type, X
+  := fun v => match v with end.
+
+Goal bijection void (forall X:Type, X).
+Proof.
+  exists elim_void
+    (fun f => f void)
+  ; hnf.
+  - intros [].
+  - intros f. destruct (f void).
+Qed.
 
 Goal forall X, bijection (X + void) X.
 Proof.
   intros X.
-  exists (fun a: X + void => match a with inl x => x | inr v => match v with end end)
+  exists (fun a: X + void => match a with inl x => x | inr v => elim_void v X end)
     inl.
   - intros [x|[]]. reflexivity.
   - intros x. reflexivity.
-Qed.
-
-Goal bijection (nat + unit) nat.
-Proof.
-  exists (fun a: nat + unit => match a with inl x => S x | inr _ => 0 end)
-    (fun x: nat => match x with 0 => inr tt | S x => inl x end).
-  - intros [x|[]]; reflexivity.
-  - intros [|x]; reflexivity.
 Qed.
 
 Goal ~ injection unit void.
@@ -259,102 +291,30 @@ Proof.
   destruct (f tt).
 Qed.
 
-Goal bijection void (forall X:Type, X).
-Proof.
-  exists (fun v:void => match v with end)
-    (fun f: forall X, X => match f void with end);
-    hnf.
-  - intros [].
-  - intros f. destruct (f void).
-Qed.
-                             
-(** Decisions and equality deciders *)
-
-Definition dec (X: Type) : Type := X + (X -> False).
-
-Goal forall X Y,
-    dec X -> dec Y -> dec (X + Y).
-Proof.
-  unfold dec. tauto.
-Qed.
-
-Definition eqdec X := forall x y: X, dec (x = y).
-
-Fact eqdec_void : eqdec void.
-Proof.
-  intros [].
-Qed.
-
-Fact eqdec_nat : eqdec nat.
-Proof.
-  hnf.
-  induction x; destruct y.
-  all: unfold dec.
-  1-3: intuition congruence.
-  destruct (IHx y) as [H|H]; intuition congruence.
-Qed.
-
-Fact eqdec_prod X Y :
-  eqdec X -> eqdec Y -> eqdec (X*Y).
-Proof.
-  intros dX dY [x y] [x' y'].
-  destruct (dX x x') as [H1|H1].
-  - destruct (dY y y') as [H2|H2].
-    all: unfold dec.
-    all: intuition congruence.
-  - unfold dec; intuition congruence.
-Qed.
- 
-Fact eqdec_injective {X Y f} :
-  @injective X Y f -> eqdec Y -> eqdec X.
-Proof.
-  intros H d x x'. specialize (H x x').
-  destruct (d (f x) (f x')) as [H1|H1];
-    unfold dec in *; intuition congruence.
-Qed.
-
-Fact eqdec_injection X Y :
-  injection X Y -> eqdec Y -> eqdec X.
-Proof.
-  intros [f g H] H1.
-  apply inv_injective in H.
-  revert H H1. apply eqdec_injective.
-Qed.
-
-(** CFE *)
-
+(* CFE can be defined in Rocq using discrimination
+   on   inductiove definition of [False] *)
 Fact CFE :
   False -> forall X:Type, X.
 Proof.
   intros [].
 Qed.
 
-Fact eqdec_bot : eqdec False.
+Goal bijection void False.
 Proof.
-  intros b. apply (CFE b).
-Qed.
-
-(* All empty types are in bijection *)
-Goal forall X Y: Type, ~ X ->  ~ Y -> bijection X Y.
-Proof.
-  intros X Y FX FY.
-  exists (fun x => match CFE (FX x) void return Y with end)
-    (fun y => match CFE (FY y) void return X with end)
-    ; hnf.
-  - intros x. exfalso. easy. 
-  - intros y. exfalso. easy. 
-Qed.
-
-Goal bijection void False.  (* subtyping *)
-Proof.
-  exists (fun v:void => match v return False with end)
+  exists (fun v => elim_void v False)
     (fun b => CFE b void)
   ; hnf.
   - intros [].
   - intros x. exfalso. exact x.
 Qed.
 
-  
-
-
-
+Goal forall X: Type, ~ X ->  bijection X void.
+Proof.
+  intros X f.
+  exists (fun x => CFE (f x) void)
+    (fun v => elim_void v X)
+    ; hnf.
+  - intros x. exfalso. exact (f x).
+  - intros [].
+Qed.
+   
