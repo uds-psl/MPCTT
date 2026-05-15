@@ -183,8 +183,10 @@ Definition discriminate_product X Y (p: X * Y -> Prop)
 Fixpoint elim_nat (p: nat -> Type) (e1: p 0) (e2: forall n, p n -> p (S n)) (n: nat) : p n
   := match n with 0 => e1 | S n => e2 n (elim_nat p e1 e2 n) end.
 
+(* Discrimination rule *)
 Check fun p: nat -> Prop => elim_nat p.
 
+(* Simply typed reducing match *)
 Definition match_nat n Z e1 e2 := elim_nat (fun _ => Z) e1 (fun n _ => e2 n) n.
 Check match_nat.
 
@@ -196,6 +198,7 @@ Goal forall Z e1 e2 n, match_nat (S n) Z e1 e2 = e2 n.
   reflexivity.
 Qed.
 
+(* Addition defined with eliminator *)
 Definition plus x y := elim_nat (fun _ => nat) y (fun _ => S) x.
 Check plus.
 
@@ -310,11 +313,11 @@ Proof.
   - intros H. apply H. tauto.
 Qed.
 
-Goal □ void <-> False.
+Goal False <-> □ void.
 Proof.
   split.
-  - intros H. apply H. intros [].
   - intros [].
+  - intros H. apply H. intros [].
 Qed.
 
 Goal forall P: Prop, □ P <-> P.
