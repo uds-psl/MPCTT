@@ -291,34 +291,6 @@ Proof.
   destruct (f tt).
 Qed.
 
-(* CFE can be defined in Rocq using discrimination
-   on   inductiove definition of [False] *)
-Fact CFE :
-  False -> forall X:Type, X.
-Proof.
-  intros [].
-Qed.
-
-Goal bijection void False.
-Proof.
-  exists (fun v => elim_void v False)
-    (fun b => CFE b void)
-  ; hnf.
-  - intros [].
-  - intros x. exfalso. exact x.
-Qed.
-
-Goal forall X: Type, ~ X ->  bijection X void.
-Proof.
-  intros X f.
-  exists (fun x => CFE (f x) void)
-    (fun v => elim_void v X)
-    ; hnf.
-  - intros x. exfalso. exact (f x).
-  - intros [].
-Qed.
-
-
 (*** Truncation *)
 
 Definition truncation (X: Type) : Prop := forall Z:Prop, (X -> Z) -> Z.
@@ -338,6 +310,13 @@ Proof.
   - intros H. apply H. tauto.
 Qed.
 
+Goal □ void <-> False.
+Proof.
+  split.
+  - intros H. apply H. intros [].
+  - intros [].
+Qed.
+
 Goal forall P: Prop, □ P <-> P.
 Proof.
   split.
@@ -345,18 +324,40 @@ Proof.
   - intros H Z. auto.
 Qed.
 
-Goal □ void <-> False.
+Goal □ (forall X:Type, X + ~X) -> (forall X:Prop, X \/ ~X).
 Proof.
-  split.
-  - intros H. apply H. intros [].
-  - intros H Z H1. apply H1. apply CFE, H.
+  intros F X.
+  apply F.
+  intros G.
+  specialize (G X). tauto.
 Qed.
 
-Inductive up (P: Prop) : Type := Up : P -> up P.
+(*** CFE *)
 
-Goal forall P:Prop, □ (up P) <-> P.
+Definition CFE := False -> forall X:Type, X.
+
+
+Fact CFE_bijection_empty :
+  CFE -> forall X: Type, ~ X ->  bijection X void.
 Proof.
-  split.
-  - intros H. apply H. intros [a]. exact a.
-  - intros a Z H. apply H. apply Up. exact a.
+  intros F X f.
+  exists (fun x => F (f x) void)
+    (fun v => elim_void v X)
+    ; hnf.
+  - intros x. exfalso. exact (f x).
+  - intros [].
+Qed.
+
+Goal CFE -> bijection False void.
+Proof.
+  intros F.
+  apply CFE_bijection_empty.
+  exact F. auto.
+Qed.
+
+(* CFE can be defined in Rocq using discrimination
+   on   inductiove definition of [False] *)
+Goal CFE.
+Proof.
+  intros [].
 Qed.
