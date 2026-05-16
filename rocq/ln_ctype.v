@@ -147,41 +147,47 @@ Qed.
 
 (** Discrimination rules *)
 
-Definition discriminate_unit (p: unit -> Prop)
-  (e: p tt) a : p a
-  :=
-  match a return p a with tt => e end.
-
-Definition discriminate_bool (p: bool -> Prop)
-  (e1: p true) (e2: p false) a : p a
-  :=
-  match a return p a with true => e1 | false => e2 end.
-
-Goal forall x:bool, x = true \/ x = false.
+Fact discriminate_unit (p: unit -> Prop) :
+  p tt -> forall a, p a.
 Proof.
-  refine (discriminate_bool _ _ _).
-  all: auto.
+  intros e a.
+  exact ( match a return p a with tt => e end).
 Qed.
 
-Definition discriminate_option X (p: option X -> Prop)
-  (e1: forall x, p (Some x)) (e2: p None) a : p a
-  :=
-  match a return p a with Some x => e1 x | None => e2 end.
+Fact discriminate_bool (p: bool -> Prop) :
+  p true ->  p false -> forall  a, p a.
+Proof.
+  intros e1 e2 a.
+  exact (match a return p a with true => e1 |false => e2 end).
+Qed.
 
-Definition discriminate_sum X Y (p: X + Y -> Prop)
-  (e1: forall x, p (inl x)) (e2: forall y, p (inr y)) a : p a
-  :=
-  match a return p a with inl x => e1 x | inr y => e2 y end.
+Fact discriminate_option X (p: option X -> Prop) :
+  (forall x, p (Some x)) -> p None -> forall  a, p a.
+Proof.
+  intros e1 e2 a.
+  exact (match a return p a with Some x => e1 x | None => e2 end).
+Qed.
 
-Definition discriminate_product X Y (p: X * Y -> Prop)
-  (e: forall x y, p (x, y)) a : p a
-  :=
-  match a return p a with (x,y) => e x y end.
+Fact discriminate_sum X Y (p: X + Y -> Prop) :
+  (forall x, p (inl x)) -> (forall y, p (inr y)) -> forall a, p a.
+Proof.
+  intros e1 e2 a.
+  exact (match a return p a with inl x => e1 x | inr y => e2 y end).
+Qed.
+
+Fact discriminate_product X Y (p: X * Y -> Prop) :
+  (forall x y, p (x, y)) -> forall a, p a.
+Proof.
+  intros e a.
+  exact (match a return p a with (x,y) => e x y end).
+Qed.
 
 (*** Arithmetic Eliminator *)
 
-Fixpoint elim_nat (p: nat -> Type) (e1: p 0) (e2: forall n, p n -> p (S n)) (n: nat) : p n
-  := match n with 0 => e1 | S n => e2 n (elim_nat p e1 e2 n) end.
+Fixpoint elim_nat (p: nat -> Type)
+  : p 0 -> (forall n, p n -> p (S n)) -> forall n, p n
+  := fun e1 e2 n =>
+       match n with 0 => e1 | S n => e2 n (elim_nat p e1 e2 n) end.
 
 (* Discrimination rule *)
 Check fun p: nat -> Prop => elim_nat p.
@@ -208,6 +214,45 @@ Qed.
 
 Goal forall x y, plus (S x) y = S (plus x y).
   reflexivity.
+Qed.
+
+Goal forall x y, plus x y = x + y.
+Proof.
+  intros x y.
+  induction x.
+  - reflexivity.
+  - change (plus (S x) y) with (S (plus x y)).
+    cbn. congruence.
+Qed.
+
+(*** Boolean Eliminator *)
+
+Definition elim_bool (p: bool -> Type)
+  : p true -> p false -> forall x, p x
+  := fun e1 e2 x =>
+       match x with true => e1 | false => e2 end.
+
+Fact discriminate_bool' (p: bool -> Type ) :
+  p true -> p false -> forall x, p x.
+Proof.
+  exact (elim_bool p).
+Qed.
+
+Fact discriminate_bool_eq :
+  forall x:bool, x = true \/ x = false.
+Proof.
+  apply discriminate_bool'.
+  all: auto.
+Qed.
+
+Fact Kaminski :
+  forall f: bool -> bool, forall x, f (f (f x)) = f x.
+Proof.
+  intros f.
+  assert (H1:= discriminate_bool_eq (f true)).
+  assert (H2:= discriminate_bool_eq (f false)).
+  apply (discriminate_bool'); destruct H1, H2.
+  all: congruence.
 Qed.
 
 (*** Nonexistence of Injections *)
