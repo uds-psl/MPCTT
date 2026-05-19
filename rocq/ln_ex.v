@@ -84,13 +84,14 @@ Proof.
   congruence.
 Qed.
 
-Fact Cantor (f: nat -> nat -> nat) :
-  exists g,  forall n, f n <> g.
+Fact Cantor X (f: X -> X -> Prop) :
+  exists g: X -> Prop,  forall x, f x <> g.
 Proof.
-  exists (fun n => S (f n n)).
-  intros n H.
-  apply (eq_fun n) in H. cbn in H.
-  lia.
+  exists (fun x => ~ f x x).
+  intros x H.
+  apply (eq_fun x) in H. cbn in H.
+  enough (f x x <-> ~ f x x) by tauto.
+  rewrite H at 1. tauto.
 Qed.
 
 Definition surjective {X Y} (f: X -> Y) :=
