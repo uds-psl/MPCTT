@@ -278,6 +278,50 @@ Proof.
   - hnf. intros [f [g [H1 H2]]]. reflexivity.
 Qed.
 
+
+(*** CFE *)
+
+Definition CFE := False -> forall X:Type, X.
+
+Inductive void : Type := .
+Definition elim_void
+  : void -> forall X:Type, X
+  := fun v => match v with end.
+
+Fact CFE_bijection_empty :
+  CFE -> forall X: Type, ~ X ->  bijection X void.
+Proof.
+  intros F X f.
+  exists (fun x => F (f x) void)
+    (fun v => elim_void v X)
+    ; hnf.
+  - intros x. exfalso. exact (f x).
+  - intros [].
+Qed.
+
+Goal CFE -> bijection False void.
+Proof.
+  intros F.
+  apply CFE_bijection_empty.
+  exact F. auto.
+Qed.
+
+Goal CFE -> forall x, x <> 0 -> Sigma y, x = S y.
+Proof.
+  intros F x H.
+  destruct x as [|y].
+  - apply F. auto.
+  - exists y. reflexivity.
+Qed.
+
+(* CFE can be defined in Rocq using discrimination
+   on  inductiove definition of [False] *)
+Goal CFE.
+Proof.
+  intros [].
+Qed.
+
+
 (*** Strong Recursion *)
 
 Lemma nat_strong_rec (p: nat -> Type) :
