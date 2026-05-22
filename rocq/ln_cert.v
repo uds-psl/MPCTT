@@ -331,6 +331,16 @@ Proof.
   - congruence.
 Qed.
 
+Fact least_unique p x x' :
+  least p x -> least p x' -> x = x'.
+Proof.
+  intros [H1 H2] [H3 H4].
+  specialize (H2 x').
+  specialize (H4 x).
+  enough (~ x < x' /\ ~ x' < x) by lia.
+  auto.
+Qed.
+
 Fact worker {p: nat -> Prop} :
   decider p -> forall n, safe p n + Sigma k, k < n /\ least p k.
 Proof.
