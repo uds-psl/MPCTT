@@ -33,6 +33,15 @@ Proof.
   specialize (IHx y) as [IH|IH]; intuition lia.
 Qed.
 
+Goal forall x y, dec (x <= y).
+Proof.
+  intros x y.
+  enough (forall z, x - y = z -> dec (x <= y)) by eauto.
+  intros [|z] E.
+  - left. lia.
+  - right; lia.
+Qed.
+
 Goal forall X Y,
     dec X -> dec Y -> dec (X + Y).
 Proof.
@@ -102,10 +111,32 @@ Proof.
       * right. tauto.
 Qed.
 
-(*** Sigma types *)
+(*** Computational Soundness *)
 
-Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
-Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Definition LEM := forall X:Prop, X \/ ~X.
+Definition UD := forall X:Prop, X + ~X.
+
+Goal False -> UD.
+Proof.
+  intros H X. left. exfalso. exact H.
+Qed.
+  
+Goal UD -> LEM.
+  intros F X.
+  specialize (F X) as [F|F]; auto.
+Qed.
+
+(** Computational soundness: CTT cannot prove [LEM -> UD] *)
+(** Logical soundness: CTT cannot prove [LEM -> False] *)
+
+(** Computational soundness implies logical soundness *)
+Goal ~LEM -> LEM -> UD.
+Proof.
+  intros F G X. left. exfalso. auto.
+Qed.
+
+
+(*** Sigma types *)
 
 Inductive sig {X: Type} (p: X -> Type) : Type :=
 | Sig : forall x, p x -> sig p.
@@ -134,7 +165,12 @@ Proof.
   apply elim_Sigma. cbn. reflexivity.
 Qed.
 
+Hint Resolve Sig : core.  (* for eauto *)
+
 (*** Translations *)
+
+Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
+Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 
 Notation decider p := (forall x, dec (p x)).
 
@@ -198,14 +234,13 @@ Proof.
   destruct (F x); easy. (* dependent elimination *)
 Qed.
 
-
 Lemma Sigma_Skolem' X Y (p: X -> Y -> Type) :
   (forall x, sig ( p x)) <=> Sigma f: X -> Y, forall x, p x ( f x).
 Proof.
   split.
   - apply Sigma_Skolem.
   - intros [f H] x.
-    specialize (H x). exists (f x). exact H.
+    specialize (H x). eauto. 
 Qed.
 
 Lemma Sigma_option_equiv X Y (p: X -> Y -> Type)  (q: X -> Type) :
@@ -220,9 +255,7 @@ Proof.
     destruct (F x) as [[y H] | H]; easy.  (* dependent elimination *)
   - intros [f H] x.
     specialize (H x).
-    destruct (f x).
-    + left. exists y. exact H.
-    + auto.
+    destruct (f x); eauto.
 Qed.
 
 (*** Bijections *)
@@ -278,7 +311,105 @@ Proof.
   - hnf. intros [f [g [H1 H2]]]. reflexivity.
 Qed.
 
+(*** Least Witness Operator *)
 
+Definition safe p n := forall k, k < n -> ~p k.
+Definition least p n := p n /\ safe p n.
+
+Fact safe_O p :
+  safe p 0.
+Proof.
+  hnf. lia.
+Qed.
+
+Fact safe_S p n :
+  safe p n -> ~p n -> safe p (S n).
+Proof.
+  intros H1 H2 k H3. unfold safe in *.
+  assert (k < n \/ k = n) as [H|H] by lia.
+  - apply H1. easy.
+  - congruence.
+Qed.
+
+Fact worker {p: nat -> Prop} :
+  decider p -> forall n, safe p n + Sigma k, k < n /\ least p k.
+Proof.
+  intros d.
+  induction n as [|n IH].
+  - left. apply safe_O.
+  - destruct IH as [IH|IH].
+   + destruct (d n) as [H|H].
+     * right. exists n. split. lia. easy.
+     * left. apply safe_S; easy.
+   + destruct IH as (k&IH1&IH2).
+     right. exists k. auto.
+Qed.
+
+Fact lwo (p: nat -> Prop) :
+  decider p -> sig p -> sig (least p).
+Proof.
+  intros d [n H].
+  destruct (worker d n) as [H1|(k&H1&H2&H3)].
+  - exists n. easy.
+  - exists k. easy.
+Qed.
+
+Fact decider_safe  (p: nat -> Prop) :
+  decider p -> decider (safe p).
+Proof.
+  intros d n.
+  destruct (worker d n) as [H1|(k&H1&H2&H3)].
+  - left. exact H1.
+  - right. intros H. specialize (H k). auto.
+Qed.
+
+Fact decider_least  (p: nat -> Prop) :
+  decider p -> decider (least p).
+Proof.
+  intros d n.
+  destruct (worker d n) as [H1|(k&H1&H2&H3)].
+  - destruct (d n) as [H|H].
+    + left. easy.
+    + right. intros [H2 H3]. auto.
+  - right. intros [H4 H5]. specialize (H5 k). auto.
+Qed.
+
+Module SimplyTyped.
+  Section SimplyTyped.
+    Variable p : nat -> Prop.
+    Variable d : nat -> bool.
+
+    Fixpoint W n : option nat
+      := match n with
+         | 0 => None
+         | S n => match W n with
+                 | Some k => Some k
+                 | None => if d n then Some n else None
+                 end
+         end.
+
+    Variable d_correct : forall n, if d n then p n else ~p n.
+
+    Fact W_correct n :
+      match W n with
+      | Some k => k < n /\ least p k
+      | None => safe p n
+      end.
+    Proof.
+      induction n as [|n IH]; cbn.
+      - apply safe_O.
+      - destruct (W n) as [k|].
+        + intuition lia.
+        + assert (H:= d_correct n).
+          destruct (d n).
+          * unfold least; intuition lia.
+          * apply safe_S; easy.
+    Qed.
+  End SimplyTyped.
+  Check W.
+  Check W_correct.
+End SimplyTyped.
+    
 (*** CFE *)
 
 Definition CFE := False -> forall X:Type, X.
@@ -311,7 +442,7 @@ Proof.
   intros F x H.
   destruct x as [|y].
   - apply F. auto.
-  - exists y. reflexivity.
+  - eauto.
 Qed.
 
 (* CFE can be defined in Rocq using discrimination
@@ -321,78 +452,6 @@ Proof.
   intros [].
 Qed.
 
-
-(*** Strong Recursion *)
-
-Lemma nat_strong_rec (p: nat -> Type) :
-  (forall x, (forall y, y < x -> p y) -> p x) -> forall x, p x.
-Proof.
-  intros H.
-  enough (forall n x, x < n -> p x) by eauto.
-  induction n as [|n IH].
-  - lia.
-  - intros x H1.
-    apply H.
-    intros y H2. apply IH. lia.
-Qed.
-
-(*** Divisibility *)
-
-Definition divides n x : Prop := exists k, x = k * n.
-
-Theorem divide x n:
-  n > 0 -> (Sigma k, x = k * n) + ~divides n x.
-Proof.
-  intros H.
-  revert x.
-  apply nat_strong_rec. intros x IH.
-  assert ((x = 0) + (x > 0)) as [H1|H1].
-  - destruct x; intuition lia.
-  - left. exists 0. lia. 
-  - assert ((x < n) + (x >= n)) as [H2|H2].
-    + destruct (n-x) eqn:?; intuition lia.
-    + right. intros [k H3]. destruct k; lia.
-    + specialize (IH (x - n)) as [[k IH]|IH]. lia.
-      * left. exists (S k). lia.
-      * right. contradict IH.
-        destruct IH as [a ->].
-        exists (a - 1). nia.
-Qed.
-
-(*** LWO *)
-
-Definition safe p n := forall k, k < n -> ~p k.
-Definition least p n := p n /\ safe p n.
-
-Fact safe_O p :
-  safe p 0.
-Proof.
-  hnf. lia.
-Qed.
-
-Fact safe_S p n :
-  safe p n -> ~p n -> safe p (S n).
-Proof.
-  intros H1 H2 k H3. unfold safe in *.
-  assert (k < n \/ k = n) as [H|H] by lia.
-  - apply H1. easy.
-  - congruence.
-Qed.
-
-Theorem LWO (p: nat -> Prop) :
-  decider p -> forall n, (Sigma k, k < n /\ least p k) + safe p n.
-Proof.
-  intros d.
-  induction n as [|n IH].
-  - right. apply safe_O.
-  - destruct IH as [IH|IH].
-    + left. destruct IH as (k&IH1&IH2).
-      exists k. auto.
-    + destruct (d n) as [H|H].
-      * left. exists n. split. lia. easy.
-      * right. apply safe_S; easy.
-Qed.
-                      
-        
+    
 
 
