@@ -42,6 +42,32 @@ Proof.
   - right; lia.
 Qed.
 
+Section Assignment.
+  Variable D : forall p: nat -> Type, p 0 -> (forall n, p (S n)) -> forall n, p n.
+  Goal forall x y, dec (x <= y).
+  Proof.
+    intros x y.
+    enough (forall z, x - y = z -> dec (x <= y)) as H.
+    - refine (H (x-y) _). lia.
+    - refine (D _ _ _).
+      + intros H. left. lia.
+      + intros H. right. lia.
+  Qed.
+End Assignment.
+  
+
+Goal forall x y, dec (x <= y).
+Proof.
+  intros x y.
+  assert (dec (x - y = 0)) as [H|H].
+  - destruct (x - y) as [|a].
+    + left. reflexivity.
+    + right. lia.
+  - left; lia.
+  - right; lia.
+Qed.
+
+
 Goal forall X Y,
     dec X -> dec Y -> dec (X + Y).
 Proof.
@@ -351,8 +377,7 @@ Proof.
    + destruct (d n) as [H|H].
      * right. exists n. split. lia. easy.
      * left. apply safe_S; easy.
-   + destruct IH as (k&IH1&IH2).
-     right. exists k. auto.
+   + destruct IH as (k&IH1&IH2). eauto 6.
 Qed.
 
 Fact lwo (p: nat -> Prop) :
@@ -364,7 +389,7 @@ Proof.
   - exists k. easy.
 Qed.
 
-Fact decider_safe  (p: nat -> Prop) :
+Fact decider_safe  {p: nat -> Prop} :
   decider p -> decider (safe p).
 Proof.
   intros d n.
@@ -377,11 +402,11 @@ Fact decider_least  (p: nat -> Prop) :
   decider p -> decider (least p).
 Proof.
   intros d n.
-  destruct (worker d n) as [H1|(k&H1&H2&H3)].
-  - destruct (d n) as [H|H].
+  destruct (decider_safe d n) as [H|H].
+  - destruct (d n) as [H1|H1].
     + left. easy.
     + right. intros [H2 H3]. auto.
-  - right. intros [H4 H5]. specialize (H5 k). auto.
+  - right. intros [H4 H5]. auto.
 Qed.
 
 Module SimplyTyped.
@@ -456,7 +481,7 @@ Proof.
 Qed.
 
 (* CFE can be defined in Rocq using discrimination
-   on  inductiove definition of [False] *)
+   on inductive definition of [False] *)
 Goal CFE.
 Proof.
   intros [].

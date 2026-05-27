@@ -25,6 +25,179 @@ Proof.
   apply IH. lia.
 Qed.
 
+Definition size_ind2 {X Y} (sigma: X -> Y -> nat) {p: X -> Y -> Type} :
+  (forall x y, (forall x' y', sigma x' y' < sigma x y -> p x' y') -> p x y) ->
+  forall x y, p x y.
+Proof.
+  intros H.
+  enough (forall n x y, sigma x y < n -> p x y) by eauto.
+  induction n as [|n IH]. lia.
+  intros x y H1. apply H. intros x' y' H2.
+  apply IH. lia.
+Qed.
+
+(** GCDs *)
+
+Definition divides n x : Prop := exists k, x = k * n.
+Notation "( n | x )" := (divides n x) (at level 0) : nat_scope.
+Definition gamma x y z : Prop :=
+  forall n, (n | z) <-> (n | x) /\ (n | y).
+
+Fact gamma_zero y :
+  gamma 0 y y.
+Proof.
+  intros n.
+  enough (n | 0) by tauto.
+  exists 0. reflexivity.
+Qed.
+
+Fact gamma_sym x y z :
+  gamma x y z -> gamma y x z.
+Proof.
+  unfold gamma. firstorder.
+Qed.
+
+Fact divides_sub x y n :
+  x <= y -> (n | x) -> (n | y) <->  (n | y - x).
+Proof.
+  intros H [k ->]. split.
+  - intros [l ->]. exists (l-k). nia.
+  - intros [l H1]. exists (k + l). nia.
+Qed.
+
+Fact gamma_sub x y z :
+  x <= y -> gamma x (y - x) z -> gamma x y z.
+Proof.
+  intros H H1 n.
+  specialize (H1 n).
+  generalize (divides_sub _ _ n H).
+  tauto.
+Qed.
+
+Definition GCD f (x y: nat) : nat :=
+  if x then y else
+    if x - y then f x (y - x) else f y x.
+
+Definition sigma x y := 2*x + y.
+
+Fixpoint gcd_index n x y :=
+  match n with
+  | 0 => 0
+  | S n => GCD (gcd_index n) x y
+  end.
+
+Definition gcd x y := gcd_index (S (sigma x y)) x y.
+
+Compute gcd 16 24.
+Compute gcd 60 48.
+Compute gcd 175 5.
+
+Fact gcd_cert :
+  forall x y, Sigma z, gamma x y z.
+Proof.
+  refine (size_ind2 sigma _).
+  intros x y IH.
+  destruct x.
+  - exists y. apply gamma_zero.
+  - destruct (S x - y) as [|a] eqn:E.
+    + specialize (IH (S x) (y - S x)) as [z IH].
+      * unfold sigma; lia.
+      * exists z. apply gamma_sub. lia. exact IH.
+    + specialize (IH y (S x)) as [z IH].
+      * unfold sigma; lia.
+      * exists z. apply gamma_sym. exact IH.
+Qed.
+
+Fact gcd_index_independence n1 n2 x y :
+  n1 > sigma x y -> n2 > sigma x y -> gcd_index n1 x y = gcd_index n2 x y.
+Proof.
+  induction n1 as [|n1 IH] in n2, x, y|-*; intros H1 H2.
+  - exfalso; lia.
+  - destruct n2. exfalso; lia.
+    cbn. unfold GCD.
+    destruct x. reflexivity.
+    destruct (S x - y) as [|d] eqn:H3.
+    + apply IH; unfold sigma in *; lia. 
+    + apply IH; unfold sigma in *; lia. 
+Qed.
+
+Fact gcd_correct :
+  forall x y, gamma x y (gcd x y).
+Proof.
+  (* follows proof of gcd_cert *)
+  unfold gcd.
+  refine (size_ind2 sigma _).
+  intros x y IH.
+  destruct x.
+  - cbn. apply gamma_zero.
+  - unfold gcd_index; fold gcd_index.
+    unfold GCD.
+    destruct (S x - y) as [|a] eqn:E.
+    + specialize (IH (S x) (y - S x)).
+      apply gamma_sub. lia.
+      erewrite gcd_index_independence.
+      * apply IH. unfold sigma; lia.
+      * unfold sigma; lia.
+      * unfold sigma; lia.
+    + specialize (IH y (S x)).
+      apply gamma_sym.
+      erewrite gcd_index_independence.
+      * apply IH. unfold sigma; lia.
+      * unfold sigma; lia.
+      * unfold sigma; lia.
+Qed.
+
+Notation "f == f'" := (forall x y, f x y = f' x y) (at level 70).
+      
+Fact GCD_unique f f' :
+  f == GCD f -> f' == GCD f' -> f == f'.
+Proof.
+  intros H1 H2.
+  apply (size_ind2 sigma).
+  intros x y IH.
+  rewrite H1, H2. unfold GCD.
+  destruct x. reflexivity.
+  destruct (S x - y) as [|d] eqn:H3.
+  - apply IH. unfold sigma; lia.  
+  - apply IH. unfold sigma; lia.
+Qed.
+
+(** Ackermann *)
+
+Definition A f x y :=
+  match x, y with
+  | 0, y => S y
+  | S x, 0 => f x 1
+  | S x, S y => f x (f (S x) y)
+  end.
+
+Fact A_unique f g :
+  f == A f -> g == A g -> f == g.
+Proof.
+  intros Ef Eg.
+  induction x as [|x IHx].
+  - destruct y; rewrite Ef, Eg; reflexivity.
+  - induction y as [|y IHy]; rewrite Ef, Eg; cbn; congruence.
+Qed.
+
+Fixpoint beta f y :=
+  match y with
+  | 0 => f 1
+  | S y => f (beta f y)
+  end.
+
+Fixpoint alpha x :=
+  match x with
+  | 0 => S
+  |S x => beta (alpha x)
+  end.
+
+Fact alpha_sat_A :
+  alpha == A alpha.
+Proof.
+  destruct x, y; reflexivity.
+Qed.
+
 (** Divisibility *)
 
 Theorem divide n :
@@ -87,113 +260,5 @@ Proof.
       intros k H1. specialize (IH (k - 1)). nia.
     + intros [|k]; lia.
 Qed.
-
-(** GCDs *)
-
-Definition divides n x : Prop := exists k, x = k * n.
-Notation "( n | x )" := (divides n x) (at level 0) : nat_scope.
-
-Definition gamma x y z : Prop :=
-  forall n, (n | z) <-> (n | x) /\ (n | y).
-
-Fact gamma_zero y :
-  gamma 0 y y.
-Proof.
-  intros n.
-  enough (n | 0) by tauto.
-  exists 0. reflexivity.
-Qed.
-
-Fact gamma_sym x y z :
-  gamma x y z -> gamma y x z.
-Proof.
-  unfold gamma. firstorder.
-Qed.
-
-Fact divides_sub x y n :
-  x <= y -> (n | x) -> (n | y) <->  (n | y - x).
-Proof.
-  intros H [k ->]. split.
-  - intros [l ->]. exists (l-k). nia.
-  - intros [l H1]. exists (k + l). nia.
-Qed.
-
-Fact gamma_sub x y z :
-  x <= y -> gamma x (y - x) z -> gamma x y z.
-Proof.
-  intros H H1 n.
-  specialize (H1 n).
-  generalize (divides_sub _ _ n H).
-  tauto.
-Qed.
-
-Fact GCD_certifying :
-  forall x y, sig (gamma x y).
-Admitted.
-
-Fact GCD_simply_typed :
-  Sigma G, forall x y, gamma x y (G x y).
-Admitted.
-
-        
-(** Step functions *)
-
-Definition sat2 {X Y Z} (f: X -> Y -> Z) F := forall x y, f x y = F f x y.
-
-Definition A f x y :=
-  match x, y with
-  | 0, y => S y
-  | S x, 0 => f x 1
-  | S x, S y => f x (f (S x) y)
-  end.
-
-Fact A_unique f g :
-  sat2 f A -> sat2 g A -> forall x y, f x y = g x y.
-Proof.
-  intros Ef Eg.
-  induction x as [|x IHx].
-  - destruct y; rewrite Ef, Eg; reflexivity.
-  - induction y as [|y IHy]; rewrite Ef, Eg; cbn; congruence.
-Qed.
-
-Fixpoint h g y :=
-  match y with
-  | 0 => g 1
-  | S y => g (h g y)
-  end.
-
-Fixpoint f x :=
-  match x with
-  | 0 => S
-  |S x => h (f x)
-  end.
-
-Fact f_sat_A :
-  sat2 f A.
-Proof.
-  hnf.
-  destruct x, y; reflexivity.
-Qed.
-
-(** Left over *)
-
-Module Div.
-Definition Div f (x n : nat) : option nat :=
-  if x then Some 0 else
-    if x - n  (* x < S n *)
-    then  None
-    else match f (x - S n) n with Some k => Some (S k) | None => None end.
-
-Fixpoint DIV k : nat -> nat -> option nat :=
-  match k with
-  | 0 => fun _ _ => None
-  | S k => Div (DIV k)
-  end.
-
-Definition D x n := DIV (S x) x n.
-
-Compute D 48 3.
-End Div.
- 
 
   

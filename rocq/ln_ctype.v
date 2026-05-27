@@ -311,9 +311,6 @@ Qed.
 
 Inductive void : Type := .
 
-Definition elim_void
-  : void -> forall X:Type, X
-  := fun v => match v with end.
 
 Goal bijection void (forall X:Type, X).
 Proof.
