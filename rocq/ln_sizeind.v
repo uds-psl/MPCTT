@@ -108,7 +108,27 @@ Proof.
       * exists z. apply gamma_sym. exact IH.
 Qed.
 
-Fact gcd_index_independence n1 n2 x y :
+Notation "f == f'" := (forall x y, f x y = f' x y) (at level 70).
+
+Fact GCD_correct f :
+  f == GCD f -> forall x y, gamma x y (f x y).
+Proof.
+  (* follows proof of gcd_cert *)
+  intros H.
+  refine (size_ind2 sigma _).
+  intros x y IH.
+  rewrite H.
+  destruct x.
+  - cbn. apply gamma_zero.
+  - unfold GCD.
+    destruct (S x - y) as [|a] eqn:E.
+    + apply gamma_sub. lia.
+      apply IH. unfold sigma; lia.
+    + apply gamma_sym.
+      apply IH. unfold sigma; lia.
+Qed.
+     
+ Fact gcd_index_independence n1 n2 x y :
   n1 > sigma x y -> n2 > sigma x y -> gcd_index n1 x y = gcd_index n2 x y.
 Proof.
   induction n1 as [|n1 IH] in n2, x, y|-*; intros H1 H2.
@@ -121,34 +141,23 @@ Proof.
     + apply IH; unfold sigma in *; lia. 
 Qed.
 
+Fact gcd_GCD_correct :
+  gcd == GCD gcd.
+Proof.
+  intros x y. cbn. unfold GCD.
+  destruct x. reflexivity.
+  destruct (S x - y) eqn:?.
+  - apply gcd_index_independence; unfold sigma; lia.
+  - apply gcd_index_independence; unfold sigma; lia.
+Qed.
+
 Fact gcd_correct :
   forall x y, gamma x y (gcd x y).
 Proof.
-  (* follows proof of gcd_cert *)
-  unfold gcd.
-  refine (size_ind2 sigma _).
-  intros x y IH.
-  destruct x.
-  - cbn. apply gamma_zero.
-  - unfold gcd_index; fold gcd_index.
-    unfold GCD.
-    destruct (S x - y) as [|a] eqn:E.
-    + specialize (IH (S x) (y - S x)).
-      apply gamma_sub. lia.
-      erewrite gcd_index_independence.
-      * apply IH. unfold sigma; lia.
-      * unfold sigma; lia.
-      * unfold sigma; lia.
-    + specialize (IH y (S x)).
-      apply gamma_sym.
-      erewrite gcd_index_independence.
-      * apply IH. unfold sigma; lia.
-      * unfold sigma; lia.
-      * unfold sigma; lia.
+  apply GCD_correct, gcd_GCD_correct.
 Qed.
+ 
 
-Notation "f == f'" := (forall x y, f x y = f' x y) (at level 70).
-      
 Fact GCD_unique f f' :
   f == GCD f -> f' == GCD f' -> f == f'.
 Proof.
