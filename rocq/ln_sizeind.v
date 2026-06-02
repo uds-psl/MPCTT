@@ -144,11 +144,10 @@ Qed.
 Fact gcd_GCD_correct :
   gcd == GCD gcd.
 Proof.
-  intros x y. cbn. unfold GCD.
+  intros x y. cbn. unfold gcd, GCD.
   destruct x. reflexivity.
-  destruct (S x - y) eqn:?.
-  - apply gcd_index_independence; unfold sigma; lia.
-  - apply gcd_index_independence; unfold sigma; lia.
+  destruct (S x - y) eqn:?
+  ; apply gcd_index_independence; unfold sigma; lia.
 Qed.
 
 Fact gcd_correct :
