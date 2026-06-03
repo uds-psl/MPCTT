@@ -1,9 +1,11 @@
 Module AndOrFalse.
   Inductive and (X Y: Prop) : Prop :=
   | C: X -> Y -> and X Y.
+  
   Inductive or (X Y: Prop) : Prop :=
   | L: X -> or X Y
   | R: Y -> or X Y.
+  
   Inductive False : Prop := .
 
   Definition E_and (X Y: Prop)
@@ -18,16 +20,27 @@ Module AndOrFalse.
     : or X Y -> forall Z: Type, (X -> Z) -> (Y -> Z) -> Z
     := fun a Z f g => match a with L _ _ x => f x | R _ _ y => g y end.
 
-  Definition CFE
+  Definition E_False
     : False -> forall X: Type, X
     := fun a => match a with end.
+
+  Definition CFE := False -> forall X: Type, X.
+
+  Goal CFE.
+  Proof.
+    exact E_False.
+  Qed.
+
+  Goal CFE.
+  Proof.
+    intros [].
+  Qed.
 End AndOrFalse.
 
 Notation sig := sigT.
 Notation Sig := existT.
 Notation pi1 := projT1.
 Notation pi2 := projT2.
-
 
 Module Eq.
   Inductive eq (X: Type) (x: X) : X -> Prop :=
@@ -42,10 +55,11 @@ Module Eq.
 
   Goal forall X (x: X), R (Q x) _ x = x.
   Proof.
-    reflexivity.
+    intros X x. cbn. reflexivity.
   Qed.
   
   Definition PI := forall X: Prop, forall x y: X, x = y.
+  
   Definition DPI :=
     forall (X: Type) (p: X -> Type) x y y',
       Sig p x y = Sig p x y' -> y = y'.
@@ -56,7 +70,8 @@ Module Eq.
     enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, R e p (pi2 a) = pi2 b) as H1.
     - intros x y y' e.
       specialize (H1 _ _ e). cbn in H1.
-      specialize (H1 (Q x)). cbn in H1. exact H1.
+      specialize (H1 (Q x)). cbn in H1.
+      exact H1.
     - intros a b e. pattern b.
       apply (R e). intros e1.
       assert (e2: Q (pi1 a) = e1) by apply H.
@@ -140,7 +155,7 @@ Qed.
 
 Fixpoint elim_le (x: nat) (p: nat -> Prop)
   : p x -> (forall y, p y -> p (S y)) -> forall y, le x y -> p y
-  := fun e1 e2 y a => match a with
+  := fun e1 e2 _ a => match a with
                    | leR _ => e1
                    | leS _ y a => e2 y (elim_le x p e1 e2 y a)
                    end.
