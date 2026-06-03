@@ -36,7 +36,7 @@ Proof.
   apply IH. lia.
 Qed.
 
-(** GCDs *)
+(** GCD *)
 
 Definition divides n x : Prop := exists k, x = k * n.
 Notation "( n | x )" := (divides n x) (at level 0) : nat_scope.
@@ -80,13 +80,13 @@ Definition GCD f (x y: nat) : nat :=
 
 Definition sigma x y := 2*x + y.
 
-Fixpoint gcd_index n x y :=
+Fixpoint gcd_worker n x y :=
   match n with
   | 0 => 0
-  | S n => GCD (gcd_index n) x y
+  | S n => GCD (gcd_worker n) x y
   end.
 
-Definition gcd x y := gcd_index (S (sigma x y)) x y.
+Definition gcd x y := gcd_worker (S (sigma x y)) x y.
 
 Compute gcd 16 24.
 Compute gcd 60 48.
@@ -129,7 +129,7 @@ Proof.
 Qed.
      
  Fact gcd_index_independence n1 n2 x y :
-  n1 > sigma x y -> n2 > sigma x y -> gcd_index n1 x y = gcd_index n2 x y.
+  n1 > sigma x y -> n2 > sigma x y -> gcd_worker n1 x y = gcd_worker n2 x y.
 Proof.
   induction n1 as [|n1 IH] in n2, x, y|-*; intros H1 H2.
   - exfalso; lia.
