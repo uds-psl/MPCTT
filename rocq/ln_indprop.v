@@ -55,19 +55,42 @@ Module Eq.
 
   Goal forall X (x: X), R (Q x) _ x = x.
   Proof.
-    intros X x. cbn. reflexivity.
+    intros X x. cbn. apply Q.
   Qed.
+
+  Lemma J X (x:X) (p: forall y, x = y -> Type) :
+    p x (Q x) -> forall y e, p y e.
+  Proof.
+    exact (fun H y e => match e with Q _ => H end).
+  Qed.
+
+  Definition K := forall X (x:X) (p: x = x -> Prop),
+      p (Q x) -> forall e, p e.
   
-  Definition PI := forall X: Prop, forall x y: X, x = y.
-  
+  Definition UIP :=
+    forall X (x:X) (e e': x = x), e = e'.
+
+  Fact UIP_K :
+    UIP <-> K.
+  Proof.
+    split; intros H X x.
+    - intros p H1 e.
+      specialize (H X x (Q x) e).
+      apply (R H). exact H1.
+    - refine (H X x _ _).
+      refine (H X x _ _).
+      apply Q.
+  Qed.
+ 
   Definition DPI :=
-    forall (X: Type) (p: X -> Type) x y y',
+    forall X (p: X -> Type) x y y',
       Sig p x y = Sig p x y' -> y = y'.
 
-  Goal PI -> DPI.
+  Goal UIP -> DPI.
   Proof.
     intros H X p.
-    enough (forall a b: sig p, a = b -> forall e: pi1 a = pi1 b, R e p (pi2 a) = pi2 b) as H1.
+    enough (forall a b: sig p,
+               a = b -> forall e: pi1 a = pi1 b, R e p (pi2 a) = pi2 b) as H1.
     - intros x y y' e.
       specialize (H1 _ _ e). cbn in H1.
       specialize (H1 (Q x)). cbn in H1.
@@ -75,7 +98,23 @@ Module Eq.
     - intros a b e. pattern b.
       apply (R e). intros e1.
       assert (e2: Q (pi1 a) = e1) by apply H.
-      apply (R e2). reflexivity.
+      apply (R e2). apply Q.
+  Qed.
+  
+  Lemma DPI_UIP :
+    DPI -> UIP.
+  Proof.
+    intros H X x.
+    enough (forall e: x = x, Q x = e) as H1.
+    - intros e e'.
+      apply (R (H1 e)).
+      apply (R (H1 e')).
+      apply Q.
+    - enough (forall e: x = x, Sig (eq X x) x (Q x) = Sig (eq X x) x e) as H1.
+      + intros e. apply H. apply H1.
+      + enough (forall y, forall e: x = y, Sig (eq X x) x (Q x) = Sig (eq X x) y e) as H1.
+        * exact (H1 x).
+        * apply J. apply Q.
   Qed.
 End Eq.
 
