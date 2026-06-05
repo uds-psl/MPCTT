@@ -66,12 +66,15 @@ Proof.
 Qed.
 
 Fact gamma_sub x y z :
-  x <= y -> gamma x (y - x) z -> gamma x y z.
+  x <= y -> gamma x (y - x) z <-> gamma x y z.
 Proof.
-  intros H H1 n.
-  specialize (H1 n).
-  generalize (divides_sub _ _ n H).
-  tauto.
+  intros H. split; intros H1 n.
+  - specialize (H1 n).
+    generalize (divides_sub _ _ n H).
+    tauto.
+  - specialize (H1 n).
+    generalize (divides_sub _ _ n H).
+    tauto.
 Qed.
 
 Definition GCD f (x y: nat) : nat :=
@@ -156,7 +159,6 @@ Proof.
   apply GCD_correct, gcd_GCD_correct.
 Qed.
  
-
 Fact GCD_unique f f' :
   f == GCD f -> f' == GCD f' -> f == f'.
 Proof.
@@ -168,6 +170,33 @@ Proof.
   destruct (S x - y) as [|d] eqn:H3.
   - apply IH. unfold sigma; lia.  
   - apply IH. unfold sigma; lia.
+Qed.
+
+(** Uniqueness of gamma *)
+
+Lemma divides_le x y :
+  (forall n, (n | x) <-> (n | y)) -> x <= y.
+Proof.
+  intros H.
+  destruct y.
+  - specialize (H (S x)).
+    assert (S x | x) as [k H1].
+    { apply H. exists 0. lia. }
+    destruct k; lia.
+  - specialize (H x).
+    assert (x | S y) as [k H1].
+    { apply H. exists 1. lia. }
+    destruct k; lia.
+Qed.
+
+Fact gamma_unique x y z z' :
+  gamma x y z -> gamma x y z' -> z = z'.
+Proof.
+  unfold gamma. intros H1 H2.
+  enough (z <= z' /\ z' <= z) by lia.
+  split; apply divides_le.
+  - intros n. rewrite H1, H2. easy.
+  - intros n. rewrite H1, H2. easy.
 Qed.
 
 (** Ackermann *)

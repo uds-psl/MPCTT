@@ -118,6 +118,106 @@ Module Eq.
   Qed.
 End Eq.
 
+(** Less or Equal *)
+
+From Stdlib Require Import Lia.
+
+Inductive le (x: nat) : nat -> Prop :=
+| leR :   le x x 
+| leS y : le x y -> le x (S y).
+
+Fixpoint ind_le (x: nat) (p: nat -> Prop)
+  : p x -> (forall y, p y -> p (S y)) -> forall y, le x y -> p y
+  := fun e1 e2 _ a => match a with
+                   | leR _ => e1
+                   | leS _ y a => e2 y (ind_le x p e1 e2 y a)
+                   end.
+
+Fact le_correct x :
+  forall y, le x y -> x <= y.
+Proof.
+  apply le_ind.
+  - lia.
+  - lia.
+Qed.
+
+Goal forall x y, le x y -> x <= y.
+Proof.
+  induction 1; lia.
+Qed.
+
+Fact le_complete x y :
+  x <= y -> le x y.
+Proof.
+  induction y as [|y IH]; intros H.
+  - assert (x = 0) as -> by lia.
+    apply leR.
+  - assert (x = S y \/ x <= y) as [->|H1] by lia.
+    + apply leR.
+    + apply leS, IH, H1.
+Qed.
+
+(** GCD *)
+
+Definition size_ind2 {X Y} (sigma: X -> Y -> nat) {p: X -> Y -> Type} :
+  (forall x y, (forall x' y', sigma x' y' < sigma x y -> p x' y') -> p x y) ->
+  forall x y, p x y.
+Proof.
+  intros H.
+  enough (forall n x y, sigma x y < n -> p x y) by eauto.
+  induction n as [|n IH]. lia.
+  intros x y H1. apply H. intros x' y' H2.
+  apply IH. lia.
+Qed.
+
+Inductive G : nat -> nat -> nat -> Prop :=
+| G0 y     : G 0 y y
+| G1 x y z : G x y z -> G y x z
+| G2 x y z : x <= y -> G x (y - x) z -> G x y z.
+
+Section GCD.
+  (* We assume the necessary properties of [gamma].
+     Proofs can be found in [ln_sizeind.v].      *)
+  Variable gamma : nat -> nat -> nat -> Prop.
+  Variable gamma0  : forall y, gamma 0 y y.
+  Variable gamma1 : forall x y z, gamma x y z -> gamma y x z.
+  Variable gamma2 : forall x y z, x <= y -> gamma x (y - x) z -> gamma x y z.
+
+  Fact soundness :
+    forall x y z, G x y z -> gamma x y z.
+  Proof.
+    induction 1 as [y|x y z _ IH|x y z H _ IH].
+    - apply gamma0. 
+    - apply gamma1, IH.
+    - eapply gamma2. exact H. apply IH.
+  Qed.
+
+  Fact totality :
+    forall x y, sig (G x y).
+  Proof.
+    refine (size_ind2 (fun x y => 2*x+y) _).
+    intros x y IH.
+    destruct x.
+    - exists y. apply G0.
+    - destruct (S x - y) as [|a] eqn:E.
+      + specialize (IH (S x) (y - S x)) as [z IH]. lia.
+        exists z. apply G2. lia. exact IH.
+      + specialize (IH y (S x)) as [z IH]. lia.
+        exists z. apply G1. exact IH.
+  Qed.
+
+  Variable gamma3 : forall x y z z', gamma x y z -> gamma x y z' -> z = z'.
+
+  Fact completeness :
+    forall x y z, gamma x y z -> G x y z.
+  Proof.
+    intros x y z H.
+    destruct (totality x y) as [z' H1].
+    enough (z = z') by congruence.
+    eapply gamma3. exact H. apply soundness, H1.
+  Qed.
+End GCD.
+ 
 (** EWO *)
 
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
@@ -172,47 +272,7 @@ Section EWO_Nat.
     easy.
   Qed.
 End EWO_Nat.
-
-(** Less or Equal *)
-
-From Stdlib Require Import Lia.
-
-Inductive le (x: nat) : nat -> Prop :=
-| leR :   le x x 
-| leS y : le x y -> le x (S y).
-
-Fact le_complete x y :
-  x <= y -> le x y.
-Proof.
-  induction y as [|y IH]; intros H.
-  - assert (x = 0) as -> by lia.
-    apply leR.
-  - assert (x = S y \/ x <= y) as [->|H1] by lia.
-    + apply leR.
-    + apply leS, IH, H1.
-Qed.
-
-Fixpoint elim_le (x: nat) (p: nat -> Prop)
-  : p x -> (forall y, p y -> p (S y)) -> forall y, le x y -> p y
-  := fun e1 e2 _ a => match a with
-                   | leR _ => e1
-                   | leS _ y a => e2 y (elim_le x p e1 e2 y a)
-                   end.
-
-Fact le_correct x :
-  forall y, le x y -> x <= y.
-Proof.
-  apply elim_le.
-  - lia.
-  - lia.
-Qed.
-
-Goal forall x y, le x y -> x <= y.
-Proof.
-  induction 1; lia.
-Qed.
-
-
+  
 
 
 
