@@ -233,6 +233,25 @@ Section GCD.
     enough (z = z') by congruence.
     eapply gamma3. exact H. apply soundness, H1.
   Qed.
+
+  Variable gamma4 : forall y z, gamma 0 y z -> y = z.
+  Variable gamma5 : forall x y z, x <= y -> gamma x y z -> gamma x (y - x) z.
+
+  Fact completeness' :
+    forall x y z, gamma x y z -> G x y z.
+  Proof.
+    intros x y z. revert x y.
+    refine (size_ind2 (fun x y => 2*x+y) _).
+    intros x y IH H.
+    destruct x.
+    - apply gamma4 in H as ->. apply G0.
+    - destruct (S x - y) as [|a] eqn:E.
+      + eapply G2. lia.
+        apply IH. lia.
+        apply gamma5. lia. exact H.
+      + apply G1. apply IH. lia. apply gamma1, H.
+  Qed.
+
 End GCD.
   
 
