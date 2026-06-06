@@ -37,10 +37,10 @@ Module AndOrFalse.
   Qed.
 End AndOrFalse.
 
-Notation sig := sigT.
-Notation Sig := existT.
-Notation pi1 := projT1.
-Notation pi2 := projT2.
+Abbreviation sig := sigT.
+Abbreviation Sig := existT.
+Abbreviation pi1 := projT1.
+Abbreviation pi2 := projT2.
 
 Module Eq.
   Inductive eq (X: Type) (x: X) : X -> Prop :=
@@ -126,12 +126,16 @@ Inductive le (x: nat) : nat -> Prop :=
 | leR :   le x x 
 | leS y : le x y -> le x (S y).
 
-Fixpoint ind_le (x: nat) (p: nat -> Prop)
-  : p x -> (forall y, p y -> p (S y)) -> forall y, le x y -> p y
-  := fun e1 e2 _ a => match a with
-                   | leR _ => e1
-                   | leS _ y a => e2 y (ind_le x p e1 e2 y a)
-                   end.
+Fixpoint ind_le (x: nat) (p: nat -> Prop) :
+  p x ->
+  (forall y, p y -> p (S y)) ->
+  forall y, le x y -> p y.
+Proof.
+  intros e1 e2.
+  intros _ [|y a].
+  - exact e1.
+  - exact (e2 y (ind_le x p e1 e2 y a)).
+Qed.
 
 Fact le_correct x :
   forall y, le x y -> x <= y.
@@ -174,6 +178,19 @@ Inductive G : nat -> nat -> nat -> Prop :=
 | G0 z     : G 0 z z
 | G1 x y z : G x y z -> G y x z
 | G2 x y z : x <= y -> G x (y - x) z -> G x y z.
+
+Fixpoint ind_G (p: nat -> nat -> nat -> Prop) :
+  (forall z, p 0 z z) ->
+  (forall x y z, p x y z -> p y x z) ->
+  (forall x y z, x <= y -> p x (y - x) z -> p x y z) ->
+  (forall x y z, G x y z -> p x y z).
+Proof.
+  intros e1 e2 e3.
+  intros _ _ _ [z|x y z a|x y z h a].
+  - exact (e1 z).
+  - exact (e2 x y z (ind_G p e1 e2 e3 x y z a)).
+  - exact (e3 x y z h (ind_G p e1 e2 e3 x (y - x) z a)).
+Qed.
 
 Section GCD.
   (* We assume the necessary properties of [gamma].
