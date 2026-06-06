@@ -2,11 +2,11 @@ From Stdlib Require Import Lia.
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-Definition dec (X: Type) : Type := X + ~ X.
+Definition dec (X: Type) : Type := X + (~ X).
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition decider {X} (p: X -> Type) := forall x, dec (p x).
-Notation sig := sigT.
-Notation Sig := existT.
+Abbreviation sig := sigT.
+Abbreviation Sig := existT.
 Notation "'Sigma' x .. y , p" :=
   (sig (fun x => .. (sig (fun y => p)) ..))
     (at level 200, x binder, right associativity,

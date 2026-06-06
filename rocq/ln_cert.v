@@ -16,7 +16,7 @@ Inductive injection (X Y: Type) : Type :=
 
 (*** Decisions and deciders *)
 
-Definition dec (X: Type) : Type := X + ~X.
+Definition dec (X: Type) : Type := X + (~X).
 
 Goal forall x y, dec (x <= y).
 Proof.
@@ -140,7 +140,7 @@ Qed.
 (*** Computational Soundness *)
 
 Definition LEM := forall X:Prop, X \/ ~X.
-Definition UD := forall X:Prop, X + ~X.
+Definition UD := forall X:Prop, X + (~X).
 
 Goal False -> UD.
 Proof.
@@ -198,7 +198,7 @@ Hint Resolve Sig : core.  (* for eauto *)
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 
-Notation decider p := (forall x, dec (p x)).
+Abbreviation decider p := (forall x, dec (p x)).
 
 Notation "'Sigma' x .. y , p" :=
   (sig (fun x => .. (sig (fun y => p)) ..))
