@@ -7,7 +7,8 @@
     - The types of eliminators
       follow from the inductive type definitions.            
     - The defining equations of the eliminators
-      follow from the type of the eliminators.          
+      follow from the type of the eliminators.
+    - There is great beauty.    
 *)
 
 Module Box.
@@ -74,10 +75,10 @@ Proof.
   - exact (e3 a1 a2 (elim_exp p e1 e2 e3 a1) (elim_exp p e1 e2 e3 a2)).
 Defined.
 
-Inductive prod (X Y : Type) : Type :=
-| Pair : X -> Y -> prod X Y.
+Inductive pair (X Y : Type) : Type :=
+| Pair : X -> Y -> pair X Y.
 
-Definition elim_prod (X Y : Type) (p: prod X Y -> Type) :
+Definition elim_pair (X Y : Type) (p: pair X Y -> Type) :
   (forall x y, p (Pair X Y x y)) -> forall a, p a.
 Proof.
   intros e1.
@@ -135,11 +136,34 @@ Proof.
   intros [].
 Defined.
 
+Inductive or (X Y: Prop) : Prop :=
+| left :  X -> or X Y
+| right :  Y -> or X Y.
+
+Definition elim_or (X Y : Prop) (Z: Prop) :
+  (X -> Z) ->
+  (Y -> Z) ->
+  or X Y -> Z.
+Proof.
+  intros e1 e2.
+  intros [x|y].
+  - exact (e1 x).
+  - exact (e2 y).
+Defined.
+
 Inductive eq (X: Type) (x: X) : X -> Prop :=
 | Q : eq X x x.
 
 Definition elim_eq X (x:X) (p: forall y, eq X x y -> Type) :
   p x (Q X x) -> forall y e, p y e.
+Proof.
+  intros e1.
+  intros _ [].
+  exact e1.
+Defined.
+
+Definition elim_eq' X (x:X) (p: X -> Type) :
+  p x -> forall y, eq X x y -> p y.
 Proof.
   intros e1.
   intros _ [].
