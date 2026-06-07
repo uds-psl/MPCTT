@@ -8,6 +8,8 @@
       follow from the inductive type definitions.            
     - The defining equations of the eliminators
       follow from the type of the eliminators.
+    - The eliminators are best obtained in proof mode
+      using discrimination patters.     
     - There is great beauty.    
 *)
 
@@ -41,6 +43,12 @@ Proof.
   - exact e1.
   - exact (e2 n (elim_nat p e1 e2 n)).
 Defined.
+
+Definition match_nat_simply_typed
+  : forall Z:Type, nat -> Z -> (nat -> Z) -> Z
+  := fun Z n e1 e2 => elim_nat (fun _ => Z) e1 (fun n _ => e2 n) n.
+
+Compute match_nat_simply_typed nat (S (S O)) O (fun n => n).
 
 Inductive list (X: Type) : Type :=
 | Nil : list X
@@ -205,5 +213,3 @@ Proof.
   - exact (e2 x y z (elim_G p e1 e2 e3 x y z a)).
   - exact (e3 x y z h (elim_G p e1 e2 e3 x (y - x) z a)).
 Defined.
-
-
