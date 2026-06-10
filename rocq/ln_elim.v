@@ -9,7 +9,7 @@
     - The defining equations of the eliminators
       follow from the type of the eliminators.
     - The eliminators are best obtained in proof mode
-      using discrimination patters.     
+      using discrimination patterns.     
     - There is great beauty.    
 *)
 
