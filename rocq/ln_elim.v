@@ -213,3 +213,29 @@ Proof.
   - exact (e2 x y z (elim_G p e1 e2 e3 x y z a)).
   - exact (e3 x y z h (elim_G p e1 e2 e3 x (y - x) z a)).
 Defined.
+
+(* Linear search types featuring higher order recursion *)
+
+Inductive L (p: nat -> Prop) : nat -> Type :=
+| CL n : (~p n -> L p (S n)) -> L p n.
+
+Fixpoint elim_L (p: nat -> Prop) (q: nat -> Type) :
+  (forall n, (~p n -> q (S n)) ->  q n) -> (forall n, L p n -> q n).
+Proof.
+  intros e.
+  intros _ [n phi].
+  exact (e n (fun h => elim_L p q e (S n) (phi h))).
+Defined.
+
+(* Lowering to Prop using a quasi parameter *)
+
+Inductive T (p: nat -> Prop) (n: nat) : Prop :=
+| C : (~p n -> T p (S n)) -> T p n.
+
+Fixpoint elim_T (p: nat -> Prop) (q: nat -> Type) :
+  (forall n, (~p n -> q (S n)) ->  q n) -> (forall n, T p n -> q n).
+Proof.
+  intros e.
+  intros n [phi].
+  exact (e n (fun h => elim_T p q e (S n) (phi h))).
+Defined.

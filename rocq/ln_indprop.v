@@ -123,7 +123,7 @@ End Eq.
 From Stdlib Require Import Lia.
 
 Inductive le (x: nat) : nat -> Prop :=
-| leR :   le x x 
+| leE :   le x x 
 | leS y : le x y -> le x (S y).
 
 Fixpoint ind_le (x: nat) (p: nat -> Prop) :
@@ -137,7 +137,15 @@ Proof.
   - exact (e2 y (ind_le x p e1 e2 y a)).
 Qed.
 
-Fact le_correct x :
+Goal le 2 5.
+Proof.
+  apply leS. 
+  apply leS. 
+  apply leS. 
+  apply leE.
+Qed.
+
+Fact le_sound x :
   forall y, le x y -> x <= y.
 Proof.
   apply ind_le.
@@ -155,10 +163,15 @@ Fact le_complete x y :
 Proof.
   induction y as [|y IH]; intros H.
   - assert (x = 0) as -> by lia.
-    apply leR.
+    apply leE.
   - assert (x = S y \/ x <= y) as [->|H1] by lia.
-    + apply leR.
+    + apply leE.
     + apply leS, IH, H1.
+Qed.
+
+Goal forall x, ~le (S x) x.
+Proof.
+  intros x H%le_sound. lia.
 Qed.
 
 (** GCD *)
@@ -190,6 +203,15 @@ Proof.
   - exact (e1 z).
   - exact (e2 x y z (ind_G p e1 e2 e3 x y z a)).
   - exact (e3 x y z h (ind_G p e1 e2 e3 x (y - x) z a)).
+Qed.
+
+Goal G 15 25 5.
+Proof.
+  apply G2. lia. cbn.
+  apply G1. apply G2. lia. cbn.
+  apply G1. apply G2. lia. cbn.
+  apply G2. lia. cbn.
+  apply G1. apply G0.
 Qed.
 
 Section GCD.

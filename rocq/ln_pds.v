@@ -1,12 +1,12 @@
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
+Definition dec (X: Type) : Type := X + ~X.
 From Stdlib Require Import Lia List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
 Definition incl {X} (A B: list X) := forall x, x el A -> x el B.
 Notation "A <<= B" := (incl A B) (at level 70).
-Ltac close := cbn; auto; firstorder; intuition congruence.
 
 (** Formulas *)
 
@@ -31,6 +31,7 @@ Inductive nd : list form -> form -> Type :=
 | ndIE A s t:  A |- s ~> t  ->  A |- s  ->  A |- t
 where "A |- s" := (nd A s).
 
+Ltac close := cbn; auto; firstorder; intuition congruence.
 Ltac ndA := apply ndA; close.
 
 (** Constructing derivations with tactics is easy.
@@ -118,6 +119,14 @@ Proof.
     + intros H%IH. apply Imp, H.
 Qed.
 
+Goal (forall s, dec (nd [] s)) -> (forall A s, dec (nd A s)).
+Proof.
+  intros d A s.
+  destruct (reversion A s) as [H1 H2].
+  destruct (d (revert A s)) as [H|H].
+  all: unfold dec; auto.
+Qed.
+  
 (** Excluded middle *)
 
 Definition LEM := forall X: Prop, X \/ ~X.
@@ -182,6 +191,14 @@ Proof.
   - apply ndcC.
 Qed.
 
+Goal (forall A, dec (ndc A bot)) -> (forall A s, dec (ndc A s)).
+Proof.
+  intros d A s.
+  destruct (ndc_refute A s) as [H1 H2].
+  destruct (d (-s :: A)) as [H|H].
+  all: unfold dec; auto.
+Qed.
+
 Fact Impc A s t :
   A |-c s~>t <=> s::A |-c t.
 Proof.
@@ -190,6 +207,24 @@ Proof.
   - apply ndcII.
 Qed.
 
+Fact reversionc A s :
+  A |-c s <=> [] |-c revert A s.
+Proof.
+  induction A as [|u A IH] in s |-*; cbn.
+  - hnf; auto.
+  - split.
+    + intros H%ndcII%IH. exact H.
+    + intros H%IH. apply Impc, H.
+Qed.
+
+Goal (forall s, dec (ndc [] s)) -> (forall A s, dec (ndc A s)).
+Proof.
+  intros d A s.
+  destruct (reversionc A s) as [H1 H2].
+  destruct (d (revert A s)) as [H|H].
+  all: unfold dec; auto.
+Qed.
+  
 Lemma Translation A s :
   A |- s -> A |-c s.
 Proof.
@@ -265,11 +300,22 @@ Proof.
   - intros H%Glivenko. apply bot_dn, H.
 Qed.
 
+Fact negated_formula_agreement A s :
+  A |- -s <=> A |-c -s.
+Proof.
+  split.
+  - apply Translation.
+  - intros H%Impc. apply Imp.
+    apply refutation_agreement, H.
+Qed.
+
 Fact equiconsistency :
   (([] |- bot) -> False) <-> (([] |-c bot) -> False).
 Proof.
   split; intros H; contradict H; apply refutation_agreement; assumption.
 Qed.
+
+
    
 (** Intuitionistic Hilbert system *)
 
@@ -321,7 +367,6 @@ Proof.
   all: apply hilK.
 Qed.
 
-Definition dec (X: Type) : Type := X + ~X.
 Definition eqdec X := forall x y: X, dec (x = y).
 Definition nat_eqdec: eqdec nat.
 Proof.
@@ -379,18 +424,17 @@ Proof.
   - eapply hilMP. exact IH1. exact IH2.
 Qed.
 
-(*** Heyting Interpretation *)
+(** Heyting evaluation *)
            
 Module Heyting.
-  Inductive tval := ff | nn | tt.
+  Inductive tval := ff | uu | tt.
   Implicit Types a b: tval.
-  Implicit Type alpha: nat -> tval.
 
   Definition leq a b : bool :=
     match a, b with
     | ff , _ => true
-    | nn, nn => true
-    | nn, tt => true
+    | uu, uu => true
+    | uu, tt => true
     | tt, tt => true
     | _, _ => false
     end.
@@ -400,17 +444,17 @@ Module Heyting.
   Definition impl a b : tval :=
     if a <= b then tt else b.
   
-  Compute impl (impl (impl nn ff) ff) nn.
+  Compute impl (impl (impl uu ff) ff) uu.
   
-  Fixpoint eva alpha s : tval :=
+  Fixpoint eva s : tval :=
     match s with
-    | var x => alpha x
+    | var _ => uu
     | bot => ff
-    | s1~>s2 => impl (eva alpha s1) (eva alpha s2)
+    | s1~>s2 => impl (eva s1) (eva s2)
     end.
 
-  Fact hil_sound alpha s :
-    hil [] s -> eva alpha s = tt.
+  Fact hil_sound s :
+    hil [] s -> eva s = tt.
   Proof.
     induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
     - exfalso. apply H.
@@ -421,36 +465,33 @@ Module Heyting.
   Qed.
   
   Fact hil_DN x :
-    hil [] (--var x ~> var x) -> False.
+    ~ hil [] (--var x ~> var x).
   Proof.
-    intros [=]%(hil_sound (fun _ => nn)).
+    intros [=]%hil_sound.
   Qed.
 
   Fact nd_DN x :
-    nd [] (--var x ~> var x) -> False.
+    ~ [] |- --var x ~> var x.
   Proof.
     intros H %nd_hil %hil_DN. exact H.
   Qed.
 
   Corollary nd_consistent :
-    (nil |- bot) -> False.
+    ~ [] |- bot.
   Proof.
     intros H. apply nd_DN with 0. apply ndE, H.
   Qed.
   
-  Fact ndc_consistent :
-    ([] |-c bot) -> False.
+  Corollary ndc_consistent :
+    ~ [] |-c bot.
   Proof.
-    apply equiconsistency, nd_consistent.
+    intros H%refutation_agreement.
+    apply nd_consistent, H.
   Qed.
 
 End Heyting.
 
-(*** Certifying solvers *)
-
-(* See file solver.v *)
-
-(*** Boolean Entailment *)
+(* Boolean Entailment *)
 
 Implicit Types alpha : nat -> bool.
 
@@ -488,137 +529,7 @@ Proof.
     + intros H. apply ben_impl, IH, H.
 Qed.
 
-(*** Substitution *)
-
-Implicit Types  (theta : nat -> form).
-  
-Fixpoint subst theta s : form :=
-  match s with
-  | var x => theta x
-  | bot => bot
-  | s~>t => subst theta s ~> subst theta t
-  end.
-
-Fixpoint substC theta A : list form :=
-  match A with
-  | nil => nil
-  | s::A' => subst theta s :: substC theta A'
-  end.
-
-Fact substC_in s A theta:
-  s el A -> subst theta s el substC theta A.
-Proof.
-  induction A as [|t A IH]; cbn.
-  - intros [].
-  - intros [->|H]; auto.
-Qed.
-
-Fact nd_subst A s theta :
-  A |- s -> substC theta A |- subst theta s.
-Proof.
-  induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
-  all: cbn in *.
-  - apply ndA, substC_in, H1.
-  - apply ndE, IH.
-  - apply ndII, IH.
-  - eapply ndIE. exact IH1. exact IH2.
-Qed. 
-
-
-(*** Entailment Predicates *)
-
-Section Sandwich.
-
-  Variable E: list form -> form  -> Prop.
-  Notation "A ||- s" := (E A s) (at level 70).
-  Variable Eassu: forall s A, s el A -> A ||- s.
-  Variable Ecut: forall A s t, A ||- s -> s::A ||- t -> A ||- t.
-  Variable Eweak: forall A s B, A ||- s -> A <<= B -> B ||- s.
-  Variable Esubst: forall A s theta, A ||- s -> substC theta A ||- subst theta s.
-  Variable Econs: exists s, ~ nil ||- s.
-  Variable Eexfalso : forall A s, A ||- bot -> A ||- s.
-  Variable Eimpl: forall A s t, A ||- s ~> t <-> s::A ||- t.
-
-  Fact EIE A s t :
-    A ||- s~>t -> A ||- s -> A ||- t.
-  Proof.
-    intros H1 % Eimpl H2.
-    eapply Ecut; eassumption.
-  Qed.
-
-  Fact absurd s :
-    nil ||- s -> nil ||- -s -> False.
-  Proof.
-    intros H1 H2. destruct Econs as [t H].
-    apply H. apply Eexfalso.
-    eapply EIE; eassumption.
-  Qed.
-
-  Fact nd2E A s :
-    A |- s -> A ||- s.
-  Proof.
-    induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
-    - apply Eassu, H.
-    - apply Eexfalso, IH.
-    - apply Eimpl, IH.
-    - eapply EIE; eassumption.
-  Qed.
- 
-  Definition hat alpha n := if alpha n then -bot else bot.
-
-  Lemma Tebbi alpha s :
-    if eva alpha s then nil ||- subst (hat alpha) s
-    else nil ||- -subst (hat alpha) s.
-  Proof.
-    induction s as [n| |s1 IH1 s2 IH2]; cbn.
-    - unfold hat. destruct alpha.
-      + apply Eimpl, Eassu. close.
-      + apply Eimpl, Eassu. close.
-    - apply Eimpl, Eassu. close.
-    - set (sigma := subst (hat alpha)) in *.
-      destruct (eva alpha s1).
-      + destruct eva.
-        * apply Eimpl. eapply Eweak. exact IH2. close.
-        * apply Eimpl. apply EIE with (sigma s2).
-          -- eapply Eweak. exact IH2. close.
-          -- apply EIE with (sigma s1).
-             ++ apply Eassu. close.
-             ++ eapply Eweak. exact IH1. close.
-      + apply Eimpl, Eexfalso, Eimpl. exact IH1.
-  Qed.
-  
-  Lemma E2BE' s :
-    nil ||- s -> nil |= s.
-  Proof.
-    intros H alpha. cbn. generalize (Tebbi alpha s).
-    destruct eva.
-    - auto.
-    - intros H1. exfalso.
-      apply Esubst with (theta:= hat alpha) in H. cbn in H.
-      eapply absurd. exact H. exact H1.
-  Qed.
-
-  Fact ereversion A s :
-    A ||- s <-> nil ||- revert A s.
-  Proof.
-    revert s.
-    induction A as [|u A IH]; intros s; cbn [revert].
-    - tauto.
-    - split.
-      + intros H. apply IH, Eimpl, H.
-      + intros H. apply Eimpl, IH, H.
-  Qed.
-
-  Theorem E2BE A s :
-    A ||- s -> A |= s.
-  Proof.
-     intros H. apply ben_revert, E2BE'.
-    apply ereversion with (A:= A), H.
-  Qed.
-  
-End Sandwich.
-  
-(*** Left Overs *)
+(** Left Overs *)
 
 Notation "'Sigma' x .. y , p" :=
   (sigT (fun x => .. (sigT (fun y => p%type)) ..))
@@ -651,7 +562,6 @@ Proof.
   specialize (H A s bot). apply H. clear H.
   apply Explosion, H1.
 Qed.
-
 
 Lemma form_memdec s A :
   dec (s el A).
