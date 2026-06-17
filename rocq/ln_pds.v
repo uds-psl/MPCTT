@@ -1,30 +1,31 @@
 Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
-Definition dec (X: Type) : Type := X + ~X.
+Definition dec (X: Type) : Type := X + (~X).
 From Stdlib Require Import Lia List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
+Notation "x 'nel' A" := (~In x A) (at level 70).
 Definition incl {X} (A B: list X) := forall x, x el A -> x el B.
 Notation "A <<= B" := (incl A B) (at level 70).
 
 (** Formulas *)
 
-Inductive form: Type :=
-| var :nat -> form
-| bot : form
-| imp : form -> form -> form.
+Inductive For: Type :=
+| var :nat -> For
+| bot : For
+| imp : For -> For -> For.
 
 Notation "s ~> t" := (imp s t) (at level 51, right associativity).
 Notation "- s" := (s ~> bot) (at level 35, right associativity).
 
-Implicit Types s t u v: form.
-Implicit Types A B C: list form.
+Implicit Types s t u v: For.
+Implicit Types A B C: list For.
 
 (** Intuitionistic ND *)
 
 Reserved Notation "A |- s" (at level 70).
-Inductive nd : list form -> form -> Type :=
+Inductive nd : list For -> For -> Type :=
 | ndA A s:                    s el A  ->  A |- s
 | ndE A s:                  A |- bot  ->  A |- s
 | ndII A s t:              s::A |- t  ->  A |- s ~> t
@@ -103,7 +104,7 @@ Proof.
   - apply ndII.
 Qed.
 
-Fixpoint revert A s : form :=
+Fixpoint revert A s : For :=
   match A with
   | nil => s
   | u::A' => revert A' (u ~> s)
@@ -132,6 +133,7 @@ Qed.
 Definition LEM := forall X: Prop, X \/ ~X.
 Definition DNL := forall X: Prop, ~ ~X -> X.
 Definition Peirce := forall X Y: Prop, ((X -> Y) -> X ) -> X.
+Definition BIL := forall X Y: Prop, (X -> Y) <-> (~X \/ Y).
 
 Goal DNL <-> LEM.
 Proof.
@@ -148,10 +150,18 @@ Proof.
   - intros H X Y H1. specialize (H X). tauto.
 Qed.
 
+Goal BIL <-> LEM.
+Proof.
+  split.
+  - intros H X.  specialize (H X X). tauto.
+  - intros H X Y. split. 2:tauto.
+    specialize (H X). tauto.
+Qed.
+
 (** Classical ND *)
 
 Reserved Notation "A |-c s" (at level 70).
-Inductive ndc A : form -> Type :=
+Inductive ndc A : For -> Type :=
 | ndcA s :                    s el A  ->  A |-c s
 | ndcC s :             -s::A |-c bot  ->  A |-c s
 | ndcII s t :             s::A |-c t  ->  A |-c s ~> t
@@ -191,7 +201,8 @@ Proof.
   - apply ndcC.
 Qed.
 
-Goal (forall A, dec (ndc A bot)) -> (forall A s, dec (ndc A s)).
+Fact ndc_dec_red_bot :
+  (forall A, dec (ndc A bot)) -> (forall A s, dec (ndc A s)).
 Proof.
   intros d A s.
   destruct (ndc_refute A s) as [H1 H2].
@@ -217,7 +228,8 @@ Proof.
     + intros H%IH. apply Impc, H.
 Qed.
 
-Goal (forall s, dec (ndc [] s)) -> (forall A s, dec (ndc A s)).
+Fact ndc_dec_red_empty :
+  (forall s, dec (ndc [] s)) -> (forall A s, dec (ndc A s)).
 Proof.
   intros d A s.
   destruct (reversionc A s) as [H1 H2].
@@ -319,7 +331,7 @@ Qed.
    
 (** Intuitionistic Hilbert system *)
 
-Inductive hil A : form -> Type :=
+Inductive hil A : For -> Type :=
 | hilA s :      s el A -> hil A s
 | hilMP s t :   hil A (s ~> t) -> hil A s -> hil A t
 | hilK s t :    hil A (s ~> t ~> s)
@@ -374,8 +386,8 @@ Proof.
   destruct ((x - y) + (y - x)) eqn:?; intuition lia.
 Qed.
 
-Lemma form_eqdec :
-  eqdec form.
+Lemma For_eqdec :
+  eqdec For.
 Proof.
   intros s t. unfold dec. revert t.
   induction s as [x| |s1 IH1 s2 IH2];
@@ -388,10 +400,10 @@ Proof.
       unfold dec; intuition congruence.
 Qed.
 
-Lemma el_sum s t A :
+Lemma mem_sum s t A :
   s el t::A -> (s = t) + (s el A).
 Proof.
-  destruct (form_eqdec s t) as [->|H].
+  destruct (For_eqdec s t) as [->|H].
   - auto.
   - intros H1. right. close.
 Qed.
@@ -401,7 +413,7 @@ Fact hilD s A t :
 Proof.
   induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
   - (* assumption rule *)
-    apply el_sum in H as [->|H].
+    apply mem_sum in H as [->|H].
     + apply hilI.
     + apply hilAK. apply hilA, H.
   - (* MP *)
@@ -491,7 +503,13 @@ Module Heyting.
 
 End Heyting.
 
-(* Boolean Entailment *)
+(** Boolean Entailment *)
+
+Notation "'Sigma' x .. y , p" :=
+  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
+    (at level 200, x binder, right associativity,
+     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
+    : type_scope.
 
 Implicit Types alpha : nat -> bool.
 
@@ -502,41 +520,391 @@ Fixpoint eva alpha s : bool :=
   | s1~>s2 => if eva alpha s1 then eva alpha s2 else true
   end.
 
-Fixpoint evac alpha A : bool :=
-  match A with
-  | nil => true
-  | s::A' => if eva alpha s then evac alpha A' else false
-  end.
-
-Definition ben A s : Prop :=
-  forall alpha, if evac alpha A then eva alpha s = true else True.
-          
+Abbreviation satF alpha s := (eva alpha s = true).
+Abbreviation satL alpha A := (forall s, s el A -> satF alpha s).
+Definition ben A s := forall alpha, satL alpha A -> satF alpha s.   
 Notation "A |= s" := (ben A s) (at level 70).
 
-Fact ben_impl A s t :
-  A |= s ~> t  <->  s::A |= t.
+Lemma satL_cons alpha s A :
+  satL alpha (s::A) <-> satF alpha s /\ satL alpha A.
 Proof.
-  split; intros H alpha; generalize (H alpha); cbn; destruct eva, eva, evac; trivial.
+  close.
 Qed.
 
-Fact ben_revert A s :
-  A |= s <-> [] |= revert A s.
+Fact ben_refute A s :
+  A |= s <-> -s::A |= bot.
 Proof.
-  induction A as [|u A IH] in s |-*; cbn [revert].
-  - tauto.
-  - split.
-    + intros H. apply IH, ben_impl, H.
-    + intros H. apply ben_impl, IH, H.
+  unfold ben.
+  split; intros H alpha.
+  - rewrite satL_cons. specialize (H alpha).
+    cbn. destruct (eva alpha s); close.
+  - specialize (H alpha). revert H.
+    rewrite satL_cons. cbn. destruct (eva alpha s); close.
 Qed.
 
+Fact ndc_sound {A s} :
+  A |-c s -> A |= s.
+Proof.
+  induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
+  all: intros alpha.
+  - auto.
+  - apply ben_refute, IH.
+  - specialize (IH alpha). rewrite satL_cons in IH.
+    cbn. destruct (eva alpha s); auto.
+  - intros H. specialize (IH1 alpha H). specialize (IH2 alpha H).
+    cbn in IH1. rewrite IH2 in IH1. exact IH1.
+Qed.
+
+Definition sat A := Sigma alpha, satL alpha A.
+
+Fact ben_unsat_bot A :
+  A |= bot <-> ~sat A.
+Proof.
+  split; intros H.
+  - intros [alpha H1]. specialize (H alpha H1). easy.
+  - intros alpha H1. exfalso. apply H. exists alpha. exact H1.
+Qed.
+
+Section Decidability_Completeness.
+  Variable solver : forall A, sat A + (A |-c bot).
+
+  Fact ndc_dec :
+    forall A s, dec (A |-c s).
+  Proof.
+    apply ndc_dec_red_bot.
+    intros A.
+    destruct (solver A) as [H|H].
+    - right. intros H1. revert H.
+      apply ben_unsat_bot, ndc_sound, H1.
+    - left. easy.
+  Qed.
+
+  Fact sat_dec :
+    forall A, dec (sat A).
+  Proof.
+    intros A.
+    destruct (solver A) as [H|H].
+    - left. easy.
+    - right. apply ben_unsat_bot, ndc_sound, H.
+  Qed.
+  
+  Fact ndc_ben A s :
+    A |-c s <=> A |= s.
+  Proof.
+    split.
+    - apply ndc_sound.
+    - intros H%ben_refute.
+      apply ndcC.
+      destruct (solver (-s::A)) as [H1|H1].
+      + exfalso.
+        assert (H2:= ben_unsat_bot (-s::A)).
+        tauto.
+      + easy.
+  Qed.
+End Decidability_Completeness.
+
+(** Presolver *)
+
+Definition solved A : Type :=
+  forall s, s el A -> Sigma x, (s = var x /\ -var x nel A) +
+                      (s = -var x /\ var x nel A).
+
+Definition clashed A : Type :=
+  (bot el A) + (Sigma s, s el A /\ -s el A).
+
+Lemma For_memdec s A :
+  dec (s el A).
+Proof.
+  unfold dec.
+  induction A as [|t A IH]; cbn.
+  - auto.
+  - destruct (For_eqdec t s) as [->|H]; close.
+Qed.
+
+Fact solved_sat A :
+  solved A -> sat A.
+Proof.
+  intros H.
+  exists (fun x => if For_memdec (var x) A then true else false).
+  intros s H1.
+  specialize (H s H1) as [x [[-> H]|[-> H]]]; cbn;
+    destruct For_memdec; easy.
+Qed.
+
+Fact clashed_refut A :
+  clashed A -> A |-c bot.
+Proof.
+  intros [H|(s&H1&H2)].
+  - ndcA.
+  - apply ndcIE with s; ndcA.
+Qed.
+
+Fact solved_var_pos A x:
+  solved A -> solved (var x :: A) + clashed (var x :: A).
+Proof.
+  intros H. 
+  destruct (For_memdec (-var x) A) as [H1|H1].
+  - right. close.
+  - left. intros s [->|H2] %mem_sum.
+    + exists x. left. close.
+    + specialize (H s H2) as [y H]. exists y. close.
+Qed.
+
+Fact solved_var_neg A x:
+  solved A -> solved (-var x :: A) + clashed (-var x :: A).
+Proof.
+intros H. 
+  destruct (For_memdec (var x) A) as [H1|H1].
+  - right. close.
+  - left. intros s [->|H2] %mem_sum.
+    + exists x. right. close.
+    + specialize (H s H2) as [y H]. exists y. close.
+Qed.
+
+Inductive decomposable : For -> Type :=
+| decomposableFn : decomposable (-bot)
+| decomposableIn s t : decomposable (-(s ~> t))
+| decomposableIp s t : t <> bot -> decomposable (s ~> t).
+
+Inductive formula : For -> Type :=
+| formulaVp x : formula (var x)
+| formulaVn x : formula (- var x)
+| formulaFp : formula bot
+| formulaD s : decomposable s -> formula s.
+
+Fact For_formula :
+  forall s, formula s.
+Proof.
+  destruct s as [x| |s t].
+  - constructor.
+  - constructor.
+  - destruct t as [x| |t1 t2].
+    + constructor. constructor. easy.
+    + destruct s as [x| |s1 s2].
+      * constructor.
+      * constructor. constructor.
+      * constructor. constructor.
+    + constructor. constructor. easy.
+Qed.
+
+Fact presolver :
+  forall A, (solved A + clashed A) + (Sigma B s C, (A = B ++ s::C) * decomposable s).
+Proof.
+  induction A as [|s A IH].
+  - left. left. easy. (* solved *)
+  - destruct IH as [[IH|IH]|IH].
+    + destruct (For_formula s) as [x|x| |s H].  (* solved *)
+      * left. apply solved_var_pos, IH.
+      * left. apply solved_var_neg, IH.
+      * left. right. close.
+      * right. exists [], s, A. easy.
+    + left. right. close.  (* clashed *)
+    + right. destruct IH as (B&t&C&IH1&IH2). (* decomposable *)
+      rewrite IH1. exists (s::B), t, C. easy.
+Qed.
+
+(** Derivation systems [sigma] and [rho] *)
+
+Inductive sigma : list For -> Type :=
+| sigma_solved A :
+  solved A -> sigma A
+| sigma_rot A B :
+  sigma (B++A) -> sigma (A++B)
+| sigma_bot A :
+  sigma A -> sigma (-bot::A) 
+| sigma_imp_pos1 s t A :
+  t <> bot -> sigma (-s::A) -> sigma (s~>t::A)
+| sigma_imp_pos2 s t A :
+  t <> bot -> sigma (t::A) -> sigma (s~>t::A)
+| sigma_imp_neg s t A :
+  sigma (s::-t::A) -> sigma (-(s~>t)::A).
+
+Inductive rho : list For -> Type :=
+| rho_clashed A :
+  clashed A -> rho A
+| rho_rot A B :
+  rho (B++A) -> rho (A++B) 
+| rho_bot A :
+  rho A -> rho (-bot::A) 
+| rho_imp_pos s t A :
+  t <> bot -> rho (-s::A) -> rho (t::A) -> rho (s~>t::A)
+| rho_imp_neg s t A :
+  rho (s::-t::A) -> rho (-(s~>t)::A).
+
+Fact sigma_sound A :
+  sigma A -> sat A.
+Proof.
+  induction 1 as
+    [A H|A B _ [alpha IH]|A _ [alpha IH]|s t A _ H [alpha IH]|s t A _ H [alpha IH]|s t A _ [alpha IH]].
+  - apply solved_sat, H.
+  - exists alpha. intros u H%in_app_iff. apply IH. apply in_app_iff. intuition.
+  - exists alpha. intros u [<-|H1]; close.
+  - exists alpha. intros u [<-|H1]. 2:close.
+    specialize (IH (-s)). cbn in *. destruct (eva alpha s); close.
+  - exists alpha. intros u [<- |H1]. 2:close.
+    specialize (IH t). cbn in *. destruct (eva alpha s); close.
+  - exists alpha. intros u [<- |H1]. 2:close.
+    assert (IHs:= IH s). specialize (IH (-t)). cbn in *. destruct (eva alpha s); close.
+Qed.
+
+Fact rho_sound A :
+  rho A -> (A |-c bot).
+Proof.
+  induction 1 as [A H|A B _ IH|A _ IH|s t A H _ IH1 _ IH2|s t A  _ IH1].
+  - apply clashed_refut, H.
+  - eapply Weakc. exact IH. intros u.
+    rewrite !in_app_iff. intuition.
+  - eapply Weakc. exact IH. close.
+  - apply ndcII in IH1. apply ndcII in IH2. apply Impc.
+    enough (H1: A |-c --s ~> -t ~> -(s ~> t)).
+    +  eapply ndcIE. 2:exact IH2.
+       eapply ndcIE; eassumption. 
+    + do 3 apply ndcII.
+      apply ndcIE with (-s). ndcA.
+      apply ndcII. apply ndcIE with t. ndcA.
+      apply ndcIE with s; ndcA.
+  - do 2 apply ndcII in IH1. apply Impc.
+    enough (H1: A |-c (-t ~> -s) ~> --(s ~> t)).
+    + eapply ndcIE. exact H1. exact IH1.
+    + do 2 apply ndcII.
+      eapply ndcIE with (s~>t). ndcA.
+      apply ndcII.  apply ndcC.
+      apply ndcIE with s. 2:ndcA.
+      apply ndcIE with (-t); ndcA.
+Qed.
+
+Fact solver :
+  (forall A, sigma A + rho A) -> forall A, sat A + (A |-c bot).
+Proof.
+  intros H A. specialize (H A) as [H|H].
+  - left. apply sigma_sound, H.
+  - right. apply rho_sound, H.
+Qed.
+
+(** Size induction *)
+ 
+Lemma size_ind {X} (sigma: X -> nat) (p: X -> Type) :
+  (forall x, (forall y, sigma y < sigma x -> p y) -> p x) -> forall x, p x.
+Proof.
+  intros H.
+  enough (forall n x, sigma x < n -> p x) by eauto.
+  induction n as [|n IH]. lia. (* CFE *)
+  intros x H1. apply H. intros y H2.
+  apply IH. lia.
+Qed.
+
+Fixpoint gammaF s : nat :=
+  match s with
+  | var _ => 1
+  | bot   => 1
+  | imp s t => S (gammaF s + gammaF t)
+  end.
+
+Definition gamma' s : nat :=
+  match s with
+  | -s => gammaF s
+  | s => gammaF s
+  end.
+
+Fixpoint gamma A : nat :=
+  match A with
+  | [] => 0
+  | s::A => gamma' s + gamma A
+  end.
+
+Lemma gamma_app A B :
+  gamma (A++B) = gamma A + gamma B.
+Proof.
+  induction A as [|s A IH]; cbn.
+  - reflexivity.
+  - rewrite IH. lia.
+Qed.
+
+Lemma gamma_In s t :
+  gamma' s + gamma' (-t) < gamma' (-(s ~>t)).
+Proof.
+  destruct s; cbn; try lia.
+  destruct s2; cbn; lia.
+Qed.
+
+Lemma gamma_Ipl s t :
+  t <> bot -> gamma' (-s) < gamma' (s ~>t).
+Proof.
+  destruct t; cbn; (easy||lia).
+Qed.
+
+Lemma gamma_Ipr s t :
+  t <> bot -> gamma' t < gamma' (s ~>t).
+Proof.
+  destruct t; cbn; try (easy||lia).
+  destruct t2; cbn; (easy||lia).
+Qed.
+
+(** Abstract solver *)
+
+Fact presolver' :
+  forall A, (solved A + clashed A)
+       + (Sigma s B, decomposable s
+                 * (gamma (s::B) = gamma A)
+                 * (sigma (s::B) -> sigma A)
+                 * (rho (s::B) -> rho A)).
+Proof.
+  intros A.
+  destruct (presolver A) as [H|H].
+  - left. exact H.
+  - right. destruct H as (B&s&C&->&H).
+    exists s, (C++B).
+    change (s::C++B) with ((s::C)++B).
+    repeat split.
+    + exact H.
+    + rewrite !gamma_app. lia.
+    + apply sigma_rot.
+    + apply rho_rot.
+Qed.
+
+Theorem abstract_solver :
+  forall A, sigma A + rho A.
+Proof.
+  apply (size_ind gamma).
+  intros A IH.
+  destruct (presolver' A) as [[H|H]|(s&B&[[H H1] H2]&H3)]. 
+  - left. apply sigma_solved, H.
+  - right. apply rho_clashed, H.
+  - destruct H as [|s t|s t H].
+    + specialize (IH B) as [IH|IH].
+      * rewrite <-H1. cbn. lia.
+      * left. apply H2, sigma_bot, IH.
+      * right. apply H3, rho_bot, IH.
+    + specialize (IH (s::-t::B)) as [IH|IH].
+      * rewrite <-H1. clear.
+        generalize (gamma_In s t). cbn; lia.
+      * left. apply H2, sigma_imp_neg, IH.
+      * right. apply H3, rho_imp_neg, IH.
+    + destruct (IH (-s::B)) as [IH1|IH1].
+      * rewrite <-H1. revert H. clear.
+        generalize (gamma_Ipl s t). cbn; intuition lia.
+      * left. apply H2, sigma_imp_pos1, IH1. easy.
+      * destruct (IH (t::B)) as [IH2|IH2].
+        -- rewrite <-H1. revert H. clear.
+           generalize (gamma_Ipr s t). cbn; intuition lia.
+        -- left. apply H2, sigma_imp_pos2, IH2. easy.
+        -- right. apply H3, rho_imp_pos; assumption.
+Qed.
+
+Corollary decidability :
+  forall A s, dec (A |-c s).
+Proof.
+  apply ndc_dec, solver, abstract_solver.
+Qed.
+
+Corollary agreement :
+  forall A s, A |-c s <=> A |= s.
+Proof.
+  apply ndc_ben, solver, abstract_solver.
+Qed.
+
+  
 (** Left Overs *)
-
-Notation "'Sigma' x .. y , p" :=
-  (sigT (fun x => .. (sigT (fun y => p%type)) ..))
-    (at level 200, x binder, right associativity,
-     format "'[' 'Sigma'  '/  ' x  ..  y ,  '/  ' p ']'")
-    : type_scope.
-
 
 Definition Peirce_ndc :=
   forall A s t, (s ~> t) :: A |-c s -> A |-c s.
@@ -563,11 +931,4 @@ Proof.
   apply Explosion, H1.
 Qed.
 
-Lemma form_memdec s A :
-  dec (s el A).
-Proof.
-  unfold dec.
-  induction A as [|t A IH]; cbn.
-  - auto.
-  - destruct (form_eqdec t s) as [->|H]; close.
-Qed.
+
