@@ -57,6 +57,13 @@ Proof.
   apply ndII. ndA.
 Qed.
 
+Fact nd_dn A s :
+  A |- s -> A |- --s.
+Proof.
+  intros H.
+  apply ndIE with s. 2:exact H.
+  apply ndII, ndII. apply ndIE with s; ndA.
+Qed.
 
 Fact nd_dn_bot A :
   A |- --bot -> A |- bot.
@@ -77,11 +84,10 @@ Proof.
   - apply ndIE with s. all: close.
 Qed.
 
-Fact nd_dn A s :
-  A |- s -> A |- --s.
+Goal forall A s, A |- s -> A |- --s.
 Proof.
-  intros H.
-  apply ndII. apply ndIE with s. ndA.
+  intros * H. apply ndII.
+  apply ndIE with s. ndA.
   apply Weak with A; close.
 Qed.
   
@@ -155,6 +161,26 @@ Proof.
     specialize (H X). tauto.
 Qed.
 
+(** Contra and Peirce in nd *)
+
+Definition Peirce_as_nd_rule :=
+  forall A s t, (s ~> t) :: A |- s -> A |- s.
+Definition Contra_as_nd_rule :=
+  forall A s , -s :: A |- bot  -> A |- s.
+
+Goal Peirce_as_nd_rule <=> Contra_as_nd_rule.
+Proof.
+  split.
+  - intros H A s H1.
+    specialize (H A s bot).
+    apply H. apply ndE. exact H1.
+  - intros H A s t.
+    intros H1 %ndII.
+    apply H. apply ndIE with s. ndA.
+    apply ndIE with (s~>t). apply Weak with A; close.
+    apply ndII. apply H. apply ndIE with s; ndA.
+Qed.
+
 (** Classical ND *)
 
 Reserved Notation "A |-c s" (at level 70).
@@ -167,7 +193,7 @@ where "A |-c s" := (ndc A s).
 
 Ltac ndcA := apply ndcA; close.
 
-Fact DN A s :
+Fact ndc_DN A s :
   A |-c --s ~> s.
 Proof.
   apply ndcII, ndcC.
@@ -248,33 +274,6 @@ Proof.
   - apply ndcIE with s. all:assumption.
 Qed.
 
-(** Peirce in ndc *)
-
-Definition Peirce_as_ndc_rule :=
-  forall A s t, (s ~> t) :: A |-c s -> A |-c s.
-Definition Contra_as_ndc_rule :=
-  forall A s , -s :: A |-c bot  -> A |-c s.
-
-Goal Peirce_as_ndc_rule.
-Proof.
-  intros A s t.
-  intros H %ndcII.
-  apply ndcC.
-  apply ndcIE with s. ndcA.
-  apply ndcIE with (s~>t).
-  + apply Weakc with A; close.
-  + apply ndcII, Explosion.
-    apply ndcIE with s; ndcA.
-Qed.
-
-Goal Peirce_as_ndc_rule -> Contra_as_ndc_rule.
-(* We use Explosion, but not Contra *)
-Proof.
-  intros H A s H1.
-  specialize (H A s bot). apply H.
-  apply Explosion. exact H1.
-Qed.
-
 (** Glivenko *)
 
 Lemma Glivenko' A s :
@@ -343,7 +342,7 @@ Inductive hil A : For -> Type :=
 | hilE s :      hil A (bot ~> s).
 
 Fact hil_nd A s :
-  hil A s -> nd A s.
+  hil A s -> A |- s.
 Proof.
   induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' t' |s' t' u |s'].
   - apply ndA, H.
@@ -416,22 +415,17 @@ Fact hilD s A t :
   hil (s::A) t -> hil A (s ~> t).
 Proof.
   induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
-  - (* assumption rule *)
-    apply mem_sum in H as [->|H].
+  - apply mem_sum in H as [->|H].  (* assumption rule *)
     + apply hilI.
     + apply hilAK. apply hilA, H.
-  - (* MP *)
-    revert IH1 IH2. apply hilAS.
-  - (* K *)
-    apply hilAK. apply hilK.
-  - (* S *)
-    apply hilAK. apply hilS.
-  - (* E *)
-    apply hilAK. apply hilE.
+  - revert IH1 IH2. apply hilAS.  (* MP *)
+  - apply hilAK. apply hilK.  (* K *)
+  - apply hilAK. apply hilS.  (* S *)
+  - apply hilAK. apply hilE.  (* E *)
 Qed.
 
 Fact nd_hil {A s} :
-  nd A s -> hil A s.
+  A |- s -> hil A s.
 Proof.
   induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
   - apply hilA, H.
@@ -479,30 +473,44 @@ Module Heyting.
     - cbn. destruct eva, eva, eva; easy.
     - cbn. reflexivity.
   Qed.
-  
-  Fact hil_DN x :
-    ~ hil [] (--var x ~> var x).
+
+  Fact nd_sound s :
+    [] |- s -> eva s = tt.
   Proof.
-    intros [=]%hil_sound.
+    intros H. apply hil_sound, nd_hil, H.
   Qed.
 
   Fact nd_DN x :
-    ~ [] |- --var x ~> var x.
+    ~ ([] |- --var x ~> var x).
   Proof.
-    intros H %nd_hil %hil_DN. exact H.
+    intros H%nd_sound. cbn in H. easy.
   Qed.
 
-  Corollary nd_consistent :
-    ~ [] |- bot.
+  Fact nd_Var x :
+    ~ ([] |- var x).
   Proof.
-    intros H. apply nd_DN with 0. apply ndE, H.
+    intros H%nd_sound. cbn in H. easy.
   Qed.
-  
-  Corollary ndc_consistent :
+
+  Fact nd_negVar x :
+    ~ ([] |- -var x).
+  Proof.
+    intros H%nd_sound. cbn in H. easy.
+  Qed.
+
+  Fact nd_consistent :
     ~ [] |-c bot.
   Proof.
-    intros H%refutation_agreement.
-    apply nd_consistent, H.
+    intros H %refutation_agreement %nd_sound. cbn in H. easy.
+  Qed.
+  
+  Fact ndc_unsound :
+    ~ (forall s, [] |-c s -> eva s = tt).
+  Proof.
+    intros H.
+    assert (H1:= ndc_DN [] (var 0)).
+    specialize (H _ H1).
+    cbn in H1. easy.
   Qed.
 
 End Heyting.
