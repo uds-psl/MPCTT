@@ -32,51 +32,38 @@ Inductive nd : list For -> For -> Type :=
 | ndIE A s t:  A |- s ~> t  ->  A |- s  ->  A |- t
 where "A |- s" := (nd A s).
 
+(* Two defined automation tactics *)
 Ltac close := cbn; auto; firstorder; intuition congruence.
 Ltac ndA := apply ndA; close.
 
 (** Constructing derivations with tactics is easy.
     One follows the construction of a meta proof *)                          
 
-Fact D1 A s:
-  A |- s ~> s.
+Goal forall A s, A |- s ~> s.
 Proof.
-  apply ndII. ndA.
+  intros *. apply ndII. ndA.
 Qed.
 
-Fact D2 s A:
-  s::A |- --s.
+Goal forall A s, s::A |- --s.
 Proof.
-  apply ndII.
+  intros *. apply ndII.
   apply ndIE with s.
   all:ndA.
 Qed.
 
-Fact D3 A :
-  --bot::A |- bot.
+Goal [] |- --bot ~> bot.
 Proof.
-  apply ndIE with (-bot). 1:ndA.
+  apply ndII. apply ndIE with (-bot). ndA.
   apply ndII. ndA.
 Qed.
 
-Goal forall A s t, A |- (-t ~> -s) ~> --(s ~> t).
-Proof.
-  intros *.
-  apply ndII, ndII.
-  apply ndIE with (s ~> t). 1:ndA.
-  apply ndII.
-  apply ndE.
-  apply ndIE with (s). 2:ndA.
-  apply ndIE with (-t). 1:ndA.
-  apply ndII.
-  apply ndIE with (s ~> t). 1:ndA.
-  apply ndII. ndA.
-Qed.
-  
-Fact bot_dn A :
+
+Fact nd_dn_bot A :
   A |- --bot -> A |- bot.
 Proof.
-  intros H. eapply ndIE. 1:exact H. apply ndII. ndA.
+  intros H.
+  apply ndIE with (-bot). exact H.
+  apply ndII. ndA.
 Qed.
 
 Fact Weak A B s :
@@ -85,15 +72,25 @@ Proof.
   induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2] in B |-*.
   all:intros H.
   - ndA.
-  - apply ndE. apply IH, H.
-  - apply ndII. apply IH. close.
-  - eapply ndIE. apply IH1, H. apply IH2, H.
+  - apply ndE. close.
+  - apply ndII. close.
+  - apply ndIE with s. all: close.
 Qed.
 
+Fact nd_dn A s :
+  A |- s -> A |- --s.
+Proof.
+  intros H.
+  apply ndII. apply ndIE with s. ndA.
+  apply Weak with A; close.
+Qed.
+  
 Fact ImpL A s t :
   A |- s~>t -> s::A |- t.
 Proof.
-  intros H. eapply ndIE. 2:ndA. eapply Weak. exact H. close.
+  intros H.
+  apply ndIE with s. 2:ndA.
+  apply Weak with A. exact H. close.
 Qed.
 
 Fact Imp A s t :
@@ -161,11 +158,11 @@ Qed.
 (** Classical ND *)
 
 Reserved Notation "A |-c s" (at level 70).
-Inductive ndc A : For -> Type :=
-| ndcA s :                    s el A  ->  A |-c s
-| ndcC s :             -s::A |-c bot  ->  A |-c s
-| ndcII s t :             s::A |-c t  ->  A |-c s ~> t
-| ndcIE s t :  A |-c s ~> t -> A |-c s  ->  A |-c t
+Inductive ndc : list For -> For -> Type :=
+| ndcA A s :                    s el A  ->  A |-c s
+| ndcC A s :             -s::A |-c bot  ->  A |-c s
+| ndcII A s t :             s::A |-c t  ->  A |-c s ~> t
+| ndcIE A s t :  A |-c s ~> t -> A |-c s  ->  A |-c t
 where "A |-c s" := (ndc A s).
 
 Ltac ndcA := apply ndcA; close.
@@ -173,7 +170,8 @@ Ltac ndcA := apply ndcA; close.
 Fact DN A s :
   A |-c --s ~> s.
 Proof.
-  apply ndcII, ndcC. eapply ndcIE. all:ndcA.
+  apply ndcII, ndcC.
+  apply ndcIE with (-s). all:ndcA.
 Qed.
 
 Fact Weakc A B s :
@@ -182,27 +180,29 @@ Proof.
   induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2] in B |-*.
   all:intros H.
   - ndcA.
-  - apply ndcC. apply IH. close.
-  - apply ndcII. apply IH. close.
-  - eapply ndcIE. apply IH1, H. apply IH2, H.
+  - apply ndcC. close.
+  - apply ndcII. close.
+  - apply ndcIE with s. all:close. 
 Qed.
 
 Lemma Explosion A s :
   A |-c bot -> A |-c s.
 Proof.
-  intros H. apply ndcC. eapply Weakc. exact H. close.
+  intros H. apply ndcC.
+  apply Weakc with A; close.
 Qed.
 
 Fact ndc_refute A s :
   A |-c s <=> -s::A |-c bot.
 Proof.
   split.
-  - intros H. eapply ndcIE. ndcA. eapply Weakc. exact H. close.
+  - intros H.
+    apply ndcIE with s. ndcA. apply Weakc with A; close.
   - apply ndcC.
 Qed.
 
 Fact ndc_dec_red_bot :
-  (forall A, dec (ndc A bot)) -> (forall A s, dec (ndc A s)).
+  (forall A, dec (A |-c bot)) -> (forall A s, dec (A |-c s)).
 Proof.
   intros d A s.
   destruct (ndc_refute A s) as [H1 H2].
@@ -214,7 +214,8 @@ Fact Impc A s t :
   A |-c s~>t <=> s::A |-c t.
 Proof.
   split.
-  - intros H. eapply ndcIE. 2:ndcA. eapply Weakc. exact H. close.
+  - intros H. apply ndcIE with s. 2:ndcA.
+    apply Weakc with A. all: close.
   - apply ndcII.
 Qed.
 
@@ -224,12 +225,12 @@ Proof.
   induction A as [|u A IH] in s |-*; cbn.
   - hnf; auto.
   - split.
-    + intros H%ndcII%IH. exact H.
-    + intros H%IH. apply Impc, H.
+    + intros H. apply IH, ndcII, H.
+    + intros H. apply Impc, IH, H.
 Qed.
 
 Fact ndc_dec_red_empty :
-  (forall s, dec (ndc [] s)) -> (forall A s, dec (ndc A s)).
+  (forall s, dec ([] |-c s)) -> (forall A s, dec (A |-c s)).
 Proof.
   intros d A s.
   destruct (reversionc A s) as [H1 H2].
@@ -244,55 +245,60 @@ Proof.
   - ndcA.
   - apply Explosion, IH.
   - apply ndcII, IH.
-  - eapply ndcIE. 1,2:eassumption.
+  - apply ndcIE with s. all:assumption.
+Qed.
+
+(** Peirce in ndc *)
+
+Definition Peirce_as_ndc_rule :=
+  forall A s t, (s ~> t) :: A |-c s -> A |-c s.
+Definition Contra_as_ndc_rule :=
+  forall A s , -s :: A |-c bot  -> A |-c s.
+
+Goal Peirce_as_ndc_rule.
+Proof.
+  intros A s t.
+  intros H %ndcII.
+  apply ndcC.
+  apply ndcIE with s. ndcA.
+  apply ndcIE with (s~>t).
+  + apply Weakc with A; close.
+  + apply ndcII, Explosion.
+    apply ndcIE with s; ndcA.
+Qed.
+
+Goal Peirce_as_ndc_rule -> Contra_as_ndc_rule.
+(* We use Explosion, but not Contra *)
+Proof.
+  intros H A s H1.
+  specialize (H A s bot). apply H.
+  apply Explosion. exact H1.
 Qed.
 
 (** Glivenko *)
-
-Lemma Gliv0 A s :
-  A |- (-s ~> --bot) ~> --s.
-Proof.
-  apply ndII, ndII.
-  apply ndIE with (-bot).
-  - apply ndIE with (-s); ndA.
-  - apply ndII; ndA.
-Qed.
-
-Lemma Gliv1 A s t :
-  A |- (s ~> - - t) ~> - - (s ~> t).
-Proof.
-  apply ndII, ndII.
-  apply ndIE with (s~>t). 1:ndA.
-  apply ndII, ndE.
-  apply ndIE with (-t).
-  - apply ndIE with s; ndA.
-  - apply ndII.
-    apply ndIE with (s~>t). 1:ndA.
-    apply ndII. ndA.
-Qed.
-
-Lemma Gliv2 A s t :
-  A |- --(s ~> t) ~> --s ~> --t.
-Proof.
-  apply ndII, ndII, ndII.
-  apply ndIE with (-s). 1:ndA.
-  apply ndII.
-  apply ndIE with (-(s~>t)). 1:ndA.
-  apply ndII.
-  apply ndIE with t. 1:ndA.
-  apply ndIE with s; ndA.
-Qed.
 
 Lemma Glivenko' A s :
   A |-c s -> A |- --s.
 Proof.
   induction 1 as [A s H1|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
-  - apply ndII. eapply ndIE. ndA. ndA.
-  - eapply ndIE. { apply Gliv0. } apply ndII, IH.
-  - apply Imp in IH.
-    eapply ndIE. 2:exact IH. apply Gliv1.
-  - eapply ndIE. 2:exact IH2.
-    eapply ndIE. 2:exact IH1. apply Gliv2.
+  - apply nd_dn. ndA.
+  - apply ndII in IH.
+    apply ndIE with (-s ~> --bot). 2:exact IH.
+    apply ndII, ndII. apply nd_dn_bot.
+    apply ndIE with (-s). all:ndA.
+  - apply ndII. apply ndII in IH.
+    apply ndIE with (s ~> t). ndA. apply ndII. apply ndE.
+    apply ndIE with (-t).
+    + apply ndIE with s. 2:ndA.
+      apply Weak with A; close.
+    + apply ndII. apply ndIE with (s ~> t). ndA.
+      apply ndII. ndA.
+  - apply ndII. apply ndIE with (-s).
+    + apply Weak with A. exact IH2. close.
+    + apply ndII. apply ndIE with (-(s~>t)).
+      * apply Weak with A; close.
+      * apply ndII. apply ndIE with t. ndA.
+        apply ndIE with s; ndA.
 Qed.
 
 Theorem Glivenko A s :
@@ -300,16 +306,15 @@ Theorem Glivenko A s :
 Proof.
   split.
   - apply Glivenko'.
-  - intros H%Translation.
-    eapply ndcIE. 2:exact H. apply DN.
-Qed.
+  - intros H%Translation. apply ndcC. apply Impc, H. 
+ Qed.
 
 Fact refutation_agreement A :
   A |- bot <=> A |-c bot.
 Proof.
   split.
   - apply Translation.
-  - intros H%Glivenko. apply bot_dn, H.
+  - intros H%Glivenko. apply nd_dn_bot, H.
 Qed.
 
 Fact negated_formula_agreement A s :
@@ -322,13 +327,12 @@ Proof.
 Qed.
 
 Fact equiconsistency :
-  (([] |- bot) -> False) <-> (([] |-c bot) -> False).
+  ~([] |- bot) <-> ~([] |-c bot).
 Proof.
   split; intros H; contradict H; apply refutation_agreement; assumption.
 Qed.
 
 
-   
 (** Intuitionistic Hilbert system *)
 
 Inductive hil A : For -> Type :=
@@ -343,12 +347,12 @@ Fact hil_nd A s :
 Proof.
   induction 1 as [s' H |s' t' H1 IH1 H2 IH2 |s' t' |s' t' u |s'].
   - apply ndA, H.
-  - eapply ndIE; eassumption.
+  - apply ndIE with s'; assumption.
   - apply ndII, ndII. ndA.
   - apply ndII, ndII, ndII.
-    apply ndIE with (s:= t');
-      apply ndIE with (s:= s');
-      ndA.
+    apply ndIE with t'.
+    + apply ndIE with s'; ndA.
+    + apply ndIE with s'; ndA.
   - apply ndII, ndE. ndA.
 Qed.
 
@@ -417,7 +421,7 @@ Proof.
     + apply hilI.
     + apply hilAK. apply hilA, H.
   - (* MP *)
-    eapply hilAS. exact IH1. exact IH2.
+    revert IH1 IH2. apply hilAS.
   - (* K *)
     apply hilAK. apply hilK.
   - (* S *)
@@ -433,7 +437,7 @@ Proof.
   - apply hilA, H.
   - apply hilAF, IH. 
   - apply hilD, IH.
-  - eapply hilMP. exact IH1. exact IH2.
+  - apply hilMP with s; assumption. 
 Qed.
 
 (** Heyting evaluation *)
@@ -752,25 +756,19 @@ Fact rho_sound A :
 Proof.
   induction 1 as [A H|A B _ IH|A _ IH|s t A H _ IH1 _ IH2|s t A  _ IH1].
   - apply clashed_refut, H.
-  - eapply Weakc. exact IH. intros u.
-    rewrite !in_app_iff. intuition.
-  - eapply Weakc. exact IH. close.
-  - apply ndcII in IH1. apply ndcII in IH2. apply Impc.
-    enough (H1: A |-c --s ~> -t ~> -(s ~> t)).
-    +  eapply ndcIE. 2:exact IH2.
-       eapply ndcIE; eassumption. 
-    + do 3 apply ndcII.
-      apply ndcIE with (-s). ndcA.
-      apply ndcII. apply ndcIE with t. ndcA.
-      apply ndcIE with s; ndcA.
-  - do 2 apply ndcII in IH1. apply Impc.
-    enough (H1: A |-c (-t ~> -s) ~> --(s ~> t)).
-    + eapply ndcIE. exact H1. exact IH1.
-    + do 2 apply ndcII.
-      eapply ndcIE with (s~>t). ndcA.
-      apply ndcII.  apply ndcC.
-      apply ndcIE with s. 2:ndcA.
-      apply ndcIE with (-t); ndcA.
+  - apply Weakc with (B++A). exact IH.
+    intros s. rewrite !in_app_iff. close.
+  - apply Weakc with A; close.
+  - apply ndcII in IH1. apply ndcII in IH2.
+    apply ndcIE with (-s). apply Weakc with A; close.
+    apply ndcII.
+    apply ndcIE with t. apply Weakc with A; close.
+    apply ndcIE with s; ndcA.
+  - do 2 apply ndcII in IH1.
+    apply ndcIE with (s~>t). ndcA. apply ndcII.
+    apply ndcC. apply ndcIE with s. 2:ndcA.
+    apply ndcIE with (-t). 2:ndcA.
+    apply Weakc with A; close.
 Qed.
 
 Fact solver :
@@ -901,34 +899,6 @@ Corollary agreement :
   forall A s, A |-c s <=> A |= s.
 Proof.
   apply ndc_ben, solver, abstract_solver.
-Qed.
-
-  
-(** Left Overs *)
-
-Definition Peirce_ndc :=
-  forall A s t, (s ~> t) :: A |-c s -> A |-c s.
-Definition Contra_ndc :=
-  forall A s , -s :: A |-c bot  -> A |-c s.
-
-Goal Peirce_ndc.
-Proof.
-  intros A s t.
-  intros H %ndcII.
-  apply ndcC.
-  apply ndcIE with s. ndcA.
-  apply ndcIE with (s~>t).
-  { eapply Weakc. exact H. close. }
-  apply ndcII, Explosion.
-  apply ndcIE with s; ndcA.
-Qed.
-
-Goal Peirce_ndc -> Contra_ndc.
-(* We use Explosion, but not Contra *)
-Proof.
-  intros H A s H1.
-  specialize (H A s bot). apply H. clear H.
-  apply Explosion, H1.
 Qed.
 
 
