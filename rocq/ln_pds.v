@@ -227,6 +227,21 @@ Proof.
   - apply ndcC.
 Qed.
 
+Fact ndc_cases A s t :
+  s::A |-c t -> -s::A |-c t -> A |-c t.
+Proof.
+  intros H1 H2.
+  apply ndcII in H1. apply ndcII in H2.
+  apply ndcC.
+  apply ndcIE with t. ndcA. 
+  apply ndcIE with (-s).
+  - apply Weakc with A. all:close.
+  - apply ndcII.
+    apply ndcIE with t. ndcA.
+    apply ndcIE with s. apply Weakc with A; close.
+    apply ndcC. apply ndcIE with s. all:ndcA.
+Qed.
+  
 Fact ndc_dec_red_bot :
   (forall A, dec (A |-c bot)) -> (forall A s, dec (A |-c s)).
 Proof.
@@ -369,7 +384,7 @@ Proof.
   intros H. apply hilMP. revert H. apply hilMP. apply hilS.
 Qed.
 
-Fact hilAF A s :
+Fact hilAE A s :
   hil A bot -> hil A s.
 Proof.
   apply hilMP, hilE.
@@ -429,7 +444,7 @@ Fact nd_hil {A s} :
 Proof.
   induction 1 as [A s H|A s _ IH|A s t _ IH|A s t _ IH1 _ IH2].
   - apply hilA, H.
-  - apply hilAF, IH. 
+  - apply hilAE, IH. 
   - apply hilD, IH.
   - apply hilMP with s; assumption. 
 Qed.
