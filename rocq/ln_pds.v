@@ -239,7 +239,7 @@ Proof.
   - apply ndcII.
     apply ndcIE with t. ndcA.
     apply ndcIE with s. apply Weakc with A; close.
-    apply ndcC. apply ndcIE with s. all:ndcA.
+    ndcA.
 Qed.
   
 Fact ndc_dec_red_bot :
