@@ -846,8 +846,6 @@ Proof.
   destruct t2; cbn; (easy||lia).
 Qed.
 
-(** Abstract solver *)
-
 Fact presolver' :
   forall A, (solved A + clashed A)
        + (Sigma s B, decomposable s
