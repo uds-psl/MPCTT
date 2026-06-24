@@ -2,6 +2,7 @@ Notation "~ X" := (X -> False) (at level 75, right associativity) : type_scope.
 Definition iffT (X Y: Type) : Type := (X -> Y) * (Y -> X).
 Notation "X <=> Y" := (iffT X Y) (at level 95, no associativity).
 Definition dec (X: Type) : Type := X + (~X).
+Definition eqdec X := forall x y: X, dec (x = y).
 From Stdlib Require Import Lia List.
 Import ListNotations.
 Notation "x 'el' A" := (In x A) (at level 70).
@@ -370,6 +371,45 @@ Proof.
   - apply ndII, ndE. ndA.
 Qed.
 
+(** Deciders for formulas *)
+
+Definition nat_eqdec: eqdec nat.
+Proof.
+  intros x y. unfold dec.
+  destruct ((x - y) + (y - x)) eqn:?; intuition lia.
+Qed.
+
+Lemma For_eqdec :
+  eqdec For.
+Proof.
+  intros s t. unfold dec. revert t.
+  induction s as [x| |s1 IH1 s2 IH2];
+    destruct t as [y| |t1 t2];
+    unfold dec; try intuition congruence.
+  - destruct (nat_eqdec x y) as [H|H];
+      unfold dec; intuition congruence.
+  - destruct (IH1 t1) as [H1|H1],
+        (IH2 t2) as [H2|H2];
+      unfold dec; intuition congruence.
+Qed.
+
+Lemma For_mem_sum s t A :
+  s el t::A -> (s = t) + (s el A).
+Proof.
+  destruct (For_eqdec s t) as [->|H].
+  - auto.
+  - intros H1. right. close.
+Qed.
+
+Lemma For_mem_dec s A :
+  dec (s el A).
+Proof.
+  unfold dec.
+  induction A as [|t A IH]; cbn.
+  - auto.
+  - destruct (For_eqdec t s) as [->|H]; close.
+Qed.
+
 (** ND Completeness of intuitionistic Hilbert system *)
 
 Fact hilAK A s t :
@@ -397,40 +437,11 @@ Proof.
   all: apply hilK.
 Qed.
 
-Definition eqdec X := forall x y: X, dec (x = y).
-Definition nat_eqdec: eqdec nat.
-Proof.
-  intros x y. unfold dec.
-  destruct ((x - y) + (y - x)) eqn:?; intuition lia.
-Qed.
-
-Lemma For_eqdec :
-  eqdec For.
-Proof.
-  intros s t. unfold dec. revert t.
-  induction s as [x| |s1 IH1 s2 IH2];
-    destruct t as [y| |t1 t2];
-    unfold dec; try intuition congruence.
-  - destruct (nat_eqdec x y) as [H|H];
-      unfold dec; intuition congruence.
-  - destruct (IH1 t1) as [H1|H1],
-        (IH2 t2) as [H2|H2];
-      unfold dec; intuition congruence.
-Qed.
-
-Lemma mem_sum s t A :
-  s el t::A -> (s = t) + (s el A).
-Proof.
-  destruct (For_eqdec s t) as [->|H].
-  - auto.
-  - intros H1. right. close.
-Qed.
-
 Fact hilD s A t :
   hil (s::A) t -> hil A (s ~> t).
 Proof.
   induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
-  - apply mem_sum in H as [->|H].  (* assumption rule *)
+  - apply For_mem_sum in H as [->|H].  (* assumption rule *)
     + apply hilI.
     + apply hilAK. apply hilA, H.
   - revert IH1 IH2. apply hilAS.  (* MP *)
@@ -639,23 +650,14 @@ Definition solved A : Type :=
 Definition clashed A : Type :=
   (bot el A) + (Sigma s, s el A /\ -s el A).
 
-Lemma For_memdec s A :
-  dec (s el A).
-Proof.
-  unfold dec.
-  induction A as [|t A IH]; cbn.
-  - auto.
-  - destruct (For_eqdec t s) as [->|H]; close.
-Qed.
-
 Fact solved_sat A :
   solved A -> sat A.
 Proof.
   intros H.
-  exists (fun x => if For_memdec (var x) A then true else false).
+  exists (fun x => if For_mem_dec (var x) A then true else false).
   intros s H1.
   specialize (H s H1) as [x [[-> H]|[-> H]]]; cbn;
-    destruct For_memdec; easy.
+    destruct For_mem_dec; easy.
 Qed.
 
 Fact clashed_refut A :
@@ -670,9 +672,9 @@ Fact solved_var_pos A x:
   solved A -> solved (var x :: A) + clashed (var x :: A).
 Proof.
   intros H. 
-  destruct (For_memdec (-var x) A) as [H1|H1].
+  destruct (For_mem_dec (-var x) A) as [H1|H1].
   - right. close.
-  - left. intros s [->|H2] %mem_sum.
+  - left. intros s [->|H2] %For_mem_sum.
     + exists x. left. close.
     + specialize (H s H2) as [y H]. exists y. close.
 Qed.
@@ -681,9 +683,9 @@ Fact solved_var_neg A x:
   solved A -> solved (-var x :: A) + clashed (-var x :: A).
 Proof.
 intros H. 
-  destruct (For_memdec (var x) A) as [H1|H1].
+  destruct (For_mem_dec (var x) A) as [H1|H1].
   - right. close.
-  - left. intros s [->|H2] %mem_sum.
+  - left. intros s [->|H2] %For_mem_sum.
     + exists x. right. close.
     + specialize (H s H2) as [y H]. exists y. close.
 Qed.
