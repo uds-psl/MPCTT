@@ -489,10 +489,12 @@ Module Heyting.
     | s1~>s2 => impl (eva s1) (eva s2)
     end.
 
+  Compute forall x, eva (--(var x) ~> var x) = uu.
+
   Fact hil_sound s :
     hil [] s -> eva s = tt.
   Proof.
-    induction 1 as [s' H |s' t' _ IH1 _ IH2 |s' t' |s' t' u |s'].
+    induction 1 as [s H |s t _ IH1 _ IH2 |s t |s t u |s].
     - exfalso. apply H.
     - cbn in IH1. destruct eva, eva; easy.
     - cbn. destruct eva, eva; easy.
