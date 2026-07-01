@@ -110,7 +110,6 @@ Qed.
 
 Section EWO.
   Variable p: nat -> Prop.
-  Variable d : decider p.
 
   Let R x y := x = S y /\ ~p y.
 
@@ -136,8 +135,9 @@ Section EWO.
   Qed.
 
   Fact ewo_Acc_sig :
-    forall x, Acc R x -> sig p.
+    decider p -> forall x, Acc R x -> sig p.
   Proof.
+    intros d.
     induction 1 as [x _ IH].
      destruct (d x) as [H|H].
     + eauto.
@@ -145,10 +145,10 @@ Section EWO.
   Qed.
 
   Fact ewo_nat :
-    ex p -> sig p.
+    decider p -> ex p -> sig p.
   Proof.
-    intros H.
-    apply (ewo_Acc_sig 0).
+    intros d H.
+    apply (ewo_Acc_sig d 0).
     destruct H as [x H].  (* Acc propositional *)
     apply ewo_Acc_O with x.
     apply ewo_Acc_init. exact H.
